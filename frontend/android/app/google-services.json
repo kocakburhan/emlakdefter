@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "304007762415",
+    "project_id": "emlakdefter",
+    "storage_bucket": "emlakdefter.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:304007762415:android:b1b1ea8712cfbec264e61a",
+        "android_client_info": {
+          "package_name": "com.example.frontend"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD3w3x06s6S2q9DVrIOjTDmOPTQR5E9-fI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,55 @@
+from pydantic import BaseModel, UUID4, Field, NonNegativeInt
+from typing import Optional, Dict, Any, List
+from datetime import datetime
+
+class PropertyUnitBase(BaseModel):
+    """Ortak Daire/Birim iskeleti"""
+    door_number: str
+    floor: Optional[str] = None
+    dues_amount: NonNegativeInt = Field(0, description="Motor tarafından binadan miras alınacak aidat")
+
+class PropertyUnitCreate(PropertyUnitBase):
+    pass
+
+class PropertyUnitResponse(PropertyUnitBase):
+    id: UUID4
+    agency_id: UUID4
+    property_id: UUID4
+    status: str
+    vacant_since: Optional[datetime] = None
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class PropertyCreate(BaseModel):
+    """Emlakçının UI formundan doldurup göndereceği paket"""
+    name: str = Field(..., description="Mülk Adı (Örn: Güneş Sitesi veya Hobi Bahçesi)")
+    type: str = Field(..., description="'building' veya 'single'")
+    address: Optional[str] = None
+    central_dues: NonNegativeInt = Field(0, description="Dairelere miras bırakılacak varsayılan aidat")
+    features: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Asansör, Havuz gibi JSON miras özellikleri")
+    
+    # Sistemin can damarı: Otonom Generative Parameters (Asimetrik Üretim)
+    start_floor: Optional[int] = Field(None, description="Başlangıç katı (Örn: -2 Otopark katları dahil)")
+    end_floor: Optional[int] = Field(None, description="Bitiş katı (Örn: 10)")
+    units_per_floor: Optional[int] = Field(None, description="Her kattaki daire kapasitesi (Örn: 4)")
+
+class PropertyResponse(BaseModel):
+    """Ana bina listeleme yanıt DTO'su"""
+    id: UUID4
+    agency_id: UUID4
+    name: str
+    type: str
+    address: Optional[str]
+    total_units: int
+    central_dues: int
+    features: Optional[Dict[str, Any]]
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class PropertyWithUnitsResponse(PropertyResponse):
+    """Bina detayına girildiğinde üretilen yüzlerce birimin de listelendiği şişkin DTO"""
+    units: List[PropertyUnitResponse] = []

@@ -1,0 +1,27 @@
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: emlakdefteri_db
+    restart: always
+    environment:
+      POSTGRES_USER: emlakdefteri_user
+      POSTGRES_PASSWORD: emlakdefteri_password
+      POSTGRES_DB: emlakdefteri
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: emlakdefteri_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
