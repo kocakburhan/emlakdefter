@@ -125,7 +125,7 @@
 | # | Görev | PRD | Efor |
 |---|---|---|---|
 | 1 | Dashboard KPI endpoint + mock→API | 4.1.1 | 1 gün |
-| 2 | Finance provider mock→API | 4.1.5 | 1 gün |
+| 2 | ~~Finance provider mock→API~~ | ✅ Tamamlandı |
 | 3 | Support provider mock→API | 4.1.7 | 1 gün |
 | 4 | Tenant provider'lar mock→API | 4.2.x | 1 gün |
 | 5 | Daire Detay Ekranı (UI+API) | 4.1.3 | 2 gün |
@@ -170,6 +170,9 @@
 - Bug fix: `ContractStatus` enum + `AsyncSessionLocal` import düzeltmeleri
 - GitHub'a push: `github.com/kocakburhan/emlakdefter`
 - Kapsamlı envanter raporu yazıldı
+- **Finance Mock -> API:** `finance_provider.dart` mock veriden kurtarıldı. `file_picker` eklendi ve gerçek `ApiClient.dio.post` bağlandı.
+- **Backend Finance Update:** `endpoints/finance.py` ve `schemas/finance.py` güncellendi, gerçek DB modelleriyle uçtan uca bağlandı.
+- **Test:** API root ve Properties uçsuz auth guard testleri yapıldı. Firebase Phone Auth için tarafınızdan console onayı bekleniyor.
 
 ### 8 Nisan 2026 — Öğle Oturumu
 - **Auth köprüsü:** `deps.py` Firebase token doğrulama + `get_current_user_agency_id`

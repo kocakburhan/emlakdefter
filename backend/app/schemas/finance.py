@@ -39,3 +39,39 @@ class ManualTransactionCreate(BaseModel):
     amount: float
     transaction_date: date
     description: Optional[str] = None
+
+class TransactionResponse(BaseModel):
+    id: UUID4
+    agency_id: UUID4
+    property_id: Optional[UUID4] = None
+    unit_id: Optional[UUID4] = None
+    tenant_id: Optional[UUID4] = None
+    type: TransactionTypeEnum
+    category: TransactionCategoryEnum
+    amount: float
+    currency: str
+    transaction_date: date
+    description: Optional[str] = None
+    receipt_url: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class TransactionListResponse(BaseModel):
+    transactions: List[TransactionResponse]
+    total_income: float
+    total_expense: float
+    net_balance: float
+    count: int
+
+class PaymentScheduleResponse(BaseModel):
+    id: UUID4
+    tenant_id: UUID4
+    amount: float
+    paid_amount: float
+    due_date: date
+    category: TransactionCategoryEnum
+    status: str
+
+    class Config:
+        from_attributes = True
