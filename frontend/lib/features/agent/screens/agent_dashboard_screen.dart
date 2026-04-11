@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/colors.dart';
+import '../../../core/theme/colors.dart';
 import '../tabs/home_tab.dart';
-import '../tabs/properties_tab.dart'; // Phase 7.D Added
-import '../tabs/finance_tab.dart';    // Phase 7.E Added
-import '../tabs/support_tab.dart';    // Phase 7.F Added
+import '../tabs/properties_tab.dart';
+import '../tabs/finance_tab.dart';
+import '../tabs/support_tab.dart';
+import '../tabs/building_operations_tab.dart';
+import '../tabs/chat_tab.dart';
 
 class AgentDashboardScreen extends StatefulWidget {
   const AgentDashboardScreen({Key? key}) : super(key: key);
@@ -15,12 +17,13 @@ class AgentDashboardScreen extends StatefulWidget {
 class _AgentDashboardScreenState extends State<AgentDashboardScreen> {
   int _currentIndex = 0;
 
-  // Tüm alt panellerin tam kapasite (Prod-Ready) listesi!
   final List<Widget> _pages = [
-    const HomeTab(),       // 1. Özet / Home
-    const PropertiesTab(), // 2. Binalarımız
-    const FinanceTab(),    // 3. Dosya Okuma ve Tahsilat
-    const SupportTab(),    // 4. Müşteri (Kiracı) Masası Aktif!
+    const HomeTab(),
+    const PropertiesTab(),
+    const FinanceTab(),
+    const SupportTab(),
+    const BuildingOperationsTab(),
+    const ChatTab(),
   ];
 
   @override
@@ -66,6 +69,8 @@ class _AgentDashboardScreenState extends State<AgentDashboardScreen> {
               BottomNavigationBarItem(icon: Icon(Icons.business), label: "Binalarım"),
               BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet), label: "Finans"),
               BottomNavigationBarItem(icon: Icon(Icons.confirmation_number), label: "Destek"),
+              BottomNavigationBarItem(icon: Icon(Icons.engineering_outlined), label: "Operasyon"),
+              BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: "Sohbet"),
             ],
           ),
         ),

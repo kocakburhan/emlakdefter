@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/colors.dart';
 import '../providers/dashboard_provider.dart';
+import '../screens/bi_analytics_screen.dart';
 
 class HomeTab extends ConsumerWidget {
   const HomeTab({Key? key}) : super(key: key);
@@ -33,7 +34,21 @@ class HomeTab extends ConsumerWidget {
                   radius: 24,
                   backgroundColor: AppColors.surface,
                   child: Icon(Icons.apartment, color: AppColors.accent, size: 28),
-                )
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const BIAnalyticsScreen()));
+                  },
+                  icon: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.analytics_rounded, color: AppColors.accent, size: 22),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 32),
@@ -49,19 +64,19 @@ class HomeTab extends ConsumerWidget {
                     children: [
                        // Büyük "Wow Effect" Tahsilat Kartı (Apple Wallet Tarzı)
                        _buildHeroCard(
-                         context, 
-                         title: "Aylık Toplanan Aidat / Kira", 
-                         value: "${metrics.totalRevenue.toStringAsFixed(2)} ₺", 
+                         context,
+                         title: "Aylık Toplanan Aidat / Kira",
+                         value: "${metrics.totalMonthlyRent.toStringAsFixed(2)} ₺",
                          subtitle: "Mükemmel Tahsilat Oranı: %${metrics.collectionRate}"
                        ),
                        const SizedBox(height: 16),
-                       
+
                        // Bina (Properties) ve Boş Daire Kartı
                        Row(
                          children: [
-                            Expanded(child: _buildMiniKpiCard(context, icon: Icons.business, title: "Siteniz / Binanız", value: "${metrics.activeProperties}", color: AppColors.accent)),
+                            Expanded(child: _buildMiniKpiCard(context, icon: Icons.business, title: "Siteniz / Binanız", value: "${metrics.totalProperties}", color: AppColors.accent)),
                             const SizedBox(width: 16),
-                            Expanded(child: _buildMiniKpiCard(context, icon: Icons.door_back_door, title: "Boştaki Daire", value: "${metrics.emptyUnits}", color: AppColors.warning)),
+                            Expanded(child: _buildMiniKpiCard(context, icon: Icons.door_back_door, title: "Boştaki Daire", value: "${metrics.vacantUnits}", color: AppColors.warning)),
                          ],
                        ),
                        const SizedBox(height: 16),

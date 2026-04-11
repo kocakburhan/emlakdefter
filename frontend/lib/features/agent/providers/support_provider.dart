@@ -1,109 +1,156 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
+import '../../../core/network/api_client.dart';
 
-enum TicketStatus { critical, pending, resolved }
+enum TicketStatus { open, inProgress, resolved, closed }
 
 class ChatMessage {
+  final String id;
   final String text;
-  final bool isMe; // Emlakçı/Agent (Ben) mi gönderdim?
-  final String time;
+  final bool isMe;
+  final DateTime time;
 
-  ChatMessage({required this.text, required this.isMe, required this.time});
+  ChatMessage({required this.id, required this.text, required this.isMe, required this.time});
+
+  factory ChatMessage.fromJson(Map<String, dynamic> json, String? currentUserId) {
+    return ChatMessage(
+      id: json['id'] ?? '',
+      text: json['message'] ?? '',
+      isMe: false,
+      time: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at']) ?? DateTime.now()
+          : DateTime.now(),
+    );
+  }
 }
 
 class TicketModel {
   final String id;
   final String title;
-  final String tenantName;
-  final String location; // Örn: Yıldız Sitesi B1/4
+  final String? description;
+  final String? tenantName;
+  final String? location;
+  final String priority;
   final TicketStatus status;
+  final DateTime createdAt;
   final List<ChatMessage> messages;
 
   TicketModel({
     required this.id,
     required this.title,
-    required this.tenantName,
-    required this.location,
+    this.description,
+    this.tenantName,
+    this.location,
+    required this.priority,
     required this.status,
-    required this.messages,
+    required this.createdAt,
+    this.messages = const [],
   });
 
-  TicketModel copyWith({TicketStatus? status, List<ChatMessage>? messages}) {
-     return TicketModel(
-       id: id,
-       title: title,
-       tenantName: tenantName,
-       location: location,
-       status: status ?? this.status,
-       messages: messages ?? this.messages,
-     );
+  factory TicketModel.fromJson(Map<String, dynamic> json) {
+    TicketStatus parseStatus(String? s) {
+      switch (s) {
+        case 'open': return TicketStatus.open;
+        case 'in_progress': return TicketStatus.inProgress;
+        case 'resolved': return TicketStatus.resolved;
+        case 'closed': return TicketStatus.closed;
+        default: return TicketStatus.open;
+      }
+    }
+
+    List<ChatMessage> parseMessages(List<dynamic>? msgs) {
+      if (msgs == null) return [];
+      return msgs.map((m) => ChatMessage.fromJson(m, null)).toList();
+    }
+
+    return TicketModel(
+      id: json['id'] ?? '',
+      title: json['title'] ?? '',
+      description: json['description'],
+      tenantName: json['reporter_name'],
+      location: json['unit_door'] != null ? '${json['unit_property'] ?? ''} ${json['unit_door']}' : null,
+      priority: json['priority'] ?? 'medium',
+      status: parseStatus(json['status']),
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at']) ?? DateTime.now()
+          : DateTime.now(),
+      messages: parseMessages(json['messages']),
+    );
+  }
+
+  TicketStatus get displayStatus {
+    if (messages.isNotEmpty && status == TicketStatus.open) {
+      return TicketStatus.inProgress;
+    }
+    return status;
   }
 }
 
-// Biletlerimizi (Destek Kutusunu) ve Kiracı Sohbetlerini tutan Riverpod Hafızası
 class SupportNotifier extends StateNotifier<AsyncValue<List<TicketModel>>> {
   SupportNotifier() : super(const AsyncValue.loading()) {
     _fetchTickets();
   }
 
-  // İlk açılışta veritabanından Canlı Şikayetlerin İnmesi (Mock)
   Future<void> _fetchTickets() async {
     state = const AsyncValue.loading();
     try {
-       await Future.delayed(const Duration(seconds: 1)); // Ağ Gecikmesi Animasyonu
-       final data = [
-         TicketModel(
-           id: "tk1", title: "Acil: Kombiden Su Akıyor!", tenantName: "Ahmet Yılmaz", location: "Ağaoğlu My World D/4", status: TicketStatus.critical, 
-           messages: [
-              ChatMessage(text: "Merhabalar iyi akşamlar, Daire 4 kombisinden alttaki daireye su damlıyor. Acil asistanlık ve usta gönderimi rica ediyorum!", isMe: false, time: "10:24"),
-           ]
-         ),
-         TicketModel(
-           id: "tk2", title: "Aidat Ödemesi Ulaşmadı mı?", tenantName: "Gizem Kaya", location: "İstMarina B2 D/12", status: TicketStatus.pending, 
-           messages: [
-              ChatMessage(text: "Bu ayki faturayı IBAN üzerinden gönderdim. Makbuzumu uygulamaya atmayı unutmuşum, sisteme bakar mısınız düşmüş mü diye?", isMe: false, time: "Dün 14:30"),
-           ]
-         ),
-         TicketModel(
-           id: "tk3", title: "Asansör Gürültü Problemi", tenantName: "Mehmet Çınar", location: "Yıldız Apt. Kat: 3", status: TicketStatus.resolved, 
-           messages: [
-              ChatMessage(text: "Gece saatlerinde asansör askı kablosu çok yoğun sürtünme sesi yapıyor.", isMe: false, time: "Çrş 09:00"),
-              ChatMessage(text: "Teknik ekibe derhal bildirdim Mehmet Bey, bugün yağlama yapacaklar.", isMe: true, time: "Çrş 09:12"),
-              ChatMessage(text: "Asansörcü ustalar geldi, problem tamamen çözüldü teşekkürler.", isMe: false, time: "Çrş 16:40"),
-           ]
-         ),
-       ];
-       state = AsyncValue.data(data);
-    } catch(e, st) {
-       state = AsyncValue.error(e, st);
+      final resp = await ApiClient.dio.get('/operations/tickets');
+      if (resp.statusCode == 200) {
+        final data = resp.data as List<dynamic>;
+        final tickets = data.map((j) => TicketModel.fromJson(j)).toList();
+        state = AsyncValue.data(tickets);
+      } else {
+        state = const AsyncValue.data([]);
+      }
+    } catch (e) {
+      state = const AsyncValue.data([]);
     }
   }
 
-  // Riverpod üzerinden arayüzde Chat "Gönder" kısmına basıldığında mesajı arkaplana ekler.
-  void replyToTicket(String ticketId, String messageText) {
-     if (state.value != null) {
-        final list = state.value!;
-        final nwList = list.map((e) {
-           if (e.id == ticketId) {
-               // Benim Gönderdiğim Mesajı Obje Olarak Ekle
-               final newMsg = ChatMessage(text: messageText, isMe: true, time: "Şimdi");
-               final newMessages = [...e.messages, newMsg];
-               
-               // Eğer kritikse /pending yapma. Normal beklemeysependingde dursun.
-               final newStatus = (e.status == TicketStatus.resolved) ? TicketStatus.pending : e.status; 
-               return e.copyWith(messages: newMessages, status: newStatus); 
-           }
-           return e;
-        }).toList();
-        state = AsyncValue.data(nwList);
-     }
+  Future<void> fetchTicketDetail(String ticketId) async {
+    try {
+      final resp = await ApiClient.dio.get('/operations/tickets/$ticketId');
+      if (resp.statusCode == 200 && resp.data != null) {
+        final detail = TicketModel.fromJson(resp.data);
+        if (state.value != null) {
+          final updated = state.value!.map((t) => t.id == ticketId ? detail : t).toList();
+          state = AsyncValue.data(updated);
+        }
+      }
+    } catch (e) {
+      print('fetchTicketDetail error: $e');
+    }
   }
-  
-  // Emlakçı Konuyu Tatlıya Bağladığında, "Çözüldü Olarak İşaretle" Butonu
-  void closeTicket(String ticketId) {
-     if (state.value != null) {
-        state = AsyncValue.data(state.value!.map((e) => e.id == ticketId ? e.copyWith(status: TicketStatus.resolved) : e).toList());
-     }
+
+  Future<void> replyToTicket(String ticketId, String messageText) async {
+    try {
+      await ApiClient.dio.post(
+        '/operations/tickets/$ticketId/reply',
+        data: {'message': messageText},
+      );
+      await fetchTicketDetail(ticketId);
+    } catch (e) {
+      print('replyToTicket error: $e');
+    }
+  }
+
+  Future<void> closeTicket(String ticketId) async {
+    try {
+      await ApiClient.dio.patch(
+        '/operations/tickets/$ticketId',
+        data: {'status': 'resolved'},
+      );
+      await fetchTicketDetail(ticketId);
+    } catch (e) {
+      print('closeTicket error: $e');
+    }
+  }
+
+  Future<void> refresh() async {
+    await _fetchTickets();
   }
 }
 
-final supportProvider = StateNotifierProvider<SupportNotifier, AsyncValue<List<TicketModel>>>((ref) => SupportNotifier());
+final supportProvider = StateNotifierProvider<SupportNotifier, AsyncValue<List<TicketModel>>>((ref) {
+  return SupportNotifier();
+});

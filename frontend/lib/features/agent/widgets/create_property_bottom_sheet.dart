@@ -29,7 +29,13 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
     }
     
     // Uygulamanın en heyecan verici tarafı: "Otonom Blok Yaratım Zekasına Bağlan!"
-    await ref.read(propertiesProvider.notifier).createProperty(name, blocks, floors, units);
+    await ref.read(propertiesProvider.notifier).createProperty(
+      name: name,
+      type: 'apartment',
+      startFloor: 1,
+      endFloor: floors,
+      unitsPerFloor: units,
+    );
     
     // UI hala hayattaysa (Ekrandaysa)
     if (mounted) {

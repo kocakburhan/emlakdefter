@@ -45,29 +45,43 @@ class RoleSelectionScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const SizedBox(height: 80),
-                  Text("Emlakdefteri.", style: Theme.of(context).textTheme.displayLarge?.copyWith(fontSize: 42, color: AppColors.textHeader, letterSpacing: -1)),
+                  Text("Emlakdefter.", style: Theme.of(context).textTheme.displayLarge?.copyWith(fontSize: 42, color: AppColors.textHeader, letterSpacing: -1)),
                   const SizedBox(height: 12),
                   Text("Mülk Portföyü Yönetiminde ve \nKiracı İletişiminde Yeni Standart.", style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 18, color: AppColors.textBody, height: 1.4)),
                   const Spacer(),
                   
                   // ----- Emlakçı B2B Paneli -----
                   _RoleCard(
-                    title: "Kurumsal Yönetici / Lort",
-                    description: "Binaları tescilleyin, finans dekontlarını tarayın ve arızaları çözün.",
+                    title: "Emlakçı",
+                    description: "Portföy yönet, fatura tarat, kiracı takip et.",
                     icon: Icons.business,
+                    color: AppColors.accent,
                     onTap: () {
-                      context.push('/login?role=agent'); // Emlakçı olarak Telefon numarası sorma ekranı
+                      context.push('/login?role=agent');
                     },
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // ----- Kiracı B2C Yüzü -----
                   _RoleCard(
-                    title: "Ev Sahibi / Kira Sürecindeki Sakin",
-                    description: "Uygulama üzerinden aidatlarınızı ödeyin, daire arıza biletlerinizi (Şikayet) anında iletin.",
-                    icon: Icons.holiday_village,
+                    title: "Kiracı",
+                    description: "Aidat öde, arıza bildir, mesajlaş.",
+                    icon: Icons.person,
+                    color: AppColors.success,
                     onTap: () {
-                      context.push('/login?role=tenant'); // Kiracı olarak Telefon numarası sorma ekranı
+                      context.push('/login?role=tenant');
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // ----- Ev Sahibi -----
+                  _RoleCard(
+                    title: "Ev Sahibi",
+                    description: "Mülklerini takip et, gelir/gider raporlarına bak.",
+                    icon: Icons.holiday_village,
+                    color: AppColors.warning,
+                    onTap: () {
+                      context.push('/login?role=landlord');
                     },
                   ),
                   const SizedBox(height: 60),
@@ -86,9 +100,10 @@ class _RoleCard extends StatelessWidget {
   final String title;
   final String description;
   final IconData icon;
+  final Color color;
   final VoidCallback onTap;
 
-  const _RoleCard({Key? key, required this.title, required this.description, required this.icon, required this.onTap}) : super(key: key);
+  const _RoleCard({Key? key, required this.title, required this.description, required this.icon, required this.color, required this.onTap}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -100,14 +115,14 @@ class _RoleCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface.withOpacity(0.4),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withOpacity(0.05)), // Ince beyaz strok
+          border: Border.all(color: color.withOpacity(0.3)),
         ),
         child: Row(
           children: [
              Container(
                padding: const EdgeInsets.all(14),
-               decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.15), shape: BoxShape.circle),
-               child: Icon(icon, color: AppColors.accent, size: 28),
+               decoration: BoxDecoration(color: color.withOpacity(0.15), shape: BoxShape.circle),
+               child: Icon(icon, color: color, size: 28),
              ),
              const SizedBox(width: 20),
              Expanded(
@@ -120,7 +135,7 @@ class _RoleCard extends StatelessWidget {
                  ],
                )
              ),
-             const Icon(Icons.arrow_forward_ios, color: AppColors.textBody, size: 16),
+             Icon(Icons.arrow_forward_ios, color: color, size: 16),
           ],
         ),
       ),

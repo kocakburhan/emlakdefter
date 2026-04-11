@@ -7,9 +7,18 @@ class PropertyUnitBase(BaseModel):
     door_number: str
     floor: Optional[str] = None
     dues_amount: NonNegativeInt = Field(0, description="Motor tarafından binadan miras alınacak aidat")
+    rent_price: Optional[int] = Field(None, description="Kira bedeli (PRD §4.1.3)")
 
 class PropertyUnitCreate(PropertyUnitBase):
     pass
+
+class PropertyUnitUpdate(BaseModel):
+    """Daire güncelleme için (PRD §4.1.3)"""
+    door_number: Optional[str] = None
+    floor: Optional[str] = None
+    dues_amount: Optional[int] = None
+    rent_price: Optional[int] = None
+    status: Optional[str] = None  # 'vacant', 'occupied'
 
 class PropertyUnitResponse(PropertyUnitBase):
     id: UUID4
@@ -18,7 +27,7 @@ class PropertyUnitResponse(PropertyUnitBase):
     status: str
     vacant_since: Optional[datetime] = None
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 

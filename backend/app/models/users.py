@@ -34,13 +34,14 @@ class Agency(BaseModel):
 
 class User(BaseModel):
     __tablename__ = "users"
-    
+
     phone_number = Column(String, unique=True, index=True, nullable=True)
     email = Column(String, unique=True, index=True, nullable=True)
+    password_hash = Column(String, nullable=True)  # For simple test auth
     full_name = Column(String, nullable=False)
     role = Column(Enum(GlobalUserRole), default=GlobalUserRole.standard, nullable=False)
     status = Column(String, default="active") # active, inactive
-    
+
     staff_profiles = relationship("AgencyStaff", back_populates="user")
     device_tokens = relationship("UserDeviceToken", back_populates="user")
 

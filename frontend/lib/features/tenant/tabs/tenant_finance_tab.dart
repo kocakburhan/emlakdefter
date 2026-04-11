@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/colors.dart';
+import '../providers/tenant_provider.dart';
 
-// Kiracı Tarafının (B2C) Banka Dekontu/PDF Yükleme "Upload Zone" ve Ekstre Kartları
 class TenantFinanceTab extends ConsumerWidget {
   const TenantFinanceTab({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final txAsync = ref.watch(tenantTransactionsProvider);
+    final financeAsync = ref.watch(tenantFinanceProvider);
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -20,12 +23,41 @@ class TenantFinanceTab extends ConsumerWidget {
             Text("Ödemeler ve Makbuzlar", style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 24)),
             const SizedBox(height: 32),
 
-            // Koca Dekont Yükleme 'Upload' Damla Kutusu (Dropzone)
-            // Lort Tarafındaki AI Gemini sürecinin Kullanıcı/Kiracı versiyonudur.
+            // AI Dekont Yükleme Dropzone
             _buildUploadReceiptBox(context),
             const SizedBox(height: 32),
-            
-            // Önceki Ödemelerim Başlığı (Tarihçe)
+
+            // Borç durumu
+            financeAsync.when(
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+              data: (finance) {
+                if (finance == null || finance.currentDebt <= 0) return const SizedBox.shrink();
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 24),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.error.withOpacity(0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          "Ödenmemiş borcunuz: ${finance.currentDebt.toStringAsFixed(2)} ₺",
+                          style: const TextStyle(color: AppColors.error, fontSize: 13, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+
+            // Geçmiş Ekstreler başlığı
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -34,20 +66,38 @@ class TenantFinanceTab extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 16),
-            
+
             Expanded(
-               child: ListView(
-                  physics: const BouncingScrollPhysics(),
-                  children: [
-                     // Başarılı Mock Geçmiş Ay Verileri
-                     _buildPastReceiptItem(context, "Mart Ayı Kirası / Aidatı", "17.500 ₺", "14 Mart 2026", true),
-                     const SizedBox(height: 12),
-                     _buildPastReceiptItem(context, "Şubat Kira + Yakıt", "16.800 ₺", "15 Şubat 2026", true),
-                     const SizedBox(height: 12),
-                     _buildPastReceiptItem(context, "Ocak (Yılbaşı Öncesi)", "15.000 ₺", "15 Ocak 2026", true),
-                     const SizedBox(height: 100), // Bottom nav (Alt menü tepsisi) için ekstra Scroll payı
-                  ],
-               )
+               child: txAsync.when(
+                  loading: () => const Center(child: CircularProgressIndicator(color: AppColors.accent)),
+                  error: (e, _) => Center(child: Text('Yüklenemedi: $e', style: const TextStyle(color: AppColors.error))),
+                  data: (transactions) {
+                    if (transactions.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.receipt_long_rounded, color: AppColors.textBody.withOpacity(0.3), size: 64),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Henüz işlem kaydınız bulunmuyor.\nDekont yükleyerek başlayın.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: AppColors.textBody.withOpacity(0.5), fontSize: 14, height: 1.5),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    return ListView.builder(
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: transactions.length + 1,
+                      itemBuilder: (ctx, i) {
+                        if (i == transactions.length) return const SizedBox(height: 100);
+                        return _buildTransactionItem(transactions[i]);
+                      },
+                    );
+                  },
+               ),
             )
           ],
         ),
@@ -55,19 +105,20 @@ class TenantFinanceTab extends ConsumerWidget {
     );
   }
 
-  // Kiracı için Dekont Yükleme Buton/Hover Parçası
   Widget _buildUploadReceiptBox(BuildContext context) {
       return InkWell(
          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(backgroundColor: AppColors.accent, content: Text("Mobil Cihaz Dosya(PDF) Yöneticisi Açılıyor...")));
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(backgroundColor: AppColors.accent, content: Text("Mobil cihazdan PDF seçiniz..."))
+            );
          },
          borderRadius: BorderRadius.circular(24),
          child: Container(
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
-               color: AppColors.accent.withOpacity(0.1), // Tüketiciyi içeriçeken (Call To Action) dikkat çekici mavi arka plan
+               color: AppColors.accent.withOpacity(0.1),
                borderRadius: BorderRadius.circular(24),
-               border: Border.all(color: AppColors.accent.withOpacity(0.4), width: 1.5), 
+               border: Border.all(color: AppColors.accent.withOpacity(0.4), width: 1.5),
             ),
             child: Column(
                children: [
@@ -79,39 +130,74 @@ class TenantFinanceTab extends ConsumerWidget {
                   const SizedBox(height: 16),
                   const Text("Yeni Dekont / Makbuz Yükle", style: TextStyle(color: AppColors.accent, fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  const Text("EFT/Havale yaptıysanız makbuzu buradan yükleyin. Finans Yapay Zekamız (AI) onu okuyup Emlakçınıza iletecektir.", textAlign: TextAlign.center, style: TextStyle(color: AppColors.textBody, fontSize: 13, height: 1.4)),
+                  const Text("EFT/Havale yaptıysanız makbuzu buradan yükleyin. AI sistemimiz onu okuyup Emlakçınıza iletecektir.", textAlign: TextAlign.center, style: TextStyle(color: AppColors.textBody, fontSize: 13, height: 1.4)),
                ]
             )
          ),
       );
   }
 
-  // "Eskiden bu paraları ödemiştin ve makbuzu Lort tarafından onaylanmıştı" bilgisini veren Tarihçe satırları:
-  Widget _buildPastReceiptItem(BuildContext context, String title, String amount, String date, bool isVerified) {
-     return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: AppColors.surface.withOpacity(0.5), borderRadius: BorderRadius.circular(16)),
-        child: Row(
-           children: [
-              Container( // Yeşil Check veya Sarı Pending yuvarlağı
-                 padding: const EdgeInsets.all(12),
-                 decoration: BoxDecoration(color: isVerified ? AppColors.success.withOpacity(0.1) : AppColors.warning.withOpacity(0.1), shape: BoxShape.circle),
-                 child: Icon(isVerified ? Icons.check_circle_outline : Icons.pending_actions, color: isVerified ? AppColors.success : AppColors.warning),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                 child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                       Text(title, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                       const SizedBox(height: 4),
-                       Text(date, style: const TextStyle(color: AppColors.textBody, fontSize: 12)),
-                    ]
-                 )
-              ),
-              Text(amount, style: const TextStyle(color: AppColors.textHeader, fontSize: 16, fontWeight: FontWeight.bold)),
-           ]
-        ),
-     );
+  Widget _buildTransactionItem(TransactionItem tx) {
+    final isIncome = tx.type == 'income';
+    final color = isIncome ? AppColors.success : AppColors.error;
+    final icon = isIncome ? Icons.arrow_downward : Icons.arrow_upward;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 16),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _categoryLabel(tx.category),
+                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${tx.transactionDate.day.toString().padLeft(2, '0')}.${tx.transactionDate.month.toString().padLeft(2, '0')}.${tx.transactionDate.year}',
+                  style: const TextStyle(color: AppColors.textBody, fontSize: 12),
+                ),
+                if (tx.description != null && tx.description!.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(tx.description!, style: TextStyle(color: AppColors.textBody.withOpacity(0.6), fontSize: 11)),
+                ],
+              ],
+            ),
+          ),
+          Text(
+            '${isIncome ? '+' : '-'}${tx.amount.toStringAsFixed(2)} ₺',
+            style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _categoryLabel(String category) {
+    switch (category) {
+      case 'rent': return 'Kira Ödemesi';
+      case 'dues': return 'Aidat Ödemesi';
+      case 'utility': return 'Fatura / Utilities';
+      case 'maintenance': return 'Bakım / Onarım';
+      case 'commission': return 'Komisyon';
+      case 'expense': return 'Gider';
+      default: return 'İşlem';
+    }
   }
 }

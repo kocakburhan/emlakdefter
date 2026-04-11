@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/colors.dart';
 import '../providers/finance_provider.dart';
+import '../screens/mali_rapor_screen.dart';
 
 class FinanceTab extends ConsumerWidget {
   const FinanceTab({Key? key}) : super(key: key);
@@ -19,9 +20,32 @@ class FinanceTab extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: 24),
-            Text("Yapay Zeka (Gemini) Destekli", style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 14, color: AppColors.accent)),
-            const SizedBox(height: 4),
-            Text("Banka & Finans Taraması", style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 24)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Yapay Zeka (Gemini) Destekli", style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 14, color: AppColors.accent)),
+                    const SizedBox(height: 4),
+                    Text("Banka & Finans", style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 24)),
+                  ],
+                ),
+                IconButton(
+                  onPressed: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const MaliRaporScreen()));
+                  },
+                  icon: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.bar_chart_rounded, color: AppColors.accent, size: 22),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 24),
             
             // "Ekstre Yükle" Alanı (Bulutumsu Dosya Upload Tasarımı)
@@ -87,9 +111,9 @@ class FinanceTab extends ConsumerWidget {
         duration: const Duration(milliseconds: 400),
         height: hasData ? 120 : 200, // Eğer altı dolduysa üstü daralt ki PDF listesi rahat okunsun!
         decoration: BoxDecoration(
-           color: isLoading ? AppColors.accent.withOpacity(0.1) : AppColors.surface.withOpacity(0.3),
+           color: isLoading ? AppColors.accent.withValues(alpha:0.1) : AppColors.surface.withValues(alpha:0.3),
            borderRadius: BorderRadius.circular(20),
-           border: Border.all(color: AppColors.accent.withOpacity(0.5), width: 1.5, style: BorderStyle.solid), // Fazla uzatmamak için solid çizdim
+           border: Border.all(color: AppColors.accent.withValues(alpha:0.5), width: 1.5, style: BorderStyle.solid), // Fazla uzatmamak için solid çizdim
         ),
         child: Column(
            mainAxisAlignment: MainAxisAlignment.center,
@@ -119,9 +143,9 @@ class FinanceTab extends ConsumerWidget {
      return Container(
        padding: const EdgeInsets.all(16),
        decoration: BoxDecoration(
-          color: AppColors.surface.withOpacity(0.6),
+          color: AppColors.surface.withValues(alpha:0.6),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: cardColor.withOpacity(isPending ? 0.7 : 0.2), width: isPending ? 1.5 : 1.0),
+          border: Border.all(color: cardColor.withValues(alpha:isPending ? 0.7 : 0.2), width: isPending ? 1.5 : 1.0),
        ),
        child: Column(
           children: [
@@ -130,7 +154,7 @@ class FinanceTab extends ConsumerWidget {
                children: [
                   Container( // İkon yuvarlağı
                      padding: const EdgeInsets.all(12),
-                     decoration: BoxDecoration(color: cardColor.withOpacity(0.15), shape: BoxShape.circle),
+                     decoration: BoxDecoration(color: cardColor.withValues(alpha:0.15), shape: BoxShape.circle),
                      child: Icon(isPending ? Icons.warning_amber_rounded : Icons.check_circle_outline, color: cardColor),
                   ),
                   const SizedBox(width: 16),
@@ -160,7 +184,7 @@ class FinanceTab extends ConsumerWidget {
              if (isPending) ...[
                 const SizedBox(height: 20),
                 Container(
-                   decoration: BoxDecoration(color: AppColors.warning.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                   decoration: BoxDecoration(color: AppColors.warning.withValues(alpha:0.1), borderRadius: BorderRadius.circular(12)),
                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                    child: Row(
                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -182,7 +206,7 @@ class FinanceTab extends ConsumerWidget {
                            onTap: () => notifier.approveTransaction(trx.id),
                            child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              decoration: BoxDecoration(color: AppColors.warning.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+                              decoration: BoxDecoration(color: AppColors.warning.withValues(alpha:0.2), borderRadius: BorderRadius.circular(12)),
                               child: const Text("Teyit Et (Eşle)", style: TextStyle(color: AppColors.warning, fontWeight: FontWeight.bold, fontSize: 13)),
                            ),
                         )

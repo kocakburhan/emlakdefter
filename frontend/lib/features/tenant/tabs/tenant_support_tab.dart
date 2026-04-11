@@ -75,7 +75,7 @@ class TenantSupportTab extends ConsumerWidget {
   Widget _buildTenantTicketCard(BuildContext context, TicketModel ticket) {
      Color getStatusColor() {
         if (ticket.status == TicketStatus.resolved) return AppColors.success;
-        if (ticket.status == TicketStatus.critical) return AppColors.error;
+        if (ticket.status == TicketStatus.open) return AppColors.error;
         return AppColors.warning;
      }
      
@@ -106,7 +106,7 @@ class TenantSupportTab extends ConsumerWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           decoration: BoxDecoration(color: sColor.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
                           child: Text(
-                             ticket.status == TicketStatus.resolved ? "Sorun Çözüldü" : (ticket.status == TicketStatus.critical ? "Lort Müdahalesi Bekleniyor (Acil)" : "Yanıt Bekleniyor"),
+                             ticket.status == TicketStatus.resolved ? "Sorun Çözüldü" : (ticket.status == TicketStatus.open ? "Lort Müdahalesi Bekleniyor (Acil)" : "Yanıt Bekleniyor"),
                              style: TextStyle(color: sColor, fontSize: 11, fontWeight: FontWeight.bold)
                           )
                        ),

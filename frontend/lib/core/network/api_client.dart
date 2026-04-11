@@ -7,13 +7,14 @@ import 'package:flutter/foundation.dart';
 /// Firebase ID Token otomatik olarak her isteğe eklenir.
 class ApiClient {
   static Dio? _dio;
+  static String? _simpleAuthToken;
 
   /// Platform'a göre doğru base URL'i belirler:
   /// - Web: localhost
   /// - Android Emülatör: 10.0.2.2 (localhost yerine)
   /// - iOS Simulator / Fiziksel Cihaz: localhost
   static String get _baseUrl {
-    const port = '8000';
+    const port = '8001';
     if (kIsWeb) {
       return 'http://127.0.0.1:$port/api/v1';
     }
@@ -31,6 +32,12 @@ class ApiClient {
     return _dio!;
   }
 
+  static void setSimpleAuthToken(String? token) {
+    _simpleAuthToken = token;
+  }
+
+  static String? get simpleAuthToken => _simpleAuthToken;
+
   static Dio _createDio() {
     final dio = Dio(BaseOptions(
       baseUrl: _baseUrl,
@@ -43,7 +50,7 @@ class ApiClient {
     ));
 
     dio.interceptors.add(_AuthInterceptor());
-    
+
     // Debug modda istekleri logla
     if (kDebugMode) {
       dio.interceptors.add(LogInterceptor(
@@ -62,10 +69,16 @@ class ApiClient {
 class _AuthInterceptor extends Interceptor {
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
+    // Önce simple auth token var mı kontrol et
+    if (ApiClient.simpleAuthToken != null) {
+      options.headers['Authorization'] = 'Bearer ${ApiClient.simpleAuthToken}';
+      return handler.next(options);
+    }
+
+    // Yoksa Firebase token dene
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        // Firebase otomatik olarak süresi dolmuş token'ı yeniler (force: false)
         final token = await user.getIdToken();
         if (token != null) {
           options.headers['Authorization'] = 'Bearer $token';
@@ -81,16 +94,20 @@ class _AuthInterceptor extends Interceptor {
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     // 401 Unauthorized → Token süresi dolmuş olabilir, yenileme dene
     if (err.response?.statusCode == 401) {
+      // Simple auth token ile 401 alırsan basit login'e yönlendir
+      if (ApiClient.simpleAuthToken != null) {
+        // Token yenilenemez, basit auth kullanıldığı için logout gerekebilir
+        debugPrint('⚠️ Simple auth token expired');
+      }
+
       try {
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
-          // Token'ı zorla yenile
           final newToken = await user.getIdToken(true);
           if (newToken != null) {
-            // İsteği yeni token ile tekrar dene
             final opts = err.requestOptions;
             opts.headers['Authorization'] = 'Bearer $newToken';
-            
+
             final response = await Dio().fetch(opts);
             return handler.resolve(response);
           }

@@ -38,9 +38,30 @@ class TicketResponse(TicketBase):
     status: TicketStatus
     created_at: datetime
     messages: List[TicketMessageResponse] = []
-    
+
     class Config:
         from_attributes = True
+
+
+class TicketListResponse(BaseModel):
+    """Bilet listesi için özet yanıt"""
+    id: UUID4
+    title: str
+    priority: TicketPriority
+    status: TicketStatus
+    created_at: datetime
+    unit_door: Optional[str] = None
+    unit_property: Optional[str] = None
+    reporter_name: Optional[str] = None
+    message_count: int = 0
+    last_message: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class TicketStatusUpdate(BaseModel):
+    status: str
 
 class BuildingLogCreate(BaseModel):
     """Emlakçının Şeffaflık Modülü faturası veya notu"""
@@ -51,11 +72,19 @@ class BuildingLogCreate(BaseModel):
     invoice_url: Optional[str] = None
     is_reflected_to_finance: bool = False
 
+class BuildingLogUpdate(BaseModel):
+    """Maliyeti finansa yansıt veya not güncelle"""
+    title: Optional[str] = None
+    description: Optional[str] = None
+    cost: Optional[int] = None
+    invoice_url: Optional[str] = None
+    is_reflected_to_finance: Optional[bool] = None
+
 class BuildingLogResponse(BuildingLogCreate):
     id: UUID4
     agency_id: UUID4
     created_by_user_id: Optional[UUID4]
     created_at: datetime
-    
+
     class Config:
         from_attributes = True

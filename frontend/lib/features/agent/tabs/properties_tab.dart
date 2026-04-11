@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/colors.dart';
 import '../providers/properties_provider.dart';
 import '../widgets/create_property_bottom_sheet.dart';
+import '../screens/property_detail_screen.dart';
 
 class PropertiesTab extends ConsumerWidget {
   const PropertiesTab({Key? key}) : super(key: key);
@@ -106,8 +107,20 @@ class PropertiesTab extends ConsumerWidget {
   // Özel Tasarımlı (Kapsül biçiminde % Oranlı) Bina Kartımız İçin Flutter Widget Parçalama Tasarımı:
   Widget _buildPropertyCard(BuildContext context, PropertyModel prop) {
      final double occupancyRate = ((prop.totalUnits - prop.emptyUnits) / prop.totalUnits) * 100;
-     
-     return Container(
+
+     return GestureDetector(
+       onTap: () {
+         Navigator.push(
+           context,
+           MaterialPageRoute(
+             builder: (context) => PropertyDetailScreen(
+               propertyId: prop.id,
+               propertyName: prop.name,
+             ),
+           ),
+         );
+       },
+       child: Container(
        padding: const EdgeInsets.all(20),
        decoration: BoxDecoration(
           color: AppColors.surface.withOpacity(0.5),
@@ -155,6 +168,7 @@ class PropertiesTab extends ConsumerWidget {
              )
           ],
        ),
+     ),
      );
   }
 

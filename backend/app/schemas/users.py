@@ -37,3 +37,14 @@ class LoginResponse(BaseModel):
     user: UserResponse
     access_token: str
     message: str
+
+
+class FCMTokenRegister(BaseModel):
+    """Kullanıcının cihaz FCM push notification token'ını kaydeder. PRD §3.3."""
+    fcm_token: str = Field(..., description="Firebase Cloud Messaging cihaz token'ı")
+    device_type: str = Field(..., description="Cihaz tipi: 'ios', 'android', 'web'")
+
+
+class FCMTokenResponse(BaseModel):
+    success: bool
+    message: str

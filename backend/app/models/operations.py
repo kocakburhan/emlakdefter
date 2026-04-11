@@ -31,6 +31,8 @@ class SupportTicket(BaseModel):
     attachment_url = Column(String, nullable=True)
     
     messages = relationship("TicketMessage", back_populates="ticket")
+    unit = relationship("PropertyUnit", lazy="selectin")
+    reporter = relationship("User", lazy="selectin")
 
 class TicketMessage(BaseModel):
     __tablename__ = "ticket_messages"

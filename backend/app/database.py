@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # PRD'ye uygun PostgreSQL veritabanı bağlantı URI'si
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://emlakdefteri_user:emlakdefteri_password@localhost:5432/emlakdefteri")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://emlakdefter_user:emlakdefter_password@localhost:5432/emlakdefter")
 
 # Asenkron Motorun ve Havuzun Kurulması
 engine = create_async_engine(

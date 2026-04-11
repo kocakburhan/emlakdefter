@@ -148,7 +148,7 @@ async def upload_bank_statement(
     if file.content_type != "application/pdf":
         raise HTTPException(
             status_code=400,
-            detail="Emlakdefteri YZ Motoru şu an için sadece PDF (.pdf) formatındaki ekstremeleri çözebilmektedir."
+            detail="Emlakdefter YZ Motoru şu an için sadece PDF (.pdf) formatındaki ekstremeleri çözebilmektedir."
         )
     
     file_bytes = await file.read()

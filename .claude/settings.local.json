@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl:*)",
+      "Bash(*)",
+      "WebFetch(domain:minimax-algeng-chat-tts-us.oss-us-east-1.aliyuncs.com)",
+      "WebFetch(domain:github.com)",
+      "mcp__MiniMax__understand_image",
+      "Bash(docker-compose ps:*)",
+      "Bash(docker compose:*)",
+      "Bash(ls -la d:/Projects/EmlakDefteri/backend/*.json)",
+      "Bash(curl -s http://127.0.0.1:8000/api/v1/)",
+      "Bash(uvicorn app.main:app --reload --port 8000)",
+      "Bash(pip install:*)",
+      "Bash(pip show:*)",
+      "Bash(pip list:*)",
+      "Bash(python -c \"import asyncpg; print\\('asyncpg OK'\\)\")",
+      "Bash(python -c \"import sys; print\\(sys.path\\)\")",
+      "Bash(python -m pip install asyncpg)",
+      "Bash(python -m uvicorn app.main:app --reload --port 8000)",
+      "Bash(python -m pip install python-jose)",
+      "Bash(python -c \"from jose import jwt; print\\('jose OK'\\)\")",
+      "Bash(python -m pip install -r requirements.txt)",
+      "Bash(curl -s http://127.0.0.1:8000/docs)",
+      "Bash(curl -s -X POST http://127.0.0.1:8000/api/v1/auth/login -H \"Content-Type: application/json\" -d \"{\\\\\"firebase_id_token\\\\\": \\\\\"mock_test_token\\\\\", \\\\\"full_name\\\\\": \\\\\"Test Kullanıcı\\\\\"}\")",
+      "Bash(curl -s -X GET http://127.0.0.1:8000/api/v1/auth/me -H \"Authorization: Bearer mock_test_token\")",
+      "Bash(echo '{\"firebase_id_token\": \"mock_test_token\", \"full_name\": \"Test Kullanıcı\"}')",
+      "Bash(curl -s -X POST http://127.0.0.1:8000/api/v1/auth/login -H \"Content-Type: application/json\" -d @/tmp/login.json)",
+      "Bash(curl -s http://127.0.0.1:8000/health)",
+      "Bash(python -c ':*)",
+      "Bash(python -m alembic upgrade head)",
+      "Bash(curl -s http://127.0.0.1:8000/api/v1/properties -H \"Authorization: Bearer mock_test_token\")",
+      "Bash(curl -s -w \"\\\\nHTTP Status: %{http_code}\\\\n\" http://127.0.0.1:8000/api/v1/properties -H \"Authorization: Bearer mock_test_token\")",
+      "Bash(curl -s -L -w \"\\\\nHTTP Status: %{http_code}\\\\n\" http://127.0.0.1:8000/api/v1/properties/ -H \"Authorization: Bearer mock_test_token\")",
+      "Bash(curl -s -X POST http://127.0.0.1:8000/api/v1/properties/ -H \"Authorization: Bearer mock_test_token\" -H \"Content-Type: application/json\" -d \"{\\\\\"name\\\\\": \\\\\"Güneş Apt\\\\\", \\\\\"type\\\\\": \\\\\"apartment_complex\\\\\", \\\\\"address\\\\\": \\\\\"Atatürk Cad. No:1 Kadıköy/İstanbul\\\\\", \\\\\"total_floors\\\\\": 5, \\\\\"units_per_floor\\\\\": 2, \\\\\"monthly_dues\\\\\": 1500}\")"
+    ]
+  }
+}

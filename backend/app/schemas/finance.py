@@ -75,3 +75,16 @@ class PaymentScheduleResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class TenantFinanceSummary(BaseModel):
+    """Kiracının kendi finans özeti — borcu, son ödeme, yaklaşan takvim"""
+    tenant_id: UUID4
+    current_debt: float
+    next_due_date: Optional[date] = None
+    next_due_amount: Optional[float] = None
+    upcoming_schedules: List[PaymentScheduleResponse] = []
+    recent_transactions: List[TransactionResponse] = []
+
+    class Config:
+        from_attributes = True

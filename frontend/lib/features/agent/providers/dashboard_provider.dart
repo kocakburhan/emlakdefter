@@ -1,22 +1,51 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
+import '../../../core/network/api_client.dart';
 
 class DashboardMetrics {
-  final double totalRevenue;
-  final int activeProperties;
-  final int emptyUnits;
+  final int totalProperties;
+  final int totalUnits;
+  final int occupiedUnits;
+  final int vacantUnits;
+  final int totalMonthlyRent;
+  final int totalMonthlyDues;
   final int pendingTickets;
-  final double collectionRate; // Yüzde (%)
+  final int openTickets;
+  final int monthlyCollected;
+  final int monthlyExpense;
+  final double collectionRate;
 
   DashboardMetrics({
-    this.totalRevenue = 0,
-    this.activeProperties = 0,
-    this.emptyUnits = 0,
+    this.totalProperties = 0,
+    this.totalUnits = 0,
+    this.occupiedUnits = 0,
+    this.vacantUnits = 0,
+    this.totalMonthlyRent = 0,
+    this.totalMonthlyDues = 0,
     this.pendingTickets = 0,
+    this.openTickets = 0,
+    this.monthlyCollected = 0,
+    this.monthlyExpense = 0,
     this.collectionRate = 100,
   });
+
+  factory DashboardMetrics.fromJson(Map<String, dynamic> json) {
+    return DashboardMetrics(
+      totalProperties: json['total_properties'] ?? 0,
+      totalUnits: json['total_units'] ?? 0,
+      occupiedUnits: json['occupied_units'] ?? 0,
+      vacantUnits: json['vacant_units'] ?? 0,
+      totalMonthlyRent: json['total_monthly_rent'] ?? 0,
+      totalMonthlyDues: json['total_monthly_dues'] ?? 0,
+      pendingTickets: json['pending_tickets'] ?? 0,
+      openTickets: json['open_tickets'] ?? 0,
+      monthlyCollected: json['monthly_collected'] ?? 0,
+      monthlyExpense: json['monthly_expense'] ?? 0,
+      collectionRate: (json['collection_rate'] ?? 100).toDouble(),
+    );
+  }
 }
 
-// Şimdilik Backend'den geliyormuş gibi 3 saniye gecikmeyle Sahte Data fırlatır!
 class DashboardNotifier extends StateNotifier<AsyncValue<DashboardMetrics>> {
   DashboardNotifier() : super(const AsyncValue.loading()) {
     _fetchDashboardData();
@@ -25,25 +54,24 @@ class DashboardNotifier extends StateNotifier<AsyncValue<DashboardMetrics>> {
   Future<void> _fetchDashboardData() async {
     state = const AsyncValue.loading();
     try {
-      // Mock API (FastAPI) Yanıt süresi simülasyonu
-      await Future.delayed(const Duration(seconds: 2));
-      
-      final data = DashboardMetrics(
-        totalRevenue: 245000.50, // 245 Bin TL Tahsilat (Bu ay)
-        activeProperties: 12,    // 12 Bina (Site) yönetiliyor
-        emptyUnits: 5,           // Kiracısız (Boş) Daire Sayısı
-        pendingTickets: 3,       // Asansör/Boru arızası vs bekleyen bilet 
-        collectionRate: 85.4,    // Aylık tahsilat performansı
-      );
-
-      state = AsyncValue.data(data);
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      final resp = await ApiClient.dio.get('/operations/dashboard-kpi');
+      if (resp.statusCode == 200 && resp.data != null) {
+        final metrics = DashboardMetrics.fromJson(resp.data);
+        state = AsyncValue.data(metrics);
+      } else {
+        state = AsyncValue.data(DashboardMetrics());
+      }
+    } catch (e) {
+      print('Dashboard KPI fetch error: $e');
+      state = AsyncValue.data(DashboardMetrics());
     }
+  }
+
+  Future<void> refresh() async {
+    await _fetchDashboardData();
   }
 }
 
-// UI tarafından izlenecek (watch) olan Riverpod Asistanımız
 final dashboardProvider = StateNotifierProvider<DashboardNotifier, AsyncValue<DashboardMetrics>>((ref) {
   return DashboardNotifier();
 });

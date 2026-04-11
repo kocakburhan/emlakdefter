@@ -1,13 +1,14 @@
 import 'package:go_router/go_router.dart';
 import '../../features/auth/screens/role_selection_screen.dart';
-import '../../features/auth/screens/phone_login_screen.dart';
+import '../../features/auth/screens/simple_login_screen.dart';
 import '../../features/auth/screens/otp_verification_screen.dart';
 import '../../features/agent/screens/agent_dashboard_screen.dart';
-import '../../features/tenant/screens/tenant_dashboard_screen.dart'; // Phase 8 Added
+import '../../features/tenant/screens/tenant_dashboard_screen.dart';
+import '../../features/landlord/screens/landlord_dashboard_screen.dart';
 
 /// Otonom Gezinme Rotası (İleride Riverpod interceptorleri ve JWT bazlı zorlayıcı Guard rotalar buraya eklenecektir.)
 final GoRouter appRouter = GoRouter(
-  initialLocation: '/', 
+  initialLocation: '/',
   routes: [
     GoRoute(
       path: '/',
@@ -16,8 +17,8 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/login',
       builder: (context, state) {
-        final role = state.uri.queryParameters['role'] ?? 'tenant';
-        return PhoneLoginScreen(role: role);
+        final role = state.uri.queryParameters['role'] ?? 'agent';
+        return SimpleLoginScreen(role: role);
       },
     ),
     GoRoute(
@@ -29,12 +30,16 @@ final GoRouter appRouter = GoRouter(
       },
     ),
     GoRoute(
-      path: '/agent-dashboard',
+      path: '/agent',
       builder: (context, state) => const AgentDashboardScreen(),
     ),
     GoRoute(
-      path: '/tenant-dashboard',
+      path: '/tenant',
       builder: (context, state) => const TenantDashboardScreen(),
+    ),
+    GoRoute(
+      path: '/landlord',
+      builder: (context, state) => const LandlordDashboardScreen(),
     ),
   ],
 );

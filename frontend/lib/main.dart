@@ -17,16 +17,16 @@ void main() async {
   }
 
   // Tüm yazılımı "ProviderScope" ile sardık; bu sayede projenin HER YERİNDEN State değerlerine ulaşacağız.
-  runApp(const ProviderScope(child: EmlakdefteriApp()));
+  runApp(const ProviderScope(child: EmlakdefterApp()));
 }
 
-class EmlakdefteriApp extends ConsumerWidget {
-  const EmlakdefteriApp({Key? key}) : super(key: key);
+class EmlakdefterApp extends ConsumerWidget {
+  const EmlakdefterApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
-      title: 'Emlakdefteri',
+      title: 'Emlakdefter',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
       routerConfig: appRouter,

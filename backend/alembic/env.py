@@ -16,7 +16,7 @@ from app.models import Base
 config = context.config
 
 # Senkron database urlsi .env üzerinden alınır
-sync_url = os.getenv("SYNC_DATABASE_URL", "postgresql://emlakdefteri_user:emlakdefteri_password@127.0.0.1:5433/emlakdefteri")
+sync_url = os.getenv("SYNC_DATABASE_URL", "postgresql://emlakdefter_user:emlakdefter_password@127.0.0.1:5433/emlakdefter")
 config.set_main_option("sqlalchemy.url", sync_url)
 
 if config.config_file_name is not None:

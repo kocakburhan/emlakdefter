@@ -28,7 +28,7 @@ class UnitStatus(str, enum.Enum):
 
 class PropertyUnit(BaseModel):
     __tablename__ = "property_units"
-    
+
     agency_id = Column(UUID(as_uuid=True), ForeignKey("agencies.id", ondelete="CASCADE"), nullable=False, index=True)
     property_id = Column(UUID(as_uuid=True), ForeignKey("properties.id", ondelete="CASCADE"), nullable=False, index=True)
     door_number = Column(String, nullable=False)
@@ -36,6 +36,7 @@ class PropertyUnit(BaseModel):
     status = Column(Enum(UnitStatus), default=UnitStatus.vacant, nullable=False)
     vacant_since = Column(DateTime, nullable=True) # Boş kalma süresi analitiği için
     dues_amount = Column(Integer, default=0) # Aidat bedeli
+    rent_price = Column(Integer, nullable=True) # Kira bedeli (PRD §4.1.3)
     
     property = relationship("Property", back_populates="units")
     landlord_relations = relationship("LandlordUnit", back_populates="unit")

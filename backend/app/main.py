@@ -5,7 +5,7 @@ from app.api.api import api_router
 from app.core.firebase import init_firebase
 
 app = FastAPI(
-    title="Emlakdefteri SaaS API",
+    title="Emlakdefter SaaS API",
     description="Emlak Yönetim Uygulaması Backend Servisleri",
     version="1.0.0"
 )
@@ -21,7 +21,7 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
-    return {"message": "Emlakdefteri API Sistemleri Başarıyla Çalışıyor!"}
+    return {"message": "Emlakdefter API Sistemleri Başarıyla Çalışıyor!"}
 
 @app.on_event("startup")
 async def startup_event():
@@ -39,6 +39,6 @@ app.include_router(api_router, prefix="/api/v1")
 async def health_check():
     return {
         "status": "healthy",
-        "service": "Emlakdefteri Core API",
+        "service": "Emlakdefter Core API",
         "api_documentation": "/docs"
     }

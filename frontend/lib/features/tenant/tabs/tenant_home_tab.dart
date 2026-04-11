@@ -9,14 +9,14 @@ class TenantHomeTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(tenantProvider);
+    final financeAsync = ref.watch(tenantFinanceProvider);
 
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch, // Tam genişlik doldursun
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Emlakçı Profilinin Tersine - Müşteri (Hoş Geldiniz) Başlığı
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -25,14 +25,12 @@ class TenantHomeTab extends ConsumerWidget {
                   children: [
                     Text("Merhaba, Ev Sakinimiz", style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 14)),
                     const SizedBox(height: 4),
-                    // Eğer Veri yükleniyorsa Gizem Hanım diye beklet. Yüklendiyse ismini Riverpod'dan al.
                     state.maybeWhen(
-                       data: (info) => Text(info.name, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 24)),
+                       data: (info) => Text(info?.name ?? 'Kiracı', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 24)),
                        orElse: () => Text("Yükleniyor...", style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 24)),
                     ),
                   ],
                 ),
-                // İkon farklılığı (Site, Apartman değil)
                 const CircleAvatar(
                   radius: 24,
                   backgroundColor: AppColors.surface,
@@ -42,42 +40,53 @@ class TenantHomeTab extends ConsumerWidget {
             ),
             const SizedBox(height: 32),
 
-            // Borç/Ödeme Kartı - Ana Uygulamanın en odak noktası burasıdır (B2C'nin amacı müşteriden Parayı Tahsil Ettiğinde kırmızı/yeşil yanmasıydı!)
             Expanded(
                child: state.when(
                   loading: () => const Center(child: CircularProgressIndicator(color: AppColors.accent)),
                   error: (e, st) => Center(child: Text("Sunucu Hatası: $e")),
                   data: (info) {
-                     // Ekranda koca borç çıkacak mı hesabı:
-                     final hasDebt = info.currentDebt > 0;
-                     
+                     // API'den gelen finans özetini dinle
+                     final finance = financeAsync.value;
+                     final hasDebt = (finance?.currentDebt ?? 0) > 0;
+                     final debt = finance?.currentDebt ?? 0;
+                     final nextDue = finance?.nextDueDate;
+                     final nextAmount = finance?.nextDueAmount;
+
                      return SingleChildScrollView(
                         physics: const BouncingScrollPhysics(),
                         child: Column(
                            crossAxisAlignment: CrossAxisAlignment.stretch,
                            children: [
-                              // "Ben hangi Sitedeyim?" Eklemesi - Kapsül (Şeffaf)
+                              // Konum bilgisi
                               Container(
                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                 decoration: BoxDecoration(color: AppColors.surface.withOpacity(0.5), borderRadius: BorderRadius.circular(16)),
+                                 decoration: BoxDecoration(
+                                    color: AppColors.surface.withOpacity(0.5),
+                                    borderRadius: BorderRadius.circular(16)
+                                 ),
                                  child: Row(
                                     children: [
                                        const Icon(Icons.location_on, color: AppColors.textBody, size: 20),
                                        const SizedBox(width: 8),
-                                       Text("${info.propertyName} - ${info.unitNumber}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 13)),
+                                       Expanded(
+                                         child: Text(
+                                           "${info?.propertyName ?? ''} ${info?.unitNumber ?? ''}",
+                                           style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 13)
+                                         ),
+                                       ),
                                     ],
                                  ),
                               ),
                               const SizedBox(height: 24),
-                              
-                              // "Apple Cüzdan" Tarzı Koca Borç Gösterge Kartı!
+
+                              // Apple Cüzdan Tarzı Borç Kartı
                               Container(
-                                 padding: const EdgeInsets.all(32), // B2B kartlarına kıyasla tüketiciye daha ferah/büyük cizildi!
+                                 padding: const EdgeInsets.all(32),
                                  decoration: BoxDecoration(
                                     gradient: LinearGradient(
-                                       colors: hasDebt 
-                                          ? [AppColors.error.withOpacity(0.85), AppColors.error.withOpacity(0.4)]  // Faturası/Borcu varsa Uyarı Kırmızısı renk cümbüşü!
-                                          : [AppColors.success.withOpacity(0.85), AppColors.success.withOpacity(0.4)], // Temize çıktıysa (Ödediyse) Tatlı yeşil bahar havası.
+                                       colors: hasDebt
+                                          ? [AppColors.error.withOpacity(0.85), AppColors.error.withOpacity(0.4)]
+                                          : [AppColors.success.withOpacity(0.85), AppColors.success.withOpacity(0.4)],
                                        begin: Alignment.topLeft,
                                        end: Alignment.bottomRight,
                                     ),
@@ -95,21 +104,22 @@ class TenantHomeTab extends ConsumerWidget {
                                        const SizedBox(height: 16),
                                        Text(hasDebt ? "Cari Dönem Borcunuz" : "Borcunuz Bulunmuyor!", style: const TextStyle(color: Colors.white70, fontSize: 14)),
                                        const SizedBox(height: 8),
-                                       Text("${info.currentDebt.toStringAsFixed(2)} ₺", style: const TextStyle(color: Colors.white, fontSize: 44, fontWeight: FontWeight.bold, letterSpacing: -1.5)),
+                                       Text("${debt.toStringAsFixed(2)} ₺", style: const TextStyle(color: Colors.white, fontSize: 44, fontWeight: FontWeight.bold, letterSpacing: -1.5)),
                                        const SizedBox(height: 12),
-                                       Text(hasDebt ? "Son Ödeme: ${info.dueDate}" : "Sonraki Tahakkuk: ${info.dueDate}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                                       Text(
+                                         hasDebt
+                                            ? (nextDue != null ? "Son Ödeme: $nextDue" : "Ödeme bekleniyor")
+                                            : (nextAmount != null ? "Sonraki Tahakkuk: $nextAmount ₺" : "Her şey tertemiz!"),
+                                         style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)
+                                       ),
                                     ]
                                  ),
                               ),
                               const SizedBox(height: 32),
 
-                              // Yalnızca borç ödenmemişse 'IBAN ile Öde' Butonu
                               if (hasDebt) ...[
                                  ElevatedButton.icon(
-                                    onPressed: () {
-                                      // TODO: B2C Ödeme akışına (Kopyalama veya Ekstre yükleme simülasyonuna gider)
-                                      _showMockPaymentDialog(context, ref);
-                                    },
+                                    onPressed: () => _showMockPaymentDialog(context),
                                     style: ElevatedButton.styleFrom(
                                        backgroundColor: AppColors.accent,
                                        padding: const EdgeInsets.symmetric(vertical: 20),
@@ -119,17 +129,27 @@ class TenantHomeTab extends ConsumerWidget {
                                     label: const Text("IBAN İle Ödeme Yap", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                                  ),
                                  const SizedBox(height: 16),
-                                 const Text("Not: Havale yaptıktan sonra alttaki menüden 'Ödemeler' sekmesine girerek banka dekontunuzu yükleyebilirsiniz.", textAlign: TextAlign.center, style: TextStyle(color: AppColors.textBody, fontSize: 12, height: 1.5)),
+                                 const Text(
+                                   "Not: Havale yaptıktan sonra 'Ödemeler' sekmesinden banka dekontunuzu yükleyebilirsiniz.",
+                                   textAlign: TextAlign.center,
+                                   style: TextStyle(color: AppColors.textBody, fontSize: 12, height: 1.5)
+                                 ),
                               ] else ...[
-                                 // Tüketici borcunu ödediğinde ona bir teşekkür ve motivasyon cümlesi çizer (Yeşil Kalp Kutusu):
                                  Container(
                                     padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(color: AppColors.success.withOpacity(0.1), borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.success.withOpacity(0.3))),
+                                    decoration: BoxDecoration(
+                                       color: AppColors.success.withOpacity(0.1),
+                                       borderRadius: BorderRadius.circular(16),
+                                       border: Border.all(color: AppColors.success.withOpacity(0.3))
+                                    ),
                                     child: const Row(
                                        children: [
                                           Icon(Icons.volunteer_activism, color: AppColors.success),
                                           SizedBox(width: 12),
-                                          Expanded(child: Text("Düzenli ödemeleriniz sayesinde binamız çok daha güzel! Teşekkür ederiz.", style: TextStyle(color: AppColors.success, height: 1.4, fontSize: 13))),
+                                          Expanded(child: Text(
+                                            "Düzenli ödemeleriniz sayesinde binamız çok daha güzel! Teşekkür ederiz.",
+                                            style: TextStyle(color: AppColors.success, height: 1.4, fontSize: 13)
+                                          )),
                                        ]
                                     )
                                  )
@@ -146,25 +166,15 @@ class TenantHomeTab extends ConsumerWidget {
     );
   }
 
-  // Sırf 'Wow Effect' Yaşansın Diye Emlakçıya giden Yapay (Mock) Ödeme Ekranı Testi
-  void _showMockPaymentDialog(BuildContext context, WidgetRef ref) {
+  void _showMockPaymentDialog(BuildContext context) {
      showDialog(
        context: context,
        builder: (ctx) => AlertDialog(
           backgroundColor: AppColors.surface,
-          title: const Text("Ödeme Yapıldı mı?"),
-          content: const Text("Eğer IBAN numarasına ödeme yaptıysanız uygulamanın nasıl tepki vereceğini / yeşile nasıl döneceğini test etmek için 'Mock Dekont Yükle / Ödedim' butonuna tıklayın!"),
+          title: const Text("Ödeme Bildirimi"),
+          content: const Text("Banka havalesi yaptıysanız, dekont yüklemek için 'Ödemeler' sekmesine gidiniz. Tahsilat onaylandığında borcunuz otomatik güncellenecektir."),
           actions: [
-             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("İptal Et")),
-             ElevatedButton(
-                onPressed: () {
-                   Navigator.pop(ctx);
-                   // Riverpod Asistanına (Zeka'ya) emri fırlat: BORCU SIFIRLA!
-                   ref.read(tenantProvider.notifier).payDebtMock();
-                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Test Başarılı! Yapay zeka onayladı; Borcunuz Animasyonla sıfırlandı."), backgroundColor: AppColors.success));
-                },
-                child: const Text("Evet Ödedim (Animasyonu Başlat)")
-             )
+             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Tamam")),
           ]
        )
      );

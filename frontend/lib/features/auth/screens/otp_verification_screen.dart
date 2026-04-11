@@ -8,7 +8,14 @@ import '../providers/auth_provider.dart';
 class OtpVerificationScreen extends ConsumerStatefulWidget {
   final String role;
   final String phone;
-  const OtpVerificationScreen({Key? key, required this.role, required this.phone}) : super(key: key);
+  final String? inviteToken; // KVKK + invitation akışı için
+
+  const OtpVerificationScreen({
+    Key? key,
+    required this.role,
+    required this.phone,
+    this.inviteToken,
+  }) : super(key: key);
 
   @override
   ConsumerState<OtpVerificationScreen> createState() => _OtpVerificationScreenState();
@@ -28,12 +35,92 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     final success = await ref.read(authProvider.notifier).verifyOtpCode(code, widget.role);
     
     if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(backgroundColor: AppColors.success, content: Text("Sisteme Başarıyla Girildi! 🎉")));
-      if (widget.role == 'agent') {
-         context.go('/agent-dashboard'); // Emlakçı B2B Portalı
+      // KVKK onay kontrolü — tenant/landlord ve invite token varsa
+      if (widget.inviteToken != null && widget.role != 'agent') {
+        _showKvkkConsent();
       } else {
-         context.go('/tenant-dashboard'); // Ev Sahibi/Kiracı B2C Tüketici Panosu
+        _navigateToRole();
       }
+    }
+  }
+
+  void _showKvkkConsent() {
+    bool agreed = false;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text("KVKK Aydınlatma Metni", style: TextStyle(color: AppColors.textHeader, fontSize: 18, fontWeight: FontWeight.bold)),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  "6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) uyarınca, "
+                  "kişisel verilerinizin işlenmesi ve saklanması hakkında bilgilendirilmektesiniz.\n\n"
+                  "Verileriniz:\n"
+                  "• Kira takibi ve finansal işlemler için kullanılacaktır.\n"
+                  "• Emlak ofisi ile iletişim kurmak için saklanacaktır.\n"
+                  "• Üçüncü kişilerle paylaşılmayacaktır.\n\n"
+                  "Haklarınız:\n"
+                  "• Verilerinize erişim talep edebilirsiniz.\n"
+                  "• Verilerinizin silinmesini isteyebilirsiniz.\n"
+                  "• İşlenme sürecine itiraz edebilirsiniz.",
+                  style: TextStyle(color: AppColors.textBody.withValues(alpha: 0.8), fontSize: 13, height: 1.5),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: agreed,
+                      onChanged: (v) => setDialogState(() => agreed = v ?? false),
+                      activeColor: AppColors.accent,
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setDialogState(() => agreed = !agreed),
+                        child: Text(
+                          "KVKK Aydınlatma Metni'ni okudum ve kabul ediyorum.",
+                          style: TextStyle(color: AppColors.textHeader.withValues(alpha: 0.85), fontSize: 13),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: agreed
+                  ? () {
+                      Navigator.pop(ctx);
+                      _navigateToRole();
+                    }
+                  : null,
+              child: Text(
+                'Devam Et',
+                style: TextStyle(color: agreed ? AppColors.accent : AppColors.textBody.withValues(alpha: 0.4), fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _navigateToRole() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(backgroundColor: AppColors.success, content: Text("Sisteme Başarıyla Girildi!")),
+    );
+    if (widget.role == 'agent') {
+      context.go('/agent-dashboard');
+    } else {
+      context.go('/tenant-dashboard');
     }
   }
 

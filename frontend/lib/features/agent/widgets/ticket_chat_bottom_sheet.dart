@@ -66,7 +66,7 @@ class _TicketChatBottomSheetState extends ConsumerState<TicketChatBottomSheet> {
                               children: [
                                  Text(ticket.title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 18), maxLines: 1),
                                  const SizedBox(height: 4),
-                                 Text("${ticket.tenantName} • ${ticket.location}", style: const TextStyle(color: AppColors.textBody, fontSize: 13)),
+                                 Text("${ticket.tenantName ?? 'Kiracı'} • ${ticket.location ?? ''}", style: const TextStyle(color: AppColors.textBody, fontSize: 13)),
                               ]
                            )
                         ),
@@ -112,11 +112,11 @@ class _TicketChatBottomSheetState extends ConsumerState<TicketChatBottomSheet> {
                                  child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                       if (!msg.isMe) Text(ticket.tenantName, style: const TextStyle(color: AppColors.accent, fontSize: 11, fontWeight: FontWeight.bold)),
+                                       if (!msg.isMe) Text(ticket.tenantName ?? 'Kiracı', style: const TextStyle(color: AppColors.accent, fontSize: 11, fontWeight: FontWeight.bold)),
                                        if (!msg.isMe) const SizedBox(height: 4),
                                        Text(msg.text, style: const TextStyle(color: Colors.white, fontSize: 14)),
                                        const SizedBox(height: 6),
-                                       Align(alignment: Alignment.centerRight, child: Text(msg.time, style: const TextStyle(color: AppColors.textBody, fontSize: 10))),
+                                       Align(alignment: Alignment.centerRight, child: Text('${msg.time.hour.toString().padLeft(2,'0')}:${msg.time.minute.toString().padLeft(2,'0')}', style: const TextStyle(color: AppColors.textBody, fontSize: 10))),
                                     ],
                                  )
                               )

@@ -44,11 +44,11 @@ class SupportTab extends ConsumerWidget {
 
                      // Lort'ların gözünden Kaçmaması gereken en Acil mesajların En Tepeye Fışkırtılarak (Kırmızı Kırmızı) dizilmesi zekası!
                      final sorted = List<TicketModel>.from(list)..sort((a,b) {
-                        if (a.status == TicketStatus.critical && b.status != TicketStatus.critical) return -1;
-                        if (a.status != TicketStatus.critical && b.status == TicketStatus.critical) return 1;
-                        if (a.status == TicketStatus.pending && b.status == TicketStatus.resolved) return -1;
-                        if (a.status == TicketStatus.resolved && b.status == TicketStatus.pending) return 1;
-                        return 0; // İkisi de aynıysa elleme.
+                        if (a.status == TicketStatus.open && b.status != TicketStatus.open) return -1;
+                        if (a.status != TicketStatus.open && b.status == TicketStatus.open) return 1;
+                        if (a.status == TicketStatus.inProgress && b.status == TicketStatus.resolved) return -1;
+                        if (a.status == TicketStatus.resolved && b.status == TicketStatus.inProgress) return 1;
+                        return 0;
                      });
 
                      return ListView.separated(
@@ -75,9 +75,10 @@ class SupportTab extends ConsumerWidget {
       IconData statIcon;
       // Zekadan gelen ticket durumuna (Acil/Bekleme vs) Renk ve İkon Kodlaması yapıyoruz
       switch(ticket.status) {
-         case TicketStatus.critical: cardColor = AppColors.error; statIcon = Icons.warning_rounded; break;
-         case TicketStatus.pending: cardColor = AppColors.warning; statIcon = Icons.hourglass_top_rounded; break;
+         case TicketStatus.open: cardColor = AppColors.error; statIcon = Icons.warning_rounded; break;
+         case TicketStatus.inProgress: cardColor = AppColors.warning; statIcon = Icons.hourglass_top_rounded; break;
          case TicketStatus.resolved: cardColor = AppColors.success; statIcon = Icons.check_circle_rounded; break;
+         case TicketStatus.closed: cardColor = AppColors.textBody; statIcon = Icons.check_circle_outline_rounded; break;
       }
 
       return InkWell(
@@ -89,7 +90,7 @@ class SupportTab extends ConsumerWidget {
                color: AppColors.surface.withOpacity(0.5),
                borderRadius: BorderRadius.circular(20),
                // Kırmızı Alarmda borderslar daha kalın ve koyu! Oraya Bas! demesi için.
-               border: Border.all(color: cardColor.withOpacity(0.4), width: ticket.status == TicketStatus.critical ? 1.5 : 1.0),
+               border: Border.all(color: cardColor.withOpacity(0.4), width: ticket.status == TicketStatus.open ? 1.5 : 1.0),
             ),
             child: Column(
                crossAxisAlignment: CrossAxisAlignment.start,
@@ -111,11 +112,11 @@ class SupportTab extends ConsumerWidget {
                            children: [
                               const Icon(Icons.person, color: AppColors.textBody, size: 16),
                               const SizedBox(width: 6),
-                              Text(ticket.tenantName, style: const TextStyle(color: AppColors.textBody, fontSize: 13)),
+                              Text(ticket.tenantName ?? 'Kiracı', style: const TextStyle(color: AppColors.textBody, fontSize: 13)),
                            ],
                         ),
                         // Kiracının Konumu (Dairesi)
-                        Text(ticket.location, style: const TextStyle(color: AppColors.accent, fontSize: 12, fontWeight: FontWeight.bold)),
+                        Text(ticket.location ?? '', style: const TextStyle(color: AppColors.accent, fontSize: 12, fontWeight: FontWeight.bold)),
                      ],
                   )
                ],
