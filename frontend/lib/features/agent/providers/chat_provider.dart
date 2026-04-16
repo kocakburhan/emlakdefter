@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/chat_websocket_service.dart';
 import '../../../core/offline/connectivity_service.dart';
 import '../../../core/offline/offline_storage.dart';
 
@@ -23,6 +24,7 @@ class ChatMessage {
   final String? editedAt;
   final bool isMine;
   final bool isPending; // §5.2 — clock icon for queued messages
+  final bool isRead; // §4.1.8-B
 
   ChatMessage({
     required this.id,
@@ -37,12 +39,13 @@ class ChatMessage {
     this.editedAt,
     this.isMine = false,
     this.isPending = false,
+    this.isRead = false,
   });
 
   /// Create a local pending message (for outbox queue).
   factory ChatMessage.pending({
     required String conversationId,
-    required String message,
+    String? message,
     required String senderUserId,
     String? senderName,
   }) {
@@ -55,24 +58,58 @@ class ChatMessage {
       createdAt: DateTime.now(),
       isMine: true,
       isPending: true,
+      isRead: false,
     );
   }
 
   factory ChatMessage.fromJson(Map<String, dynamic> json, String myUserId) {
     return ChatMessage(
-      id: json['id'] ?? '',
+      id: json['id'] ?? json['message_id'] ?? '',
       conversationId: json['conversation_id'] ?? '',
       senderUserId: json['sender_user_id'] ?? '',
       senderName: json['sender_name'],
-      message: json['message'],
-      mediaUrl: json['media_url'],
+      message: json['message'] ?? json['content'],
+      mediaUrl: json['media_url'] ?? json['attachment_url'],
       createdAt: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at']) ?? DateTime.now()
+          ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
       isDeleted: json['is_deleted'] ?? false,
       isEdited: json['is_edited'] ?? false,
       editedAt: json['edited_at'],
       isMine: json['sender_user_id'] == myUserId,
+      isRead: json['is_read'] ?? false,
+    );
+  }
+
+  ChatMessage copyWith({
+    String? id,
+    String? conversationId,
+    String? senderUserId,
+    String? senderName,
+    String? message,
+    String? mediaUrl,
+    DateTime? createdAt,
+    bool? isDeleted,
+    bool? isEdited,
+    String? editedAt,
+    bool? isMine,
+    bool? isPending,
+    bool? isRead,
+  }) {
+    return ChatMessage(
+      id: id ?? this.id,
+      conversationId: conversationId ?? this.conversationId,
+      senderUserId: senderUserId ?? this.senderUserId,
+      senderName: senderName ?? this.senderName,
+      message: message ?? this.message,
+      mediaUrl: mediaUrl ?? this.mediaUrl,
+      createdAt: createdAt ?? this.createdAt,
+      isDeleted: isDeleted ?? this.isDeleted,
+      isEdited: isEdited ?? this.isEdited,
+      editedAt: editedAt ?? this.editedAt,
+      isMine: isMine ?? this.isMine,
+      isPending: isPending ?? this.isPending,
+      isRead: isRead ?? this.isRead,
     );
   }
 }
@@ -121,37 +158,6 @@ class ChatConversation {
       isArchived: json['is_archived'] ?? false,
     );
   }
-}
-
-/// ──────────────────────────────────────────────
-/// UNDO STACK
-/// ──────────────────────────────────────────────
-
-enum UndoType { messageDelete, conversationArchive }
-
-class UndoItem {
-  final UndoType type;
-  final String id;
-  final String conversationId;
-  final DateTime timestamp;
-  final dynamic originalData;
-
-  UndoItem({
-    required this.type,
-    required this.id,
-    required this.conversationId,
-    required this.timestamp,
-    this.originalData,
-  });
-
-  bool get isExpired => DateTime.now().difference(timestamp).inSeconds > 5;
-}
-
-class UndoState {
-  final List<UndoItem> items;
-  final String? lastUndoLabel;
-
-  UndoState({this.items = const [], this.lastUndoLabel});
 }
 
 /// ──────────────────────────────────────────────
@@ -206,16 +212,85 @@ class ChatState {
 }
 
 /// ──────────────────────────────────────────────
-/// CHAT NOTIFIER
+/// CHAT NOTIFIER — WebSocket Entegre
 /// ──────────────────────────────────────────────
 
 class ChatNotifier extends StateNotifier<ChatState> {
-  Timer? _undoTimer;
-  Timer? _wsPingTimer;
-  final List<UndoItem> _undoStack = [];
+  final ChatWebSocketService _ws = ChatWebSocketService();
   String? _myUserId;
+  final _offlineStorage = OfflineStorage();
+  final _connService = ConnectivityService();
 
-  ChatNotifier() : super(ChatState());
+  ChatNotifier() : super(ChatState()) {
+    _setupWebSocketCallbacks();
+  }
+
+  // ── WebSocket Callbacks ──────────────────────────────────────────────
+
+  void _setupWebSocketCallbacks() {
+    _ws.onMessage = _handleNewMessage;
+    _ws.onMessageEdited = _handleMessageEdited;
+    _ws.onMessageDeleted = _handleMessageDeleted;
+    _ws.onMessageRead = _handleMessageRead;
+    _ws.onConversationRead = _handleConversationRead;
+  }
+
+  void _handleNewMessage(Map<String, dynamic> data) {
+    // Sadece aktif konuşmaya gelen mesajları işle
+    if (state.activeConversation == null) return;
+    final convId = data['conversation_id'];
+    if (convId != state.activeConversation!.id) return;
+
+    final msg = ChatMessage.fromJson(data, _myUserId ?? '');
+    if (msg.senderUserId != _myUserId) {
+      // Gelen mesaj: listeye ekle ve okundu bildir
+      state = state.copyWith(messages: [...state.messages, msg]);
+      _ws.markConversationRead(convId);
+      // Ayrıca bu mesajı okundu olarak işaretle (§4.1.8-B)
+      markMessageRead(msg.id);
+    }
+  }
+
+  void _handleMessageEdited(Map<String, dynamic> data) {
+    final id = data['id'] ?? data['message_id'];
+    if (id == null) return;
+    final updated = state.messages.map((m) {
+      if (m.id == id) {
+        return m.copyWith(
+          message: data['content'] ?? m.message,
+          isEdited: true,
+          editedAt: data['edited_at'],
+        );
+      }
+      return m;
+    }).toList();
+    state = state.copyWith(messages: updated);
+  }
+
+  void _handleMessageDeleted(Map<String, dynamic> data) {
+    final id = data['id'] ?? data['message_id'];
+    if (id == null) return;
+    final updated = state.messages.where((m) => m.id != id).toList();
+    state = state.copyWith(messages: updated);
+  }
+
+  void _handleMessageRead(Map<String, dynamic> data) {
+    final id = data['message_id'];
+    if (id == null) return;
+    final updated = state.messages.map((m) {
+      if (m.id == id) return m.copyWith(isRead: true);
+      return m;
+    }).toList();
+    state = state.copyWith(messages: updated);
+  }
+
+  void _handleConversationRead(Map<String, dynamic> data) {
+    // Tüm mesajları okundu olarak işaretle
+    final updated = state.messages
+        .map((m) => m.isMine ? m : m.copyWith(isRead: true))
+        .toList();
+    state = state.copyWith(messages: updated);
+  }
 
   // ── Conversations ──
 
@@ -242,10 +317,16 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   Future<void> selectConversation(ChatConversation conv) async {
     state = state.copyWith(activeConversation: conv, messages: []);
+
+    // REST ile geçmiş mesajları yükle
     await fetchMessages(conv.id);
+
+    // WebSocket'e bağlan (gerçek zamanlı mesajlar için)
+    await _ws.connect(conv.id);
   }
 
   void clearActiveConversation() {
+    _ws.disconnect();
     state = state.copyWith(clearActiveConversation: true, messages: []);
   }
 
@@ -259,6 +340,15 @@ class ChatNotifier extends StateNotifier<ChatState> {
         final List<dynamic> data = response.data ?? [];
         final messages = data.map((j) => ChatMessage.fromJson(j, _myUserId ?? '')).toList();
         state = state.copyWith(messages: messages, isLoadingMessages: false);
+
+        // Gelen mesajları okundu olarak işaretle (§4.1.8-B)
+        _markConversationReadApi(conversationId);
+        // Ayrıca her okunmamış mesajı tek tek işaretle
+        for (final msg in messages) {
+          if (!msg.isMine && !msg.isRead) {
+            markMessageRead(msg.id);
+          }
+        }
       }
     } catch (e) {
       state = state.copyWith(error: e.toString(), isLoadingMessages: false);
@@ -275,50 +365,50 @@ class ChatNotifier extends StateNotifier<ChatState> {
   }
 
   // ── Send Message ──
-  // §5.2 — Offline: queued to outbox with clock icon, auto-syncs when online.
 
-  final _offlineStorage = OfflineStorage();
-  final _connService = ConnectivityService();
-
-  Future<bool> sendMessage(String text) async {
+  /// Sends a text message. Optionally attaches a media URL as an attachment.
+  Future<bool> sendMessage(String text, {String? attachmentUrl}) async {
     final conv = state.activeConversation;
-    if (conv == null || text.trim().isEmpty) return false;
+    final hasAttachment = attachmentUrl != null && attachmentUrl.isNotEmpty;
+    if (conv == null || (!hasAttachment && text.trim().isEmpty)) return false;
 
     if (_connService.isOnline) {
       try {
-        final response = await ApiClient.dio.post('/chat/messages', data: {
+        final data = {
           'type': 'message',
           'conversation_id': conv.id,
-          'message': text.trim(),
-        });
+          'message': hasAttachment ? null : text.trim(),
+          if (hasAttachment) 'attachment_url': attachmentUrl,
+        };
+        final response = await ApiClient.dio.post('/chat/messages', data: data);
         if (response.statusCode == 200 || response.statusCode == 201) {
           return true;
         }
       } catch (e) {
         debugPrint('Send message error: $e — falling back to outbox');
-        await _queueToOutbox(conv.id, text.trim());
-        return true; // UI'de görünsün
+        await _queueToOutbox(conv.id, text.trim(), attachmentUrl: attachmentUrl);
+        return true;
       }
     } else {
-      await _queueToOutbox(conv.id, text.trim());
+      await _queueToOutbox(conv.id, text.trim(), attachmentUrl: attachmentUrl);
       return true;
     }
     return false;
   }
 
-  Future<void> _queueToOutbox(String conversationId, String text) async {
+  Future<void> _queueToOutbox(String conversationId, String text, {String? attachmentUrl}) async {
+    final hasAttachment = attachmentUrl != null && attachmentUrl.isNotEmpty;
     final pendingMsg = ChatMessage.pending(
       conversationId: conversationId,
-      message: text,
+      message: hasAttachment ? null : text,
       senderUserId: _myUserId ?? '',
     );
-    // UI'ye ekle (clock ikonlu)
     addLocalMessage(pendingMsg);
-    // Outbox'a kaydet
     await _offlineStorage.addToOutbox(pendingMsg.id, {
       'local_id': pendingMsg.id,
       'conversation_id': conversationId,
-      'message': text,
+      'message': hasAttachment ? null : text,
+      'attachment_url': attachmentUrl,
       'created_at': pendingMsg.createdAt.toIso8601String(),
     });
   }
@@ -339,6 +429,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
           isEdited: false,
           isMine: true,
           isPending: false,
+          isRead: false,
         );
       }
       return m;
@@ -346,7 +437,6 @@ class ChatNotifier extends StateNotifier<ChatState> {
     state = state.copyWith(messages: msgs);
   }
 
-  /// Remove a pending (failed) message from UI.
   void removePendingMessage(String localId) {
     final msgs = state.messages.where((m) => m.id != localId).toList();
     state = state.copyWith(messages: msgs);
@@ -377,7 +467,6 @@ class ChatNotifier extends StateNotifier<ChatState> {
     try {
       final response = await ApiClient.dio.delete('/chat/messages/$messageId');
       if (response.statusCode == 200) {
-        // Mesajı listeden kaldır (geri alma değil, gerçek silme)
         final msgs = state.messages.where((m) => m.id != messageId).toList();
         state = state.copyWith(messages: msgs);
         return true;
@@ -394,11 +483,10 @@ class ChatNotifier extends StateNotifier<ChatState> {
     try {
       final response = await ApiClient.dio.patch('/chat/conversations/$conversationId/archive');
       if (response.statusCode == 200) {
-        // Listeden kaldır
         final convs = state.conversations.where((c) => c.id != conversationId).toList();
         state = state.copyWith(conversations: convs);
         if (state.activeConversation?.id == conversationId) {
-          state = state.copyWith(clearActiveConversation: true, messages: []);
+          clearActiveConversation();
         }
         return true;
       }
@@ -408,35 +496,25 @@ class ChatNotifier extends StateNotifier<ChatState> {
     return false;
   }
 
-  // ── Undo Stack ──
+  // ── Okundu Bildirimi (§4.1.8-B) ──
 
-  void _startUndoTimer() {
-    _undoTimer?.cancel();
-    _undoTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      _purgeExpiredUndo();
-    });
-  }
-
-  void _purgeExpiredUndo() {
-    final before = _undoStack.length;
-    _undoStack.removeWhere((item) => item.isExpired);
-    if (_undoStack.length != before) {
-      // Force UI refresh if needed
+  Future<void> _markConversationReadApi(String conversationId) async {
+    try {
+      await ApiClient.dio.patch('/chat/conversations/$conversationId/read-all');
+    } catch (e) {
+      debugPrint('Mark read error: $e');
     }
   }
 
-  void addUndo(UndoItem item) {
-    _undoStack.add(item);
-    _startUndoTimer();
+  void markMessageRead(String messageId) {
+    ApiClient.dio.patch('/chat/messages/$messageId/read').then((_) {
+      // OK
+    }).catchError((e) {
+      debugPrint('Mark message read error: $e');
+    });
   }
 
-  List<UndoItem> get undoItems => List.unmodifiable(_undoStack);
-
-  void clearUndo(String id) {
-    _undoStack.removeWhere((item) => item.id == id);
-  }
-
-  // ── WebSocket (stub — can be wired later) ──
+  // ── User ID ──
 
   void setMyUserId(String id) {
     _myUserId = id;
@@ -444,8 +522,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   @override
   void dispose() {
-    _undoTimer?.cancel();
-    _wsPingTimer?.cancel();
+    _ws.dispose();
     super.dispose();
   }
 }

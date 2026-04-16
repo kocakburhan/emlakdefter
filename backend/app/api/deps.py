@@ -17,6 +17,7 @@ from app.models.users import User, AgencyStaff, GlobalUserRole
 from app.core.firebase import verify_firebase_token
 from app.core.security import create_invitation_token, create_access_token
 from app.core.firebase import verify_access_token
+from app.core.rls import set_rls_context
 
 # PRD: Firebase JWT tabanlı kimlik doğrulama (Bearer token)
 security_scheme = HTTPBearer(auto_error=False)
@@ -131,10 +132,15 @@ async def get_current_user_agency_id(
 
     PRD Madde 1.3: Multi-Tenancy — Her isteğin agency_id'si kontrol altında olmalı.
     Kullanıcı birden fazla ofiste çalışabilir; ilk aktif bağlantısı kullanılır.
+
+    NOT: Bu fonksiyon aynı zamanda PostgreSQL RLS context'ini set eder.
+    Böylece veritabanı seviyesinde satır bazlı izolasyon sağlanır.
     """
     # DEV MODE BYPASS
     if DEV_MODE and isinstance(current_user, DevUser):
-        return UUID(DEV_AGENCY_ID)
+        agency_id = UUID(DEV_AGENCY_ID)
+        await set_rls_context(db, agency_id)
+        return agency_id
 
     stmt = select(AgencyStaff.agency_id).where(
         AgencyStaff.user_id == current_user.id
@@ -148,4 +154,29 @@ async def get_current_user_agency_id(
             detail="Bu kullanıcı herhangi bir emlak ofisine (ajansa) bağlı değil.",
         )
 
+    # RLS context'ini set et — veritabanı seviyesinde izolasyonu aktif et
+    await set_rls_context(db, agency_id)
+
     return agency_id
+
+
+async def get_current_user_agency_role(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    agency_id: UUID = Depends(get_current_user_agency_id)
+) -> str:
+    """
+    Oturumdaki kullanıcının ofis içindeki rolünü döner (admin / agent).
+    PRD §4.1.10: BI Analytics'e sadece Admin rolü erişebilir.
+    """
+    # DEV MODE BYPASS — her zaman admin
+    if DEV_MODE and isinstance(current_user, DevUser):
+        return "admin"
+
+    stmt = select(AgencyStaff.role).where(
+        AgencyStaff.user_id == current_user.id,
+        AgencyStaff.agency_id == agency_id,
+    )
+    result = await db.execute(stmt)
+    role = result.scalar_one_or_none()
+    return role if role else "agent"

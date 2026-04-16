@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/network/api_client.dart';
 import '../providers/chat_provider.dart';
@@ -536,11 +539,17 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                                   size: 14,
                                   color: Color(0xFFD4A574),
                                 )
-                              else
+                              else if (msg.isRead)
                                 Icon(
                                   Icons.done_all,
                                   size: 14,
-                                  color: AppColors.accent.withValues(alpha: 0.7),
+                                  color: AppColors.success,  // okundu — yeşil
+                                )
+                              else
+                                Icon(
+                                  Icons.done,
+                                  size: 14,
+                                  color: AppColors.textBody.withValues(alpha: 0.4),  // gönderildi ama okunmadı
                                 ),
                             ],
                             if (msg.isEdited) ...[
@@ -833,6 +842,14 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                 )),
               ],
             ),
+            const SizedBox(height: 12),
+            // Sesli mesaj — §4.1.8
+            _buildAttachmentTile(
+              Icons.mic_outlined, 'Sesli Mesaj',
+              'Kaydet ve gönder',
+              const Color(0xFF7B8EAD),
+              () => _showVoiceRecorderSheet(ctx2),
+            ),
             const SizedBox(height: 16),
           ],
         ),
@@ -859,6 +876,22 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
             Text(subtitle, style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11)),
           ],
         ),
+      ),
+    );
+  }
+
+  // ─── Voice Recorder — §4.1.8 ───────────────────────────────────────
+  void _showVoiceRecorderSheet(BuildContext ctx) {
+    Navigator.pop(ctx);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx2) => _VoiceRecorderSheet(
+        onVoiceSent: (url) async {
+          Navigator.pop(ctx2);
+          await _sendMessageWithAttachment(url);
+        },
       ),
     );
   }
@@ -925,9 +958,11 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
   }
 
   Future<void> _sendMessageWithAttachment(String url) async {
-    // Gönder metadata URL'ini text olarak ilet — backend attachment_url'i okur
-    final msgData = '[Medya] $url';
-    await ref.read(chatProvider.notifier).sendMessage(msgData);
+    // Backend attachment_url alanını kullan (§4.1.8)
+    await ref.read(chatProvider.notifier).sendMessage(
+      '[Medya]', // placeholder text
+      attachmentUrl: url,
+    );
   }
 
   void _showError(String message) {
@@ -936,5 +971,289 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
         SnackBar(content: Text(message), backgroundColor: AppColors.error),
       );
     }
+  }
+}
+
+// ─── Voice Recorder Sheet — §4.1.8 ────────────────────────────────────────────
+
+class _VoiceRecorderSheet extends StatefulWidget {
+  final Future<void> Function(String url) onVoiceSent;
+
+  const _VoiceRecorderSheet({required this.onVoiceSent});
+
+  @override
+  State<_VoiceRecorderSheet> createState() => _VoiceRecorderSheetState();
+}
+
+class _VoiceRecorderSheetState extends State<_VoiceRecorderSheet> {
+  final _recorder = AudioRecorder();
+  bool _isRecording = false;
+  bool _isSending = false;
+  String? _recordedPath;
+  String? _error;
+
+  @override
+  void dispose() {
+    _recorder.dispose();
+    super.dispose();
+  }
+
+  Future<void> _startRecording() async {
+    try {
+      if (await _recorder.hasPermission()) {
+        final dir = await getTemporaryDirectory();
+        final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+        await _recorder.start(
+          const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 128000),
+          path: path,
+        );
+        setState(() {
+          _isRecording = true;
+          _recordedPath = path;
+          _error = null;
+        });
+      } else {
+        setState(() => _error = 'Mikrofon izni reddedildi');
+      }
+    } catch (e) {
+      setState(() => _error = 'Kayıt başlatılamadı: $e');
+    }
+  }
+
+  Future<void> _stopRecording() async {
+    try {
+      final path = await _recorder.stop();
+      if (path != null) {
+        setState(() {
+          _isRecording = false;
+          _recordedPath = path;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isRecording = false;
+        _error = 'Kayıt durdurulamadı';
+      });
+    }
+  }
+
+  Future<void> _cancelRecording() async {
+    try {
+      await _recorder.stop();
+    } catch (_) {}
+    setState(() {
+      _isRecording = false;
+      _recordedPath = null;
+    });
+  }
+
+  Future<void> _sendVoice() async {
+    if (_recordedPath == null || _isSending) return;
+
+    setState(() => _isSending = true);
+
+    try {
+      // Upload to backend
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(_recordedPath!),
+        'category': 'voice',
+      });
+      final resp = await ApiClient.dio.post(
+        '/media/upload',
+        data: formData,
+        options: Options(
+          headers: {'Content-Type': 'multipart/form-data'},
+          receiveTimeout: const Duration(seconds: 30),
+          sendTimeout: const Duration(seconds: 30),
+        ),
+      );
+      if (resp.statusCode == 200 && resp.data['url'] != null) {
+        final url = resp.data['url'] as String;
+        await widget.onVoiceSent(url);
+        if (mounted) Navigator.pop(context);
+      } else {
+        setState(() {
+          _error = 'Yükleme başarısız';
+          _isSending = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'Yükleme hatası: $e';
+        _isSending = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(24, 12, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+      decoration: const BoxDecoration(
+        color: Color(0xFF0F0F18),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Center(
+            child: Container(width: 40, height: 4, decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(2),
+            )),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            _isRecording ? 'Kayıt Yapılıyor' : (_recordedPath != null ? 'Kayıt Tamamlandı' : 'Sesli Mesaj'),
+            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _isRecording
+                ? 'Kaydı durdurmak için butona basın'
+                : (_recordedPath != null ? 'Göndermek için butona basın' : 'Kayda başlamak için butona basın'),
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 13),
+          ),
+          const SizedBox(height: 24),
+
+          // Error
+          if (_error != null)
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: AppColors.error, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(_error!, style: const TextStyle(color: AppColors.error, fontSize: 12))),
+                ],
+              ),
+            ),
+
+          // Recording indicator
+          if (_isRecording)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _PulsingMic(),
+                const SizedBox(width: 12),
+                const Text(
+                  'Kayıt yapılıyor...',
+                  style: TextStyle(color: AppColors.error, fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+
+          const SizedBox(height: 24),
+
+          // Controls
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              if (_recordedPath != null && !_isRecording) ...[
+                // Cancel
+                IconButton(
+                  onPressed: () {
+                    _cancelRecording();
+                    Navigator.pop(context);
+                  },
+                  icon: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.close, color: AppColors.error),
+                  ),
+                ),
+                // Send
+                IconButton(
+                  onPressed: _isSending ? null : _sendVoice,
+                  icon: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.success.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: _isSending
+                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.success))
+                        : const Icon(Icons.send, color: AppColors.success),
+                  ),
+                ),
+              ] else if (!_isRecording) ...[
+                // Start
+                IconButton(
+                  onPressed: _startRecording,
+                  icon: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.mic, color: AppColors.error, size: 32),
+                  ),
+                ),
+              ] else ...[
+                // Recording — stop
+                IconButton(
+                  onPressed: _stopRecording,
+                  icon: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.stop, color: AppColors.error, size: 32),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Pulsing mic animation widget
+class _PulsingMic extends StatefulWidget {
+  @override
+  State<_PulsingMic> createState() => _PulsingMicState();
+}
+
+class _PulsingMicState extends State<_PulsingMic> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 800))..repeat(reverse: true);
+    _animation = Tween<double>(begin: 0.5, end: 1.0).animate(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (_, __) => Container(
+        width: 24,
+        height: 24,
+        decoration: BoxDecoration(
+          color: AppColors.error.withValues(alpha: _animation.value * 0.4),
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(Icons.mic, color: AppColors.error, size: 14),
+      ),
+    );
   }
 }

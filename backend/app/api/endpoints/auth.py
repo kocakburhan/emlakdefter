@@ -1,5 +1,5 @@
 from datetime import timedelta, datetime
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from passlib.context import CryptContext
@@ -11,8 +11,9 @@ from app.schemas.users import UserLogin, LoginResponse, UserResponse, InviteCrea
 from app.models.users import User, Invitation, AgencyStaff, GlobalUserRole, StaffRole, Agency, UserDeviceToken, DeviceType, PasswordResetAttempt
 from app.models.tenants import Tenant, LandlordUnit
 from app.models.properties import PropertyUnit
-from app.core.firebase import verify_firebase_token
+from app.core.firebase import verify_firebase_token, reset_user_password_by_phone
 from app.core.security import create_invitation_token, create_access_token
+from app.core.rate_limiter import limiter, AUTH_FCM_LIMIT, PASSWORD_RESET_LIMIT, AUTH_LIMIT
 from jose import jwt, JWTError
 import uuid
 import os
@@ -352,7 +353,9 @@ async def get_current_user_profile(
 
 
 @router.post("/fcm-token", response_model=FCMTokenResponse)
+@limiter.limit(AUTH_FCM_LIMIT)
 async def register_fcm_token(
+    request: Request,
     token_in: FCMTokenRegister,
     current_user: User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -409,7 +412,9 @@ class RequestPasswordResetRequest(BaseModel):
 
 
 @router.post("/request-password-reset-otp")
+@limiter.limit(PASSWORD_RESET_LIMIT)
 async def request_password_reset_otp(
+    request: Request,
     data: RequestPasswordResetRequest,
     current_user: User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -447,3 +452,77 @@ async def request_password_reset_otp(
     # 3) Firebase OTP gönder (Firebase Admin SDK flow)
     # Firebase verifyPhoneNumber otomatik olarak çalışır
     return {"message": "Doğrulama kodu gönderildi."}
+
+
+# ──────────────────────────────────────────────
+# PASSWORD RESET SCHEMAS
+# ──────────────────────────────────────────────
+
+class PasswordResetConfirmRequest(BaseModel):
+    """Şifre sıfırlama doğrulama isteği — PRD §4.1.4-D"""
+    id_token: str          # Firebase ID token (OTP doğrulandıktan sonra client'dan)
+    phone_number: str      # Doğrulanan telefon numarası
+    new_password: str      # Yeni şifre (Firebase'e gönderilecek)
+
+
+class PasswordResetConfirmResponse(BaseModel):
+    success: bool
+    message: str
+
+
+# ──────────────────────────────────────────────
+# PASSWORD RESET ENDPOINT
+# ──────────────────────────────────────────────
+
+@router.post("/reset-password", response_model=PasswordResetConfirmResponse)
+@limiter.limit(PASSWORD_RESET_LIMIT)
+async def reset_password(
+    request: Request,
+    data: PasswordResetConfirmRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Şifre sıfırlama işlemini tamamlar — PRD §4.1.4-D.
+
+    Akış:
+    1. İstemci (Flutter) Firebase OTP'yi doğrular → Firebase ID token alır
+    2. İstemci bu endpoint'e ID token + yeni şifre gönderir
+    3. Backend ID token'ı doğrular
+    4. Backend Firebase Admin SDK ile şifreyi günceller
+
+    NOT: OTP doğrulaması Firebase SDK'da client-side yapılır.
+    Backend sadece Firebase ID token doğrulaması yapar.
+    """
+    # 1) Firebase ID token doğrula
+    try:
+        decoded = await verify_firebase_token(data.id_token)
+        token_phone = decoded.get("phone_number", "")
+        # Telefon numarasının eşleştiğinden emin ol
+        if token_phone and token_phone != data.phone_number:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Telefon numarası token ile eşleşmiyor."
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Token doğrulama başarısız: {str(e)}"
+        )
+
+    # 2) Şifre uzunluk kontrolü
+    if len(data.new_password) < 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Şifre en az 6 karakter olmalıdır."
+        )
+
+    # 3) Firebase Admin SDK ile şifreyi güncelle
+    reset_user_password_by_phone(data.phone_number, data.new_password)
+
+    # 4) Başarılı yanıt
+    return PasswordResetConfirmResponse(
+        success=True,
+        message="Şifreniz başarıyla güncellendi."
+    )

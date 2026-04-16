@@ -1,5 +1,5 @@
 # 📋 Emlakdefter SaaS — Proje Durum Raporu
-**Son Güncelleme:** 14 Nisan 2026 | **Repo:** [github.com/kocakburhan/emlakdefter](https://github.com/kocakburhan/emlakdefter)
+**Son Güncelleme:** 17 Nisan 2026 (Gece) | **Repo:** [github.com/kocakburhan/emlakdefter](https://github.com/kocakburhan/emlakdefter)
 
 > Bu dosya, projenin **tek kaynak gerçeği (Single Source of Truth)** olarak tasarlanmıştır.
 > Yapılan her değişiklik, her oturumun özeti ve ilerleme takibi bu dosyada tutulur.
@@ -9,7 +9,7 @@
 ## Genel İlerleme
 
 ```
-████████████████░░░░░░░░░░░░░░░ ~78%
+████████████████████░░░░░░░░░ ~88%
 ```
 
 | Katman | İlerleme | Detay |
@@ -20,7 +20,7 @@
 | **AI/ML** | ~70% | Gemini PDF banka ekstresi okuma ✅ (pdfplumber + gemini-2.5-flash + diffmatchpatch) |
 | **Ev Sahibi Paneli** | %100 | 4/4 ekran |
 | **Kiracı Paneli** | %100 ✅ | 7/7 ekran — API'ye bağlandı (Home + Finance + BuildingOps) |
-| **Offline/Sync** | 🟡 ~60% | §5.1/§5.2/§5.3 Altyapı kuruldu — §5.2 Auto-sync tetikleyici mevcut |
+| **Offline/Sync** | 🟡 ~85% | §5.1/§5.2/§5.3 — SyncStatusBar, PendingOperationsScreen, Conflict Resolution, Home Tab entegrasyonu |
 | **BI/Analytics** | %100 ✅ | fl_chart donut + bar + line chart'lar |
 
 ---
@@ -36,7 +36,7 @@
 | **FAZ 4:** Finans / AI Tahsilat | ✅ Tamamlandı — Mali Rapor ✅, Gemini PDF ✅ |
 | **FAZ 5:** İletişim / Destek | ✅ Tamamlandı — Chat Merkezi ✅, WebSocket ⏸️, §5 Offline Queue ✅ |
 | **FAZ 6:** Kiracı / Ev Sahibi Panelleri | ✅ Tamamlandı — Kiracı mock hazır, Ev Sahibi %100 (4/4 ekran) |
-| **FAZ 7:** Offline Mode | ⏸️ Bekliyor |
+| **FAZ 7:** Offline Mode | ✅ Tamamlandı — §5.1/§5.2/§5.3 — SyncStatusBar + PendingOperationsScreen + Conflict Resolution |
 | **FAZ 8:** BI, Raporlama & Yayın | ⏸️ Bekliyor |
 
 ---
@@ -172,21 +172,41 @@
 - [x] §4.1.4-C — KVKK Onay Checkbox — KVKK metni dialog, checkbox onayı, OTP akışına entegre
 - [x] §3.3 — APScheduler + FCM Bildirimleri — send_fcm_notification, /auth/fcm-token endpoint, payment_reminder scheduler
 - [x] §4.1.5-A — Excel Export — Mali Rapor'dan XLSX indirme (excel paketi + share_plus)
+- [x] §4.1.1-B — ActivityFeedScreen — "Tümünü Gör" → tam etkinlik akışı ekranı (pagination + pull-to-refresh)
+- [x] §4.1.2 — Daire Üretim Doğrulama — Backend `total_units` değeri kullanılıyor
+- [x] §4.1.8 — Medya URL — `attachment_url` alanı doğru kullanılıyor
+- [x] §4.1.8 — Hukuki Arşivleme — `DELETE /chat/messages/{id}` artık 403 döner (mesajlar immutable)
+- [x] §4.3.3-A — Landlord Ticket Timeline — `_ExpandableTicketCard` ile kronolojik thread gösterimi
+- [x] §5.3 — Sync UUID — Merkezi `SyncService.generateUuid()` eklendi
+- [x] §5.1 — Media Cache Box — `media_cache` Hive box eklendi
+- [x] §5.3 — Sync UI Provider — `syncServiceProvider` Riverpod provider eklendi
+- [x] §4.1.7-C — Direkt Mesaj — Ticket detayında WhatsApp yerine uygulama içi chat açılıyor
+- [x] Kod Kalitesi — `TenantsManagementScreen` placeholder sınıfı kaldırıldı
+- [x] §4.1.3 — YouTube Video Embed — `_InlineYoutubePlayer` + `_VideoPreviewDialog` (thumbnail + full player)
+- [x] §4.1.4-E — Firebase OTP Telefon Doğrulama — Kiracı/Ev Sahibi formlarında `verifyPhoneNumber()` + OTP + `updatePhoneNumber()`
+- [x] §3.2-B — Şifre Sıfırlama — `POST /reset-password` endpoint + `reset_user_password_by_phone()` Firebase Admin SDK
+- [x] §4.1.8-D — Sesli Mesaj — `_VoiceRecorderSheet` + `_PulsingMic` animasyonu, `record: ^6.2.0` paketi, `POST /media/upload` + category: voice
+- [x] Platform İzni — `RECORD_AUDIO` (Android), `NSMicrophoneUsageDescription` (iOS), minSdk 23, core library desugaring
+- [x] §5.3 — SyncStatusBar + PendingOperationsScreen — Global indicator + detaylı kuyruk ekranı
+- [x] §5.3 — Conflict Resolution — 409 Conflict durumunda UUID ile outbox temizleme
+- [x] §5.3 — Home Tab Entegrasyonu — Bekleyen işlem butonu (badge count ile)
+- [x] §4.1.8 — Tenant WebSocket Entegrasyonu — `_ChatScreen`'e `ChatWebSocketService` bağlantısı
+- [x] §4.1.8 — Redis Pub/Sub — Backend WebSocket zaten doğru implementasyonlu (ws_manager.init() çağrılıyor)
+- [x] §4.1.4 — Rate Limiting (slowapi) — FCM/OTP/Reset-password endpoint'leri 5-10 req/dk ile korumalı
+- [x] Kod Kalitesi — `Float` import (finance.py), `Optional` import (chat.py), `openpyxl` venv kurulumu
 
-### Sırada: §4.1.8-C — Hetzner Object Storage (Medya Görsel Yükleme)
-- Chat ve bina operasyonlarına medya yükleme
-- Hetzner Object Storage + WebP sıkıştırma
+### Sırada: 🚀 VPS Backend Deployment
 
-### Sonraki: §5 — Offline Mode (Hive/Isar + Queue)
-- Yerel veri önbelleği + çevrimdışı işlem kuyruğu
-
-### Sonraki: 🚀 VPS Backend Deployment (SSH ile Uzaktan Kurulum)
+- `deploy/` dizini hazır: docker-compose.prod.yml, Dockerfile, setup_vps.sh, deploy.sh, nginx.conf, .env.production.template
 - Sunucu: Hetzner VPS (Helsinki hel1) — IPv4: 89.167.15.127
-- SSH ile bağlanıp uvicorn + PostgreSQL + Redis + Backend kurulumu
-- Detaylar aşağıda
+- Manuel: Hetzner Object Storage bucket oluştur + .env credentials doldur
+- Manuel: Firebase Console'da Phone Provider etkinleştir + SHA-1 fingerprint ekle
 
 ### Sonraki: Store Yayını (iOS + Android)
-- TestFlight + Google Play Console hazırlığı
+
+- iOS: Bundle ID → com.emlakdefter.app, Runner.entitlements (APS environment)
+- Android: keystore + key.properties + signing yapılandırması hazır
+- TestFlight + Google Play Console kaydı
 
 ---
 

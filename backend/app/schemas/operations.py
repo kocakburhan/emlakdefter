@@ -35,6 +35,7 @@ class TicketResponse(TicketBase):
     agency_id: UUID4
     unit_id: UUID4
     reporter_user_id: Optional[UUID4]
+    tenant_phone: Optional[str] = None  # Kiracı telefonu — WhatsApp entegrasyonu için
     status: TicketStatus
     created_at: datetime
     messages: List[TicketMessageResponse] = []
@@ -71,6 +72,7 @@ class BuildingLogCreate(BaseModel):
     cost: int = Field(0, description="Dökülen Masraf (Kuruş/Lira format)")
     invoice_url: Optional[str] = None
     is_reflected_to_finance: bool = False
+    category: Optional[str] = None  # PRD §4.1.9 — OperationCategory
 
 class BuildingLogUpdate(BaseModel):
     """Maliyeti finansa yansıt veya not güncelle"""

@@ -114,7 +114,9 @@ async def process_and_match_statement(db: AsyncSession, agency_id: str, pdf_byte
                       category=ai_category,
                       amount=amount_paid,
                       transaction_date=datetime.strptime(tx_date_str, "%Y-%m-%d").date() if "-" in tx_date_str else datetime.now().date(),
-                      description=f"[Otonom AI] {ai_tx.get('description', '')} | AI Kategori: {ai_category_str}"
+                      description=f"[Otonom AI] {ai_tx.get('description', '')} | AI Kategori: {ai_category_str}",
+                      ai_matched=True,  # ✅ EKLENDI — AI eşleşmesini işaretle
+                      ai_confidence=round(best_score * 100, 1),  # ✅ EKLENDI — AI güven skoru (0-100)
                  )
                  db.add(new_tx)
              else:

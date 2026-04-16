@@ -107,7 +107,8 @@ class PropertiesNotifier extends StateNotifier<AsyncValue<List<PropertyModel>>> 
 
   /// Yeni apartman/mülk oluşturur: POST /api/v1/properties
   /// PRD Madde 4.1.2-B: Otonom Üretim Motoru tetiklenir
-  Future<bool> createProperty({
+  /// Returns total_units created by the server, or null on failure.
+  Future<int?> createProperty({
     required String name,
     required String type,
     String? address,
@@ -119,7 +120,7 @@ class PropertiesNotifier extends StateNotifier<AsyncValue<List<PropertyModel>>> 
     int? unitsPerFloor,
   }) async {
     final currentList = state.value ?? [];
-    
+
     try {
       final response = await ApiClient.dio.post('/properties', data: {
         'name': name,
@@ -136,14 +137,14 @@ class PropertiesNotifier extends StateNotifier<AsyncValue<List<PropertyModel>>> 
         final newProp = PropertyModel.fromJson(response.data);
         state = AsyncValue.data([...currentList, newProp]);
         debugPrint("✅ Yeni mülk oluşturuldu: ${newProp.name} (${newProp.totalUnits} birim)");
-        return true;
+        return newProp.totalUnits;
       } else {
         throw Exception("Mülk oluşturma başarısız: ${response.statusCode}");
       }
     } catch (e) {
       debugPrint("⚠️ Mülk oluşturma hatası: $e");
       state = AsyncValue.data(currentList); // Listeyi geri yükle
-      return false;
+      return null;
     }
   }
 

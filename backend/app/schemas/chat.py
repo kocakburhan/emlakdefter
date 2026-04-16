@@ -17,6 +17,7 @@ class MessageCreate(BaseModel):
     conversation_id: UUID4
     content: Optional[str] = None
     attachment_url: Optional[str] = None
+    client_created_at: Optional[str] = None  # ✅ EKLENDI — Offline mesaj timestamp'i korunur (PRD §5.2)
 
 class ChatMessageResponse(ChatMessageBase):
     """Veritabanından çıkartılıp odaya veya offline tarihe yansıtılacak olan mesaj"""

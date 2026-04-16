@@ -13,6 +13,7 @@ class OfflineStorage {
   static const String _boxPortfolio = 'portfolio_cache';
   static const String _boxContacts = 'contacts_cache';
   static const String _boxReports = 'reports_cache';
+  static const String _boxMediaCache = 'media_cache';       // ✅ EKLENDI — PRD §5.1
   static const String _boxOutbox = 'message_outbox';
   static const String _boxOpQueue = 'operation_queue';
   static const String _boxTxQueue = 'transaction_queue';
@@ -25,6 +26,7 @@ class OfflineStorage {
   late Box<Map> _portfolioBox;
   late Box<Map> _contactsBox;
   late Box<Map> _reportsBox;
+  late Box<Map> _mediaCacheBox;                             // ✅ EKLENDI
   late Box<Map> _outboxBox;
   late Box<Map> _opQueueBox;
   late Box<Map> _txQueueBox;
@@ -39,6 +41,7 @@ class OfflineStorage {
     _portfolioBox = await Hive.openBox<Map>(_boxPortfolio);
     _contactsBox = await Hive.openBox<Map>(_boxContacts);
     _reportsBox = await Hive.openBox<Map>(_boxReports);
+    _mediaCacheBox = await Hive.openBox<Map>(_boxMediaCache);  // ✅ EKLENDI
     _outboxBox = await Hive.openBox<Map>(_boxOutbox);
     _opQueueBox = await Hive.openBox<Map>(_boxOpQueue);
     _txQueueBox = await Hive.openBox<Map>(_boxTxQueue);
@@ -52,6 +55,7 @@ class OfflineStorage {
   Box<Map> get portfolioBox => _portfolioBox;
   Box<Map> get contactsBox => _contactsBox;
   Box<Map> get reportsBox => _reportsBox;
+  Box<Map> get mediaCacheBox => _mediaCacheBox;              // ✅ EKLENDI
   Box<Map> get outboxBox => _outboxBox;
   Box<Map> get opQueueBox => _opQueueBox;
   Box<Map> get txQueueBox => _txQueueBox;
@@ -124,6 +128,31 @@ class OfflineStorage {
         .map((e) => Map<String, dynamic>.from(e))
         .toList();
   }
+
+  // ─── Media Cache — PRD §5.1 ─────────────────────────────────
+  // Sadece daha önce açılmış medya önbellekte saklanır (cache-first)
+  // Not: Bu,tam bir offline medya indirme sistemi DEĞİLDİR —
+  // sadece ön belleğe alınmış medya URL'lerini kaydeder.
+
+  Future<void> cacheMedia(String url, Map<String, dynamic> metadata) async {
+    await _mediaCacheBox.put(url, metadata);
+    await _metaBox.put('media_cache_ts', DateTime.now().toIso8601String());
+  }
+
+  Map<String, dynamic>? getCachedMedia(String url) {
+    final val = _mediaCacheBox.get(url);
+    if (val == null) return null;
+    return Map<String, dynamic>.from(val);
+  }
+
+  bool isMediaCached(String url) => _mediaCacheBox.containsKey(url);
+
+  Future<void> clearMediaCache() async {
+    await _mediaCacheBox.clear();
+    await _metaBox.delete('media_cache_ts');
+  }
+
+  int get mediaCacheCount => _mediaCacheBox.length;
 
   // ─── Meta ──────────────────────────────────────────────────
 

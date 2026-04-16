@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/chat_websocket_service.dart';
 import '../providers/tenant_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -618,6 +619,9 @@ class _ChatScreenState extends ConsumerState<_ChatScreen>
   // Spring animation for message bubbles
   final Map<String, AnimationController> _bubbleControllers = {};
 
+  // WebSocket for real-time messaging
+  final ChatWebSocketService _ws = ChatWebSocketService();
+
   @override
   void initState() {
     super.initState();
@@ -648,6 +652,7 @@ class _ChatScreenState extends ConsumerState<_ChatScreen>
 
     if (widget.conversationId != null) {
       _loadHistory();
+      _connectWebSocket(widget.conversationId!);
     } else {
       _isLoadingHistory = false;
     }
@@ -655,6 +660,7 @@ class _ChatScreenState extends ConsumerState<_ChatScreen>
 
   @override
   void dispose() {
+    _ws.dispose();
     _textCtrl.dispose();
     _scrollCtrl.dispose();
     _focusNode.dispose();
@@ -664,6 +670,45 @@ class _ChatScreenState extends ConsumerState<_ChatScreen>
       c.dispose();
     }
     super.dispose();
+  }
+
+  void _connectWebSocket(String conversationId) {
+    _ws.onMessage = (data) {
+      if (!mounted) return;
+      final msg = ChatMessageItem(
+        id: data['id'] ?? '',
+        conversationId: data['conversation_id'] ?? conversationId,
+        senderUserId: data['sender_user_id'] ?? '',
+        message: data['content'] ?? data['message'] ?? '',
+        mediaUrl: data['attachment_url'] ?? data['media_url'],
+        createdAt: DateTime.tryParse(data['created_at'] ?? '') ?? DateTime.now(),
+        isDeleted: false,
+        isEdited: false,
+      );
+      setState(() {
+        _messages = [..._messages, msg];
+      });
+      _scrollToBottom();
+    };
+
+    _ws.onMessageRead = (data) {
+      // Tenant chat doesn't track individual read receipts — just mark all as read
+      if (!mounted) return;
+      setState(() {
+        _messages = _messages.map((m) => ChatMessageItem(
+          id: m.id,
+          conversationId: m.conversationId,
+          senderUserId: m.senderUserId,
+          message: m.message,
+          mediaUrl: m.mediaUrl,
+          createdAt: m.createdAt,
+          isDeleted: m.isDeleted,
+          isEdited: m.isEdited,
+        )).toList();
+      });
+    };
+
+    _ws.connect(conversationId);
   }
 
   Future<void> _loadHistory() async {

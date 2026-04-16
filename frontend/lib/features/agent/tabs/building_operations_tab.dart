@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:dio/dio.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/offline/offline_cache_provider.dart';
 import '../providers/building_operations_provider.dart';
 import '../providers/properties_provider.dart';
+import '../../../core/network/api_client.dart';
 
 /// Bina Operasyonları — Şeffaflık Modülü (PRD §4.1.9)
 /// Tam premium dark tema + staggered animasyonlar + kategori sistemi + medya kanıt
@@ -849,6 +852,7 @@ extension _BuildingOperationsTabStateExt on _BuildingOperationsTabState {
     final descCtrl = TextEditingController();
     final costCtrl = TextEditingController(text: '0');
     bool reflectedToFinance = false;
+    String? invoiceUrl;
 
     await showModalBottomSheet(
       context: context,
@@ -1018,51 +1022,13 @@ extension _BuildingOperationsTabStateExt on _BuildingOperationsTabState {
                 ),
                 const SizedBox(height: 14),
 
-                // Fatura kanıtı (placeholder)
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0D0D14),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.white.withValues(alpha:0.06)),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppColors.accent.withValues(alpha:0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(Icons.receipt_long_rounded,
-                            color: AppColors.accent, size: 20),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Fatura / Kanıt Ekle',
-                              style: TextStyle(
-                                color: Colors.white, fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            Text(
-                              'Fotoğraf veya PDF — Hetzner\'a yüklenecek',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha:0.35),
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(Icons.add_photo_alternate_outlined,
-                          color: Colors.white.withValues(alpha:0.4)),
-                    ],
-                  ),
+                // Fatura kanıtı — medya yükleme
+                _InvoiceUploader(
+                  onInvoiceUrlChanged: (url) {
+                    setSheetState(() {
+                      invoiceUrl = url;
+                    });
+                  },
                 ),
                 const SizedBox(height: 14),
 
@@ -1131,6 +1097,7 @@ extension _BuildingOperationsTabStateExt on _BuildingOperationsTabState {
                               ? null
                               : descCtrl.text.trim(),
                           cost: cost,
+                          invoiceUrl: invoiceUrl,
                           category: selectedCategory,
                           isReflectedToFinance: reflectedToFinance,
                         );
@@ -1532,4 +1499,148 @@ String _fmt(int value) {
 String _formatDate(DateTime dt) {
   final aylar = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
   return '${dt.day.toString().padLeft(2, '0')} ${aylar[dt.month - 1]} ${dt.year}';
+}
+
+// ─── Fatura / Kanıt Yükleyici Widget ─────────────────────────────────────────
+class _InvoiceUploader extends StatefulWidget {
+  final void Function(String? url) onInvoiceUrlChanged;
+
+  const _InvoiceUploader({required this.onInvoiceUrlChanged});
+
+  @override
+  State<_InvoiceUploader> createState() => _InvoiceUploaderState();
+}
+
+class _InvoiceUploaderState extends State<_InvoiceUploader> {
+  String? _uploadedUrl;
+  bool _isUploading = false;
+  String? _fileName;
+
+  Future<void> _pickAndUpload() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final platformFile = result.files.single;
+      setState(() {
+        _isUploading = true;
+        _fileName = platformFile.name;
+      });
+
+      final multipartFile = platformFile.bytes != null
+          ? MultipartFile.fromBytes(platformFile.bytes!, filename: platformFile.name)
+          : await MultipartFile.fromFile(platformFile.path!, filename: platformFile.name);
+
+      final formData = FormData.fromMap({
+        'file': multipartFile,
+        'category': 'building_ops',
+      });
+
+      final resp = await ApiClient.dio.post('/upload/media', data: formData);
+
+      if (resp.statusCode == 200 && resp.data['url'] != null) {
+        setState(() {
+          _uploadedUrl = resp.data['url'];
+          _isUploading = false;
+        });
+        widget.onInvoiceUrlChanged(_uploadedUrl);
+      } else {
+        setState(() => _isUploading = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Yükleme başarısız'), backgroundColor: AppColors.error),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() => _isUploading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Hata: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasFile = _uploadedUrl != null || _isUploading;
+
+    return GestureDetector(
+      onTap: _isUploading ? null : _pickAndUpload,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0D0D14),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: hasFile
+                ? AppColors.success.withValues(alpha: 0.5)
+                : Colors.white.withValues(alpha: 0.06),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.accent.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: _isUploading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent),
+                    )
+                  : Icon(
+                      hasFile ? Icons.check_circle : Icons.receipt_long_rounded,
+                      color: hasFile ? AppColors.success : AppColors.accent,
+                      size: 20,
+                    ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _isUploading
+                        ? 'Yükleniyor...'
+                        : _uploadedUrl != null
+                            ? 'Fatura yüklendi'
+                            : 'Fatura / Kanıt Ekle',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    _isUploading
+                        ? _fileName ?? 'Dosya seçildi'
+                        : _uploadedUrl != null
+                            ? _fileName ?? 'Kaydedildi'
+                            : 'Fotoğraf veya PDF — Hetzner\'a yüklenecek',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.35),
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              hasFile ? Icons.check : Icons.add_photo_alternate_outlined,
+              color: Colors.white.withValues(alpha: 0.4),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

@@ -13,10 +13,12 @@ from app.models.tenants import Tenant, LandlordUnit, ContractStatus
 from app.models.properties import Property, PropertyUnit, UnitStatus
 from app.models.operations import BuildingOperationLog
 from app.models.chat import ChatConversation, ChatMessage
+from app.models.finance import FinancialTransaction, PaymentSchedule, PaymentStatus, TransactionType
 from app.schemas.landlord import (
     LandlordDashboardKPIs, LandlordPropertySummary, LandlordUnitResponse,
     LandlordTenantPerformance, LandlordOperationItem, LandlordVacantUnit,
-    PaymentMonthItem, LandlordInterestRequest,
+    PaymentMonthItem, LandlordInterestRequest, UnitDocumentsResponse,
+    UnitDocumentItem,
 )
 
 router = APIRouter()
@@ -77,6 +79,38 @@ async def landlord_dashboard(
     total_units = len(landlord_units)
     rate = (occupied / total_units * 100) if total_units > 0 else 0.0
 
+    # §4.3.1-A — Finansal özet: beklenen kira, tahsil edilen, gecikmeli bakiye
+    # Bu ayın başı ve sonu
+    now = datetime.utcnow()
+    month_start = date(now.year, now.month, 1)
+    if now.month == 12:
+        month_end = date(now.year + 1, 1, 1)
+    else:
+        month_end = date(now.year, now.month + 1, 1)
+
+    # Beklenen kira: aktif kiracıların aylık kira toplamı
+    expected_rent = total_income
+
+    # Tahsil edilen: bu ay işlenmiş ödemeler
+    collected_rent = 0
+    delayed_balance = 0
+
+    if unit_ids:
+        # payment_schedules üzerinden bu ayın tahsilatlarını bul
+        ps_stmt = select(PaymentSchedule).where(
+            PaymentSchedule.tenant_id.in_([t.id for t in active_tenants]),
+            PaymentSchedule.due_date >= month_start,
+            PaymentSchedule.due_date < month_end,
+        )
+        ps_result = await db.execute(ps_stmt)
+        schedules = ps_result.scalars().all()
+
+        for ps in schedules:
+            if ps.status == PaymentStatus.paid:
+                collected_rent += ps.paid_amount if ps.paid_amount else ps.amount
+            elif ps.status == PaymentStatus.overdue:
+                delayed_balance += ps.amount
+
     return LandlordDashboardKPIs(
         total_properties=len(set(lu.unit.property_id for lu in landlord_units)),
         total_units=total_units,
@@ -86,6 +120,9 @@ async def landlord_dashboard(
         total_pending_dues=total_dues,
         active_tenants=len(active_tenants),
         occupancy_rate=round(rate, 1),
+        expected_rent=expected_rent,
+        collected_rent=collected_rent,
+        delayed_balance=delayed_balance,
     )
 
 
@@ -295,6 +332,7 @@ async def landlord_tenants(
             missed_payments=missed,
             payment_score=round(score, 1),
             payment_history=payment_history,
+            documents=t.documents if t.documents else [],  # ✅ EKLENDI — Sözleşme belgeleri (PRD §4.3.2-C)
         ))
 
     return responses
@@ -371,6 +409,16 @@ async def landlord_tenant_tickets(
             "agent_reply_count": len(agent_msgs),
             "last_message": last_msg.content if last_msg else None,
             "last_message_at": last_msg.created_at.isoformat() if last_msg else t.created_at.isoformat(),
+            # ✅ EKLENDI — §4.3.3-A: Tam kronolojik thread
+            "messages": [
+                {
+                    "content": m.content,
+                    "sender_name": m.sender_name or "Kiracı",
+                    "is_agent": m.sender_user_id != t.reporter_user_id,
+                    "created_at": m.created_at.isoformat(),
+                }
+                for m in sorted_msgs[-10:]  # son 10 mesaj (özet)
+            ],
         })
 
     return responses
@@ -426,6 +474,71 @@ async def landlord_operations(
 
 
 # ──────────────────────────────────────────────
+# §4.3.2-C — DİJİTAL ARŞIV (Salt Okunur Belgeler ve Medya)
+# ──────────────────────────────────────────────
+
+@router.get("/units/{unit_id}/documents", response_model=UnitDocumentsResponse)
+async def landlord_unit_documents(
+    unit_id: UUID,
+    current_user: User = Depends(deps.get_current_user),
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """
+    Birime ait tüm dijital arşiv belgelerini döner — PRD §4.3.2-C.
+    Sözleşme PDF, demirbaş teslim tutanağı ve varsa fotoğraflar.
+    Ev Sahibi salt-okunur erişimdedir.
+    """
+    # Ev sahibinin bu birime erişim yetkisini doğrula
+    landlord_units = await _get_landlord_units(current_user.id, db)
+    unit_ids = [lu.unit_id for lu in landlord_units]
+
+    if unit_id not in unit_ids:
+        raise HTTPException(status_code=403, detail="Bu birime erişim yetkiniz yok.")
+
+    # Birim bilgisi
+    lu = next((lu for lu in landlord_units if lu.unit_id == unit_id), None)
+    if not lu or not lu.unit:
+        raise HTTPException(status_code=404, detail="Birim bulunamadı.")
+
+    unit = lu.unit
+    property_name = unit.property.name if unit.property else "Bilinmeyen"
+    door_number = unit.door_number
+
+    # Birime ait kiracının belgelerini al
+    tenant_stmt = select(Tenant).where(
+        Tenant.unit_id == unit_id,
+        Tenant.is_active == True,
+    )
+    tenant_res = await db.execute(tenant_stmt)
+    tenant = tenant_res.scalar_one_or_none()
+
+    documents: List[UnitDocumentItem] = []
+    contract_url = None
+
+    if tenant:
+        contract_url = tenant.contract_document_url
+
+        # documents JSON alanını parse et
+        raw_docs = tenant.documents if tenant.documents else []
+        for d in raw_docs:
+            if isinstance(d, dict):
+                documents.append(UnitDocumentItem(
+                    name=d.get("name", "Bilinmeyen Belge"),
+                    doc_type=d.get("type", "other"),
+                    url=d.get("url", ""),
+                    uploaded_at=d.get("uploaded_at"),
+                ))
+
+    return UnitDocumentsResponse(
+        unit_id=unit_id,
+        property_name=property_name,
+        door_number=door_number,
+        contract_document_url=contract_url,
+        documents=documents,
+    )
+
+
+# ──────────────────────────────────────────────
 # PORTFÖY VITRINI — YATIRIM FIRSATLARI (PRD §4.3.4)
 # ──────────────────────────────────────────────
 
@@ -435,18 +548,29 @@ async def landlord_vacant_units(
     min_price: Optional[int] = None,
     max_price: Optional[int] = None,
     current_user: User = Depends(deps.get_current_user),
-    agency_id: UUID = Depends(deps.get_current_user_agency_id),
     db: AsyncSession = Depends(deps.get_db),
 ):
     """
-    Emlak ofisinin portföyündeki BOŞ birimleri listeler.
+    Ev Sahibinin kendi mülklerindeki BOŞ birimleri listeler.
     Ev Sahibi ( landlord ) yeni yatırım fırsatlarını burada görür.
     Filtreleme: mülk adı (içeren), min/max kira bedeli.
+
+    NOT: landlord kullanıcılar agency_staff tablosunda değil bu endpoint
+    agency_id'yi kendi mülklerinden (landlord_units → property_units → property) alır.
+    PRD §4.3.4 — #3 kritik hata düzeltmesi.
     """
+    # Ev sahibinin birimlerini getir (bu sorgu agency_staff değil, landlords_units üzerinden çalışır)
+    landlord_units = await _get_landlord_units(current_user.id, db)
+    if not landlord_units:
+        return []
+
+    unit_ids = [lu.unit_id for lu in landlord_units]
+
+    # Boş birimleri getir (sadece bu landlord'un birimleri)
     stmt = (
         select(PropertyUnit)
         .where(
-            PropertyUnit.agency_id == agency_id,
+            PropertyUnit.id.in_(unit_ids),
             PropertyUnit.status == UnitStatus.vacant,
         )
         .options(selectinload(PropertyUnit.property))
@@ -488,13 +612,21 @@ async def landlord_vacant_units(
 async def landlord_send_interest(
     body: LandlordInterestRequest,
     current_user: User = Depends(deps.get_current_user),
-    agency_id: UUID = Depends(deps.get_current_user_agency_id),
     db: AsyncSession = Depends(deps.get_db),
 ):
     """
     Ev Sahibinin yatırım ilgisi bildirmesi — §4.3.4.
     Emlakçıyla sohbet başlatır ve ilk mesajı gönderir.
     """
+    # Ev sahibinin kendi mülk birimlerini al
+    landlord_units = await _get_landlord_units(current_user.id, db)
+    if not landlord_units:
+        raise HTTPException(status_code=403, detail="Bu kullanıcı herhangi bir mülke sahip değil.")
+
+    # İlk mülkün agency_id'sini al
+    first_unit = landlord_units[0].unit
+    agency_id = first_unit.agency_id
+
     # agency's first agent user as recipient
     agent_stmt = (
         select(User)

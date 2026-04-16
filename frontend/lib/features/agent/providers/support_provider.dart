@@ -29,6 +29,7 @@ class TicketModel {
   final String title;
   final String? description;
   final String? tenantName;
+  final String? tenantPhone;  // WhatsApp entegrasyonu için — PRD §4.1.7-C
   final String? location;
   final String? propertyId;
   final String priority;
@@ -41,6 +42,7 @@ class TicketModel {
     required this.title,
     this.description,
     this.tenantName,
+    this.tenantPhone,
     this.location,
     this.propertyId,
     required this.priority,
@@ -70,6 +72,7 @@ class TicketModel {
       title: json['title'] ?? '',
       description: json['description'],
       tenantName: json['reporter_name'],
+      tenantPhone: json['tenant_phone'],
       location: json['unit_door'] != null ? '${json['unit_property'] ?? ''} ${json['unit_door']}' : null,
       propertyId: json['property_id']?.toString(),
       priority: json['priority'] ?? 'medium',

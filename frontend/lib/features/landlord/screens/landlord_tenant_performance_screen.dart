@@ -123,6 +123,13 @@ class LandlordTenantPerformanceScreen extends ConsumerWidget {
                               '${tenant.propertyName} • ${tenant.doorNumber}',
                               style: TextStyle(color: AppColors.textBody.withValues(alpha:0.6), fontSize: 12),
                             ),
+                            if (tenant.tenantPhone != null && tenant.tenantPhone!.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                tenant.tenantPhone!,
+                                style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 12),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -166,6 +173,11 @@ class LandlordTenantPerformanceScreen extends ConsumerWidget {
                       ],
                     ),
                   ),
+                  // Ödeme geçmişi (§4.3.2-B)
+                  if (tenant.paymentHistory.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    _buildPaymentHistory(tenant.paymentHistory),
+                  ],
                 ],
               ),
             ),
@@ -230,5 +242,78 @@ class LandlordTenantPerformanceScreen extends ConsumerWidget {
     if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
     if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)}K';
     return value.toStringAsFixed(0);
+  }
+
+  /// Ödeme geçmişi — Son 12 ay (§4.3.2-B)
+  Widget _buildPaymentHistory(List<PaymentMonthItem> history) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Ödeme Geçmişi',
+          style: TextStyle(
+            color: AppColors.textBody.withValues(alpha:0.6),
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: history.map((m) => _buildPaymentMonthChip(m)).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPaymentMonthChip(PaymentMonthItem m) {
+    Color chipColor;
+    IconData chipIcon;
+    String label;
+
+    switch (m.status) {
+      case 'paid_on_time':
+        chipColor = const Color(0xFF6B8E6B);
+        chipIcon = Icons.check_circle;
+        label = m.monthLabel;
+        break;
+      case 'paid_late':
+        chipColor = const Color(0xFFD4A574);
+        chipIcon = Icons.warning;
+        label = '${m.monthLabel} (+${m.daysLate}g)';
+        break;
+      case 'partial':
+        chipColor = const Color(0xFFAD7B7B);
+        chipIcon = Icons.percent;
+        label = '${m.monthLabel} (kısmi)';
+        break;
+      case 'pending':
+      default:
+        chipColor = AppColors.textBody.withValues(alpha:0.3);
+        chipIcon = Icons.schedule;
+        label = m.monthLabel;
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: chipColor.withValues(alpha:0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: chipColor.withValues(alpha:0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(chipIcon, size: 12, color: chipColor),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(color: chipColor, fontSize: 10, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
   }
 }

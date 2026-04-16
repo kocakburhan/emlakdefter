@@ -15,6 +15,9 @@ class LandlordKPIs {
   final int totalPendingDues;
   final int activeTenants;
   final double occupancyRate;
+  final int expectedRent;    // Beklenen kira (PRD §4.3.1-A)
+  final int collectedRent;   // Tahsil edilen kira
+  final int delayedBalance;  // Gecikmeli bakiye
 
   LandlordKPIs({
     required this.totalProperties,
@@ -25,6 +28,9 @@ class LandlordKPIs {
     required this.totalPendingDues,
     required this.activeTenants,
     required this.occupancyRate,
+    this.expectedRent = 0,
+    this.collectedRent = 0,
+    this.delayedBalance = 0,
   });
 
   factory LandlordKPIs.fromJson(Map<String, dynamic> json) {
@@ -37,6 +43,9 @@ class LandlordKPIs {
       totalPendingDues: json['total_pending_dues'] ?? 0,
       activeTenants: json['active_tenants'] ?? 0,
       occupancyRate: (json['occupancy_rate'] ?? 0).toDouble(),
+      expectedRent: json['expected_rent'] ?? 0,
+      collectedRent: json['collected_rent'] ?? 0,
+      delayedBalance: json['delayed_balance'] ?? 0,
     );
   }
 }
@@ -243,6 +252,7 @@ class LandlordTenantTicket {
   final int agentReplyCount;
   final String? lastMessage;
   final DateTime? lastMessageAt;
+  final List<TicketMessageItem> messages; // ✅ EKLENDI — §4.3.3-A tam kronolojik thread
 
   LandlordTenantTicket({
     required this.id,
@@ -258,6 +268,7 @@ class LandlordTenantTicket {
     required this.agentReplyCount,
     this.lastMessage,
     this.lastMessageAt,
+    this.messages = const [],
   });
 
   factory LandlordTenantTicket.fromJson(Map<String, dynamic> json) {
@@ -281,6 +292,36 @@ class LandlordTenantTicket {
       lastMessageAt: json['last_message_at'] != null
           ? DateTime.tryParse(json['last_message_at'])
           : null,
+      messages: (json['messages'] as List?)
+              ?.map((m) => TicketMessageItem.fromJson(m))
+              .toList() ??
+          [],
+    );
+  }
+}
+
+/// §4.3.3-A — Ticket içindeki tek bir mesaj
+class TicketMessageItem {
+  final String content;
+  final String senderName;
+  final bool isAgent;
+  final DateTime createdAt;
+
+  TicketMessageItem({
+    required this.content,
+    required this.senderName,
+    required this.isAgent,
+    required this.createdAt,
+  });
+
+  factory TicketMessageItem.fromJson(Map<String, dynamic> json) {
+    return TicketMessageItem(
+      content: json['content'] ?? '',
+      senderName: json['sender_name'] ?? 'Kiracı',
+      isAgent: json['is_agent'] ?? false,
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at']) ?? DateTime.now()
+          : DateTime.now(),
     );
   }
 }
@@ -360,6 +401,58 @@ class LandlordVacantUnit {
   }
 }
 
+class UnitDocumentItem {
+  final String name;
+  final String docType;
+  final String url;
+  final DateTime? uploadedAt;
+
+  UnitDocumentItem({
+    required this.name,
+    required this.docType,
+    required this.url,
+    this.uploadedAt,
+  });
+
+  factory UnitDocumentItem.fromJson(Map<String, dynamic> json) {
+    return UnitDocumentItem(
+      name: json['name'] ?? 'Bilinmeyen',
+      docType: json['doc_type'] ?? 'other',
+      url: json['url'] ?? '',
+      uploadedAt: json['uploaded_at'] != null
+          ? DateTime.tryParse(json['uploaded_at']) : null,
+    );
+  }
+}
+
+class UnitDocuments {
+  final String unitId;
+  final String propertyName;
+  final String doorNumber;
+  final String? contractDocumentUrl;
+  final List<UnitDocumentItem> documents;
+
+  UnitDocuments({
+    required this.unitId,
+    required this.propertyName,
+    required this.doorNumber,
+    this.contractDocumentUrl,
+    required this.documents,
+  });
+
+  factory UnitDocuments.fromJson(Map<String, dynamic> json) {
+    return UnitDocuments(
+      unitId: json['unit_id'] ?? '',
+      propertyName: json['property_name'] ?? '',
+      doorNumber: json['door_number'] ?? '',
+      contractDocumentUrl: json['contract_document_url'],
+      documents: (json['documents'] as List<dynamic>?)
+              ?.map((e) => UnitDocumentItem.fromJson(e))
+              .toList() ?? [],
+    );
+  }
+}
+
 /// ──────────────────────────────────────────────
 /// LANDLORD STATE
 /// ──────────────────────────────────────────────
@@ -372,6 +465,7 @@ class LandlordState {
   final List<LandlordOperation> operations;
   final List<LandlordVacantUnit> vacantUnits;
   final List<LandlordTenantTicket> tickets;
+  final Map<String, UnitDocuments> unitDocuments;
   final bool isLoading;
   final String? error;
 
@@ -383,6 +477,7 @@ class LandlordState {
     this.operations = const [],
     this.vacantUnits = const [],
     this.tickets = const [],
+    this.unitDocuments = const {},
     this.isLoading = false,
     this.error,
   });
@@ -395,6 +490,7 @@ class LandlordState {
     List<LandlordOperation>? operations,
     List<LandlordVacantUnit>? vacantUnits,
     List<LandlordTenantTicket>? tickets,
+    Map<String, UnitDocuments>? unitDocuments,
     bool? isLoading,
     String? error,
     bool clearError = false,
@@ -407,6 +503,7 @@ class LandlordState {
       operations: operations ?? this.operations,
       vacantUnits: vacantUnits ?? this.vacantUnits,
       tickets: tickets ?? this.tickets,
+      unitDocuments: unitDocuments ?? this.unitDocuments,
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : (error ?? this.error),
     );
@@ -567,6 +664,20 @@ class LandlordNotifier extends StateNotifier<LandlordState> {
       }
     } catch (e) {
       debugPrint('Units fetch error: $e');
+    }
+  }
+
+  Future<void> fetchUnitDocuments(String unitId) async {
+    try {
+      final resp = await ApiClient.dio.get('/landlord/units/$unitId/documents');
+      if (resp.statusCode == 200 && resp.data != null) {
+        final docs = UnitDocuments.fromJson(resp.data);
+        final updated = Map<String, UnitDocuments>.from(state.unitDocuments);
+        updated[unitId] = docs;
+        state = state.copyWith(unitDocuments: updated);
+      }
+    } catch (e) {
+      debugPrint('Unit documents fetch error: $e');
     }
   }
 }

@@ -1,16 +1,18 @@
 """
 Hetzner Object Storage — S3-compatible cloud storage for media files.
-PRD §4.1.8-C: Chat and building operations media uploads.
+PRD §4.1.8-C: Görseller WebP formatında sıkıştırılarak saklanır.
 """
 import os
 import uuid
+import io
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Tuple
 
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
+from PIL import Image
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +25,11 @@ HETZNER_REGION = os.getenv("HETZNER_REGION", "eu-central")
 
 # CDN base URL (public bucket)
 HETZNER_CDN_BASE = os.getenv("HETZNER_CDN_BASE", f"https://{HETZNER_BUCKET}.{HETZNER_ENDPOINT.lstrip('https://')}")
+
+# WebP compression quality (0-100, higher = better quality but larger)
+WEBP_QUALITY = int(os.getenv("WEBP_QUALITY", "82"))
+# Max image dimension (longest side) before resizing
+MAX_IMAGE_DIM = 2048
 
 
 def _get_s3_client():
@@ -49,6 +56,54 @@ def _generate_file_key(filename: str, prefix: str = "media") -> str:
     return f"{prefix}/{timestamp}/{unique_id}{ext}"
 
 
+def _convert_to_webp(content: bytes, original_filename: str) -> Tuple[bytes, str]:
+    """
+    Converts an image to WebP format with compression.
+    Returns (webp_bytes, webp_filename).
+    Supports: JPEG, PNG, BMP, GIF, TIFF → WebP.
+    """
+    try:
+        img = Image.open(io.BytesIO(content))
+        # Convert palette/CMYK/RGBA to RGB for WebP
+        if img.mode in ("P", "CMYK", "RGBA"):
+            background = Image.new("RGB", img.size, (255, 255, 255))
+            if img.mode == "RGBA":
+                background.paste(img, mask=img.split()[3])  # paste using alpha as mask
+            else:
+                background.paste(img)
+            img = background
+        elif img.mode != "RGB":
+            img = img.convert("RGB")
+
+        # Resize if too large
+        max_dim = MAX_IMAGE_DIM
+        if max(img.width, img.height) > max_dim:
+            img.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
+
+        # Save as WebP
+        webp_buffer = io.BytesIO()
+        img.save(webp_buffer, format="WEBP", quality=WEBP_QUALITY, method=6)
+        webp_bytes = webp_buffer.getvalue()
+
+        # Build new filename with .webp extension
+        base_name = os.path.splitext(os.path.basename(original_filename))[0]
+        webp_filename = f"{base_name}.webp"
+
+        logger.info(
+            f"[Storage] WebP conversion: {original_filename} "
+            f"({img.width}x{img.height}) → {len(webp_bytes):,} bytes"
+        )
+        return webp_bytes, webp_filename
+    except Exception as e:
+        logger.warning(f"[Storage] WebP conversion failed for {original_filename}: {e}")
+        # Fallback: return original bytes, original filename
+        return content, original_filename
+
+
+# ─── Supported image MIME types that get WebP-converted ────────────────────
+_IMAGE_MIME_TYPES = {"image/jpeg", "image/png", "image/bmp", "image/gif", "image/tiff", "image/webp"}
+
+
 async def upload_file(
     file_content: bytes,
     filename: str,
@@ -57,12 +112,19 @@ async def upload_file(
 ) -> Optional[str]:
     """
     Upload a file to Hetzner Object Storage.
+    Images (JPEG, PNG, BMP, GIF, TIFF) are automatically converted to WebP
+    and stored as such — PRD §4.1.8-C.
     Returns the public CDN URL on success, None on failure.
     """
     client = _get_s3_client()
     if client is None:
         logger.warning("[Storage] S3 client unavailable — upload skipped.")
         return None
+
+    # Auto-convert images to WebP
+    if content_type.lower() in _IMAGE_MIME_TYPES:
+        file_content, filename = _convert_to_webp(file_content, filename)
+        content_type = "image/webp"
 
     key = _generate_file_key(filename, prefix)
 

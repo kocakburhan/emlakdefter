@@ -165,3 +165,84 @@ async def send_fcm_notification_to_tokens(
 
     logger.info(f"[FCM] Çoklu bildirim: {success_count}/{len(tokens)} başarılı.")
     return success_count
+
+
+# ─── Firebase Auth — Şifre Sıfırlama (§4.1.4-D) ─────────────────────────────────
+
+def reset_user_password_by_phone(phone_number: str, new_password: str) -> bool:
+    """
+    Firebase Admin SDK ile telefon numarasına göre kullanıcıyı bulup şifresini günceller.
+    PRD §4.1.4-D: OTP doğrulandıktan sonra yeni şifre Firebase'e gönderilir.
+
+    NOT: Bu fonksiyon OTP'yi doğrulamaz. OTP doğrulaması istemcide (Flutter Firebase SDK)
+    tamamlanır ve Firebase ID token üretilir. İstemci bu token'ı backend'e gönderir.
+    """
+    if not os.path.exists(FIREBASE_CREDENTIALS_PATH):
+        logger.warning("[Firebase] Credentials yok — şifre güncelleme atlanıyor (mock mod).")
+        return True  # Mock modda başarılı kabul et
+
+    try:
+        user = auth.get_user_by_phone_number(phone_number)
+        auth.update_user(user.uid, password=new_password)
+        logger.info(f"[Firebase] Şifre güncellendi: {phone_number}")
+        return True
+    except firebase_admin._auth_utils.UserNotFoundError:
+        logger.error(f"[Firebase] Telefon numarasıyla kullanıcı bulunamadı: {phone_number}")
+        raise HTTPException(status_code=404, detail="Bu telefon numarasına kayıtlı kullanıcı bulunamadı.")
+    except Exception as e:
+        logger.error(f"[Firebase] Şifre güncelleme hatası: {e}")
+        raise HTTPException(status_code=500, detail=f"Şifre güncellenemedi: {str(e)}")
+
+
+def get_firebase_user_by_phone(phone_number: str) -> dict | None:
+    """Telefon numarasına göre Firebase kullanıcı bilgisini döner."""
+    if not os.path.exists(FIREBASE_CREDENTIALS_PATH):
+        return None
+
+    try:
+        user = auth.get_user_by_phone_number(phone_number)
+        return {
+            "uid": user.uid,
+            "phone_number": user.phone_number,
+            "email": user.email,
+            "display_name": user.display_name,
+            "disabled": user.disabled,
+        }
+    except firebase_admin._auth_utils.UserNotFoundError:
+        return None
+    except Exception:
+        return None
+    """
+    Firebase Cloud Messaging üzerinden birden fazla cihaza push notification gönderir.
+    Başarıyla gönderilen token sayısını döner.
+    """
+    if not tokens:
+        return 0
+
+    if not os.path.exists(FIREBASE_CREDENTIALS_PATH):
+        logger.warning("[FCM] Firebase credentials yok — çoklu bildirim atlanıyor (mock mod).")
+        return 0
+
+    success_count = 0
+    for token in tokens:
+        try:
+            message = fb_messaging.Message(
+                notification=fb_messaging.Notification(title=title, body=body),
+                data=data or {},
+                token=token,
+                android=fb_messaging.AndroidConfig(
+                    priority="high",
+                    notification=fb_messaging.AndroidNotification(
+                        icon="ic_notification",
+                        color="#4CAF50",
+                        channel_id="emlakdefter_alerts",
+                    ),
+                ),
+            )
+            fb_messaging.send(message)
+            success_count += 1
+        except Exception as e:
+            logger.warning(f"[FCM] Token {token[:20]}... gönderilemedi: {e}")
+
+    logger.info(f"[FCM] Çoklu bildirim: {success_count}/{len(tokens)} başarılı.")
+    return success_count

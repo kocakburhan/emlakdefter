@@ -106,6 +106,13 @@ class LandlordResponse(BaseModel):
         from_attributes = True
 
 
+class LandlordUpdate(BaseModel):
+    """Ev sahibi güncelleme — PRD §4.1.4"""
+    temp_name: Optional[str] = None
+    temp_phone: Optional[str] = None
+    ownership_share: Optional[int] = None
+
+
 class LandlordWithDetailsResponse(LandlordResponse):
     """Ev sahibi + birim detayları ile birlikte"""
     unit_door_number: Optional[str] = None

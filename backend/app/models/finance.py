@@ -1,5 +1,5 @@
 import enum
-from sqlalchemy import Column, Integer, Date, ForeignKey, String, Enum, Boolean
+from sqlalchemy import Column, Integer, Date, ForeignKey, String, Enum, Boolean, Float
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from .base import BaseModel
@@ -41,6 +41,7 @@ class FinancialTransaction(BaseModel):
     receipt_url = Column(String, nullable=True)
     status = Column(Enum(TransactionStatus), default=TransactionStatus.completed, nullable=False)  # PRD §6.D
     ai_matched = Column(Boolean, default=False, nullable=False)  # Yapay zeka/PDF okuma işleminden mi geldi?
+    ai_confidence = Column(Float, nullable=True)  # AI eşleşme güven skoru (0.0 - 100.0)
 
     property = relationship("Property")
     unit = relationship("PropertyUnit")

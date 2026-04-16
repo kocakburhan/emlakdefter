@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/colors.dart';
 import '../providers/finance_provider.dart';
 import '../screens/mali_rapor_screen.dart';
+import '../screens/chat_window_screen.dart';
+import '../providers/chat_provider.dart';
 
 /// FinanceTab — PRD §4.1.5
 /// A) Action Bar (Ekstre Yükle + Excel Export)
@@ -938,7 +940,7 @@ class _TransactionCard extends ConsumerWidget {
                   icon: Icons.chat_bubble_outline,
                   label: 'Mesaj',
                   color: AppColors.success,
-                  onTap: () {},
+                  onTap: () => _openChatWithTenant(context, ref, trx),
                 ),
               ],
             ),
@@ -1118,6 +1120,40 @@ class _TransactionCard extends ConsumerWidget {
         return 'Gecikti';
       case TransactionListType.partial:
         return 'Kısmi';
+    }
+  }
+
+  /// Geciken kiracıyla sohbet başlatır — PRD §4.1.5
+  Future<void> _openChatWithTenant(BuildContext context, WidgetRef ref, TransactionModel trx) async {
+    if (trx.tenantUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Kiracı bilgisi bulunamadı'), backgroundColor: AppColors.warning),
+      );
+      return;
+    }
+
+    final notifier = ref.read(financeProvider.notifier);
+    final conversationId = await notifier.openChatWithTenant(trx.tenantUserId!);
+    if (conversationId != null && context.mounted) {
+      // Mevcut conversation objesi oluştur
+      final conversation = ChatConversation(
+        id: conversationId,
+        agencyId: '',
+        agentUserId: '',
+        clientUserId: trx.tenantUserId!,
+        clientName: trx.senderName,
+        lastMessage: null,
+        lastMessageAt: null,
+        unreadCount: 0,
+        isArchived: false,
+      );
+      Navigator.push(context, MaterialPageRoute(
+        builder: (_) => ChatWindowScreen(conversation: conversation),
+      ));
+    } else if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sohbet başlatılamadı'), backgroundColor: AppColors.error),
+      );
     }
   }
 }

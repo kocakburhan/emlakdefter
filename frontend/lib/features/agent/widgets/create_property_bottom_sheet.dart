@@ -41,6 +41,10 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
   late AnimationController _animController;
   late Animation<double> _fadeSlide;
 
+  // Otonom Üretim sonucu
+  bool _isCreated = false;
+  int _createdUnitsCount = 0;
+
   @override
   void initState() {
     super.initState();
@@ -97,34 +101,56 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
     final isApartment = _selectedType == PropertyFormType.apartment;
     final isVilla = _selectedType == PropertyFormType.villa;
 
-    await ref.read(propertiesProvider.notifier).createProperty(
-      name: name,
-      type: _typeString,
-      address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
-      centralDues: int.tryParse(_duesController.text) ?? 0,
-      startFloor: isApartment || isVilla ? 1 : null,
-      endFloor: isApartment || isVilla ? (int.tryParse(_floorsController.text) ?? 1) : null,
-      unitsPerFloor: isApartment
-          ? (int.tryParse(_unitsController.text) ?? 1)
-          : (isVilla ? 1 : (int.tryParse(_shopCountController.text) ?? 1)),
-    );
+    setState(() => _isLoading = true);
 
-    if (mounted) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: AppColors.accent,
-          content: Text("✅ $name oluşturuldu!"),
-        ),
+    try {
+      final response = await ref.read(propertiesProvider.notifier).createProperty(
+        name: name,
+        type: _typeString,
+        address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
+        centralDues: int.tryParse(_duesController.text) ?? 0,
+        startFloor: isApartment || isVilla ? 1 : null,
+        endFloor: isApartment || isVilla ? (int.tryParse(_floorsController.text) ?? 1) : null,
+        unitsPerFloor: isApartment
+            ? (int.tryParse(_unitsController.text) ?? 1)
+            : (isVilla ? 1 : (int.tryParse(_shopCountController.text) ?? 1)),
       );
+
+      if (mounted) {
+        if (response != null) {
+          // Sunucu tarafından döndürülen birim sayısını kullan (§4.1.2-B doğrulaması)
+          _createdUnitsCount = response;
+          setState(() {
+            _isCreated = true;
+            _isLoading = false;
+          });
+          await Future.delayed(const Duration(milliseconds: 1800));
+          if (mounted) Navigator.of(context).pop();
+        } else {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: Colors.red,
+              content: Text("❌ $name oluşturulamadı!"),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(backgroundColor: Colors.red, content: Text("Hata: $e")),
+        );
+      }
     }
   }
+
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    final propState = ref.watch(propertiesProvider);
-    final isLoading = propState is AsyncLoading;
 
     return BackdropFilter(
       filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -252,7 +278,7 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: isLoading ? null : _submit,
+                          onPressed: _isLoading ? null : _submit,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.accent,
                             foregroundColor: Colors.white,
@@ -261,23 +287,45 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
                               borderRadius: BorderRadius.circular(16),
                             ),
                           ),
-                          child: isLoading
-                              ? const SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                )
-                              : const Row(
+                          child: _isLoading
+                              ? Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(Icons.rocket_launch, size: 20),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      "OTONOM İNŞAATA BAŞLA",
+                                    const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    const Text(
+                                      "OTONOM ÜRETİM ÇALIŞTIRILIYOR...",
                                       style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1),
                                     ),
                                   ],
-                                ),
+                                )
+                              : _isCreated
+                                  ? Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(Icons.check_circle, size: 20),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          "✅ $_createdUnitsCount DAIRE OLUŞTURULDU!",
+                                          style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1),
+                                        ),
+                                      ],
+                                    )
+                                  : const Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.rocket_launch, size: 20),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          "OTONOM İNŞAATA BAŞLA",
+                                          style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1),
+                                        ),
+                                      ],
+                                    ),
                         ),
                       ),
                       const SizedBox(height: 16),

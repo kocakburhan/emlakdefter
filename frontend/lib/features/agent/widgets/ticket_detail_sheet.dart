@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:ui';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/network/api_client.dart';
 import '../providers/support_provider.dart';
+import '../screens/chat_window_screen.dart';
+import '../providers/chat_provider.dart' hide ChatMessage;
 
 /// PRD §4.1.7-B Talep Detay Görünümü + §4.1.7-C Action Bar
 class TicketDetailSheet extends ConsumerStatefulWidget {
@@ -57,13 +58,80 @@ class _TicketDetailSheetState extends ConsumerState<TicketDetailSheet> {
   // ─── Action Bar ────────────────────────────────────────────────────────────
   void _openChat() {
     Navigator.pop(context);
-    // Chat ekranına git
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _TicketChatInlineSheet(ticket: widget.ticket),
-    );
+    // Chat ekranına git — mevcut _TicketChatInlineSheet yerine ChatWindowScreen aç (§4.1.7-C)
+    _openChatWindowForTicket();
+  }
+
+  Future<void> _openChatWindowForTicket() async {
+    // ticket'tan tenant user_id'yi çek
+    final ticket = widget.ticket;
+    String? tenantUserId;
+
+    // ticket detail'dan reporter_user_id'yi al (async)
+    try {
+      final resp = await ApiClient.dio.get('/operations/tickets/${ticket.id}');
+      if (resp.statusCode == 200 && resp.data != null) {
+        tenantUserId = resp.data['reporter_user_id']?.toString();
+      }
+    } catch (e) {
+      // fallback: tenant user id bulunamadı
+    }
+
+    if (tenantUserId == null || tenantUserId.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Kiracı kullanıcı ID\'si bulunamadı'),
+            backgroundColor: AppColors.warning,
+          ),
+        );
+      }
+      return;
+    }
+
+    // Chat conversation oluştur veya mevcut olanı al
+    try {
+      final convResp = await ApiClient.dio.post('/chat/conversations', data: {
+        'client_user_id': tenantUserId,
+      });
+      if (convResp.statusCode == 200 || convResp.statusCode == 201) {
+        final convData = convResp.data;
+        final conversation = ChatConversation(
+          id: convData['id'] ?? '',
+          agencyId: convData['agency_id'] ?? '',
+          agentUserId: convData['agent_user_id'] ?? '',
+          clientUserId: convData['client_user_id'] ?? '',
+          clientName: ticket.tenantName ?? 'Kiracı',
+          clientRole: 'Kiracı',
+          propertyName: ticket.location,
+          lastMessage: null,
+          lastMessageAt: null,
+          unreadCount: 0,
+          isArchived: convData['is_archived'] ?? false,
+        );
+
+        if (mounted) {
+          Navigator.push(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (_, __, ___) => ChatWindowScreen(conversation: conversation),
+              transitionsBuilder: (_, anim, __, child) => SlideTransition(
+                position: Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
+                    .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+                child: child,
+              ),
+              transitionDuration: const Duration(milliseconds: 350),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Sohbet açılamadı: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    }
   }
 
   Future<void> _sendReply() async {
@@ -83,27 +151,11 @@ class _TicketDetailSheetState extends ConsumerState<TicketDetailSheet> {
     if (mounted) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Talep çözüldü olarak işaretlendi'),
           backgroundColor: AppColors.success,
         ),
       );
-    }
-  }
-
-  Future<void> _openWhatsApp() async {
-    // Kiracı telefonu henüz modelde yok, placeholder
-    final phone = '';
-    if (phone.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Kiracı telefonu bulunamadı'), backgroundColor: AppColors.warning),
-      );
-      return;
-    }
-    final cleanPhone = phone.replaceAll(RegExp(r'[^\d]'), '');
-    final url = Uri.parse('https://wa.me/$cleanPhone');
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -113,7 +165,7 @@ class _TicketDetailSheetState extends ConsumerState<TicketDetailSheet> {
     final propertyId = widget.ticket.propertyId;
     if (propertyId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Bu talebe mülk bilgisi bağlı değil'),
           backgroundColor: AppColors.error,
         ),
@@ -121,12 +173,17 @@ class _TicketDetailSheetState extends ConsumerState<TicketDetailSheet> {
       return;
     }
 
+    // Kategori seçtir — §4.1.9 OperationCategory
+    final selectedCategory = await _showCategorySheet();
+    if (selectedCategory == null) return; // İptal edildi
+
     try {
       final resp = await ApiClient.dio.post('/building-logs', data: {
         'property_id': propertyId,
         'title': '[Destek Ticket] ${widget.ticket.title}',
         'description': widget.ticket.description,
         'is_reflected_to_finance': false,
+        'category': selectedCategory,
       });
 
       if (resp.statusCode == 201) {
@@ -139,7 +196,7 @@ class _TicketDetailSheetState extends ConsumerState<TicketDetailSheet> {
                 label: 'Mali Rapor',
                 textColor: Colors.white,
                 onPressed: () {
-                  // TODO: Mali Rapor ekranına yönlendir
+                  // Mali Rapor ekranına yönlendir (opsiyonel)
                 },
               ),
             ),
@@ -156,6 +213,170 @@ class _TicketDetailSheetState extends ConsumerState<TicketDetailSheet> {
         );
       }
     }
+  }
+
+  /// §4.1.9 — Kategori seçim sheet'i
+  static const _opCategories = [
+    ('cleaning', 'Temizlik', Icons.cleaning_services_rounded, Color(0xFF4ECDC4)),
+    ('elevator', 'Asansör', Icons.elevator_rounded, Color(0xFF9575CD)),
+    ('electrical', 'Elektrik', Icons.electrical_services_rounded, Color(0xFFFFB800)),
+    ('plumbing', 'Tesisat', Icons.plumbing_rounded, Color(0xFF5C6BC0)),
+    ('painting', 'Boya / Tadilat', Icons.format_paint_rounded, Color(0xFFFF8A65)),
+    ('landscaping', 'Bahçe / Peyzaj', Icons.grass_rounded, Color(0xFF66BB6A)),
+    ('security', 'Güvenlik', Icons.security_rounded, Color(0xFFEF5350)),
+    ('other', 'Diğer', Icons.build_rounded, Color(0xFF78909C)),
+  ];
+
+  Future<String?> _showCategorySheet() async {
+    String? selected;
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Container(
+          height: MediaQuery.of(ctx).size.height * 0.55,
+          decoration: const BoxDecoration(
+            color: Color(0xFF0F0F18),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            children: [
+              // Handle
+              Padding(
+                padding: const EdgeInsets.only(top: 14),
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('İşlem Kategorisi',
+                        style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text('Bu tamiratı hangi kategoride işlemek istiyorsunuz?',
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 13)),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: GridView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  physics: const BouncingScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 2.8,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                  ),
+                  itemCount: _opCategories.length,
+                  itemBuilder: (ctx, i) {
+                    final (value, label, icon, color) = _opCategories[i];
+                    final isSelected = selected == value;
+                    return GestureDetector(
+                      onTap: () => setSheetState(() => selected = value),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? color.withValues(alpha: 0.18)
+                              : Colors.white.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isSelected
+                                ? color.withValues(alpha: 0.5)
+                                : Colors.white.withValues(alpha: 0.06),
+                            width: isSelected ? 1.5 : 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(icon, color: isSelected ? color : Colors.white.withValues(alpha: 0.4), size: 22),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                label,
+                                style: TextStyle(
+                                  color: isSelected ? color : Colors.white.withValues(alpha: 0.6),
+                                  fontSize: 13, fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            if (isSelected)
+                              Icon(Icons.check_circle, color: color, size: 18),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              // Seç / İptal
+              Container(
+                padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + MediaQuery.of(ctx).viewInsets.bottom),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF13131E),
+                  border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.06))),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(ctx),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Center(
+                            child: Text('İptal', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(ctx, selected),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: selected != null
+                                  ? [AppColors.accent, AppColors.accent.withValues(alpha: 0.8)]
+                                  : [Colors.grey, Colors.grey],
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'Ekle',
+                              style: TextStyle(
+                                color: selected != null ? Colors.white : Colors.white.withValues(alpha: 0.4),
+                                fontSize: 15, fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    return selected;
   }
 
   @override
@@ -373,7 +594,7 @@ class _TicketDetailSheetState extends ConsumerState<TicketDetailSheet> {
                 icon: Icons.person,
                 label: 'Direkt Mesaj',
                 color: const Color(0xFF25D366),
-                onTap: _openWhatsApp,
+                onTap: _openChatWindowForTicket,  // ✅ Düzeltildi — §4.1.7-C: uygulama içi sohbet açılır
               )),
               const SizedBox(width: 10),
               Expanded(child: _ActionButton(

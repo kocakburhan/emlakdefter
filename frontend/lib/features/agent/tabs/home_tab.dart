@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/colors.dart';
 import '../providers/dashboard_provider.dart';
+import '../screens/activity_feed_screen.dart';
 import '../screens/bi_analytics_screen.dart';
+import '../screens/pending_operations_screen.dart';
 import '../screens/scheduler_control_screen.dart';
+import '../../../core/offline/offline_cache_provider.dart';
 
 class HomeTab extends ConsumerStatefulWidget {
   const HomeTab({Key? key}) : super(key: key);
@@ -147,6 +150,8 @@ class _HomeTabState extends ConsumerState<HomeTab> with TickerProviderStateMixin
                       MaterialPageRoute(builder: (_) => const BIAnalyticsScreen()),
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  _buildPendingBtn(context),
                 ],
               ),
             ],
@@ -170,6 +175,43 @@ class _HomeTabState extends ConsumerState<HomeTab> with TickerProviderStateMixin
           ),
         ),
         child: Icon(icon, color: AppColors.accent, size: 20),
+      ),
+    );
+  }
+
+  Widget _buildPendingBtn(BuildContext context) {
+    final pending = ref.watch(pendingSyncCountProvider);
+    if (pending == 0) return const SizedBox.shrink();
+
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const PendingOperationsScreen()),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFD4A574).withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: const Color(0xFFD4A574).withValues(alpha: 0.3),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_upload_outlined, color: Color(0xFFD4A574), size: 20),
+            const SizedBox(width: 4),
+            Text(
+              pending.toString(),
+              style: const TextStyle(
+                color: Color(0xFFD4A574),
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -453,7 +495,10 @@ class _HomeTabState extends ConsumerState<HomeTab> with TickerProviderStateMixin
               ),
               TextButton(
                 onPressed: () {
-                  // Navigate to full activity feed
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ActivityFeedScreen()),
+                  );
                 },
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 12),

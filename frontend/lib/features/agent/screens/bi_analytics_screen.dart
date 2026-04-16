@@ -22,6 +22,7 @@ class BIAnalyticsData {
   final Map<String, dynamic>? collection;
   final bool isLoading;
   final String? error;
+  final bool isForbidden; // §4.1.10 — Admin-only erişim
 
   BIAnalyticsData({
     this.portfolio,
@@ -30,6 +31,7 @@ class BIAnalyticsData {
     this.collection,
     this.isLoading = false,
     this.error,
+    this.isForbidden = false,
   });
 
   factory BIAnalyticsData.fromJson(Map<String, dynamic> json) {
@@ -57,7 +59,12 @@ class BIAnalyticsNotifier extends StateNotifier<AsyncValue<BIAnalyticsData>> {
         state = AsyncValue.data(BIAnalyticsData());
       }
     } catch (e) {
-      state = AsyncValue.error(e, StackTrace.current);
+      // §4.1.10: 403 Forbidden → Admin değil
+      if (e.toString().contains('403')) {
+        state = AsyncValue.data(BIAnalyticsData(isForbidden: true));
+      } else {
+        state = AsyncValue.error(e, StackTrace.current);
+      }
     }
   }
 
@@ -236,6 +243,10 @@ class _BIAnalyticsScreenState extends ConsumerState<BIAnalyticsScreen>
                   ),
                 ),
                 data: (data) {
+                  // §4.1.10: Admin değil — erişim yok
+                  if (data.isForbidden) {
+                    return _buildForbiddenState();
+                  }
                   if (data.portfolio == null && data.tenantChurn == null) {
                     return _buildEmptyState();
                   }
@@ -384,6 +395,55 @@ class _BIAnalyticsScreenState extends ConsumerState<BIAnalyticsScreen>
               style: TextStyle(
                 color: color, fontSize: 11,
                 fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildForbiddenState() {
+    // §4.1.10: Sadece Admin erişebilir
+    return Center(
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: 1),
+        duration: const Duration(milliseconds: 700),
+        curve: Curves.easeOutCubic,
+        builder: (context, anim, child) => Opacity(
+          opacity: anim,
+          child: Transform.scale(scale: 0.85 + 0.15 * anim, child: child),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(28),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.admin_panel_settings_outlined,
+                size: 52,
+                color: AppColors.warning.withValues(alpha: 0.3),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Yetkisiz Erişim',
+              style: TextStyle(
+                color: Colors.white, fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'İş Zekası Paneli yalnızca\nKurucu Emlakçı (Admin) erişimindedir.\nDanışman/Çalışan rolündeki\nkullanıcılar bu ekranı göremez.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.3), fontSize: 13,
+                height: 1.5,
               ),
             ),
           ],

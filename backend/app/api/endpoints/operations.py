@@ -4,12 +4,12 @@ from sqlalchemy import select, desc, func
 from sqlalchemy.orm import selectinload
 from uuid import UUID
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, date
 
 from app.api import deps
 from app.models.users import User
 from app.models.properties import Property, PropertyUnit
-from app.models.operations import SupportTicket, TicketMessage, BuildingOperationLog, TicketStatus
+from app.models.operations import SupportTicket, TicketMessage, BuildingOperationLog, TicketStatus, OperationCategory
 from app.models.tenants import Tenant
 from app.models.finance import FinancialTransaction, TransactionType, TransactionCategory
 from app.schemas.operations import (
@@ -269,13 +269,35 @@ async def get_ticket(
     stmt = (
         select(SupportTicket)
         .where(SupportTicket.id == UUID(ticket_id), SupportTicket.agency_id == agency_id)
-        .options(selectinload(SupportTicket.messages))
+        .options(
+            selectinload(SupportTicket.messages),
+            selectinload(SupportTicket.unit).selectinload(PropertyUnit.tenant_contracts),
+        )
     )
     result = await db.execute(stmt)
     ticket = result.scalar_one_or_none()
     if not ticket:
         raise HTTPException(status_code=404, detail="Bilet bulunamadı.")
-    return ticket
+
+    # Kiracı telefonunu çözümle (Tenant üzerinden)
+    tenant_phone = None
+    if ticket.unit and ticket.unit.tenant_contracts:
+        for tc in ticket.unit.tenant_contracts:
+            if tc.is_active and tc.user_id:
+                # User tablosundan telefon numarasını al
+                user_stmt = select(User.phone_number).where(User.id == tc.user_id)
+                user_result = await db.execute(user_stmt)
+                tenant_phone = user_result.scalar_one_or_none()
+                if tenant_phone:
+                    break
+            elif tc.is_active and tc.temp_phone:
+                tenant_phone = tc.temp_phone
+                break
+
+    # Telefonu TicketResponse'a ekle
+    response_data = TicketResponse.model_validate(ticket).model_dump()
+    response_data['tenant_phone'] = tenant_phone
+    return TicketResponse(**response_data)
 
 
 @router.post("/tickets/{ticket_id}/reply", response_model=TicketMessageResponse)
@@ -305,6 +327,30 @@ async def reply_to_ticket(
 
     await db.commit()
     await db.refresh(db_message)
+
+    # §4.2.2-F — Ticket yanıtında kiracıya FCM push bildirim gönder
+    if ticket.reporter_user_id:
+        from app.core.firebase import send_fcm_notification
+        from app.models.users import UserDeviceToken
+        # Kiracının FCM token'larını bul
+        token_stmt = select(UserDeviceToken).where(
+            UserDeviceToken.user_id == ticket.reporter_user_id
+        )
+        token_result = await db.execute(token_stmt)
+        tokens = [t.fcm_token for t in token_result.scalars().all() if t.fcm_token]
+        if tokens:
+            # Bildirim gönder (asenkron — cevabı bekleme)
+            await send_fcm_notification(
+                fcm_token=tokens[0],  # İlk token'a gönder
+                title=f"📩 Destek Talebinize Yanıt Geldi",
+                body=f"{current_user.full_name}: {reply_in.message[:80]}",
+                data={
+                    "type": "ticket_reply",
+                    "ticket_id": ticket_id,
+                    "conversation_id": str(ticket_id),
+                },
+            )
+
     return db_message
 
 @router.post("/building-logs", response_model=BuildingLogResponse, status_code=status.HTTP_201_CREATED)
@@ -327,6 +373,7 @@ async def create_building_log(
         cost=log_in.cost,
         invoice_url=log_in.invoice_url,
         is_reflected_to_finance=log_in.is_reflected_to_finance,
+        category=OperationCategory(log_in.category) if log_in.category else OperationCategory.other,
     )
     db.add(db_log)
     await db.flush()  # Get the log ID before committing
@@ -354,13 +401,15 @@ async def create_building_log(
 async def list_building_logs(
     property_id: UUID | None = None,
     finance_reflected: bool | None = None,
+    start_date: date | None = None,  # PRD §4.1.9 — Tarih aralığı filtresi
+    end_date: date | None = None,
     limit: int = 50,
     offset: int = 0,
     current_user: User = Depends(deps.get_current_user),
     agency_id: UUID = Depends(deps.get_current_user_agency_id),
     db: AsyncSession = Depends(deps.get_db),
 ):
-    """Bina operasyon kayıtlarını listeler (Şeffaflık Modülü)."""
+    """Bina operasyon kayıtlarını listeler (Şeffaflık Modülü). Tarih aralığı ve kategori ile filtreleme yapılabilir."""
     query = (
         select(BuildingOperationLog)
         .where(
@@ -372,6 +421,10 @@ async def list_building_logs(
         query = query.where(BuildingOperationLog.property_id == property_id)
     if finance_reflected is not None:
         query = query.where(BuildingOperationLog.is_reflected_to_finance == finance_reflected)
+    if start_date:
+        query = query.where(BuildingOperationLog.operation_date >= start_date)
+    if end_date:
+        query = query.where(BuildingOperationLog.operation_date <= end_date)
 
     query = query.order_by(desc(BuildingOperationLog.created_at)).offset(offset).limit(limit)
     result = await db.execute(query)

@@ -1,930 +1,689 @@
-# EmlakDefteri — Detaylı Geliştirme Adımları
+# Geliştirme Adımları — PRD v2.0 Eksiklikler
 
-> **Hazırlık:** Bu dosya, `development_report.md`'deki tüm eksiklikleri tamamlamak için gereken her adımı içerir.
-> **Ön koşul:** Her adım, önceki adımda yapılan değişikliklerin üzerine inşa eder. Sırayla uygulanmalıdır.
-> **Test:** Her adım sonunda ilgili ekranı/el API'ı manual olarak test edin.
-
----
-
-## FAZA 1 — KRİTİK BUG DÜZELTMELERİ
+> **Tarih:** 16 Nisan 2026
+> **Kaynak:** `development_report_2.0.md` (107/115 madde tamamlandı — 8 eksik)
+> **Hedef:** Tüm eksikliklerin nasıl düzeltileceğini adım adım açıklar
 
 ---
 
-### Adım 1.1: Backend — `landlord.py` `User.agency_id` SQL Hatası Düzeltmesi
+## GENEL ÖZET
 
-**Dosya:** `backend/app/api/endpoints/landlord.py`
-**Satır:** ~499-502
-**Bug:** `User.agency_id` sütunu yok — `User` modeli `agency_id` içermez, bunun yerine `AgencyStaff` tablosu üzerinden `user ↔ agency` ilişkisi kurulur.
-**Etki:** `landlord_send_interest` endpoint'i çağrıldığında `sqlalchemy.exc.InvalidRequestError` fırlatır.
+| #   | Eksiklik                               | Öncelik | Tahmini Süre |
+|-----|----------------------------------------|---------|-------------|
+| 1   | `ai_matched = True` atanmıyor         | Kritik  | 5 dakika    |
+| 2 | `custom_category` kaydedilmiyor | Kritik | 5 dakika |
+| 3 | BI Analytics admin-only kontrolü yok | Kritik | 15 dakika |
+| 4 | Sözleşme PDF yükleme bağlantısı yok | Orta | 30 dakika |
+| 5 | Ev Sahibi schema `documents` alanı yok | Orta | 15 dakika |
+| 6 | Chat offline timestamp korunmuyor | Orta | 20 dakika |
+| 7 | Fotoğraflara timestamp damgası basılmıyor | Orta | 45 dakika |
+| 8 | "Destek İstiyorum" buton metni farklı | Düşük | 2 dakika |
 
-**Mevcut hatalı kod:**
+---
+
+## EKSİKLİK 1 — `ai_matched = True` Atanmıyor (Kritik)
+
+### 📍 Konum
+`backend/app/services/finance_service.py` — satır 109–119
+
+### 🔍 Sorun
+AI eşleşmesiyle oluşturulan `FinancialTransaction` kaydında `ai_matched=True` atanmıyor. `FinancialTransaction` modelinde `ai_matched` alanı mevcut (satır 43) ama oluşturulurken set edilmiyor.
+
+### ✅ Çözüm
+
+**Dosya:** `backend/app/services/finance_service.py`
+
+**Bul:** (satır 108–119)
 ```python
-# ~satır 499
-agent_stmt = select(User).where(
-    User.agency_id == agency_id,   # ❌ HATA: User.agency_id yok
-    User.role == "agent",
-).limit(1)
+new_tx = FinancialTransaction(
+    agency_id=matched_tenant.agency_id,
+    tenant_id=best_match_tenant_id,
+    unit_id=matched_tenant.unit_id,
+    type=TransactionType.income,
+    category=ai_category,
+    amount=amount_paid,
+    transaction_date=datetime.strptime(tx_date_str, "%Y-%m-%d").date() if "-" in tx_date_str else datetime.now().date(),
+    description=f"[Otonom AI] {ai_tx.get('description', '')} | AI Kategori: {ai_category_str}"
+)
+db.add(new_tx)
 ```
 
-**Doğru kod:**
+**Değiştir:**
 ```python
-# Satır 499 — Aşağıdaki gibi değiştir:
+new_tx = FinancialTransaction(
+    agency_id=matched_tenant.agency_id,
+    tenant_id=best_match_tenant_id,
+    unit_id=matched_tenant.unit_id,
+    type=TransactionType.income,
+    category=ai_category,
+    amount=amount_paid,
+    transaction_date=datetime.strptime(tx_date_str, "%Y-%m-%d").date() if "-" in tx_date_str else datetime.now().date(),
+    description=f"[Otonom AI] {ai_tx.get('description', '')} | AI Kategori: {ai_category_str}",
+    ai_matched=True  # ✅ EKLENDI — AI eşleşmesini işaretle
+)
+db.add(new_tx)
+```
+
+### 🧪 Doğrulama
+1. Backend'i yeniden başlat: `uvicorn app.main:app --reload --port 8000`
+2. PDF ekstresi yükle (Ekstre Yükle butonu)
+3. Veritabanında `financial_transactions` tablosunda `ai_matched=True` olan kayıt olmalı
+4. `finance_tab.dart` UI'da `🤖 Otomatik Eşleşti` etiketi görünmeli
+
+---
+
+## EKSİKLİK 2 — `custom_category` Kaydedilmiyor (Kritik)
+
+### 📍 Konum
+`backend/app/api/endpoints/finance.py` — satır 247–258
+
+### 🔍 Sorun
+`ManualTransactionCreate` schema'sında `custom_category` alanı mevcut (schema satır 43) ama `create_transaction` endpoint'i bu alanı `FinancialTransaction` oluştururken **kullanmıyor**. Sütun her zaman NULL kalır.
+
+### ✅ Çözüm
+
+**Dosya:** `backend/app/api/endpoints/finance.py`
+
+**Bul:** (satır 247–258)
+```python
+new_tx = FinancialTransaction(
+    agency_id=agency_id,
+    property_id=data.property_id,
+    unit_id=data.unit_id,
+    tenant_id=data.tenant_id,
+    type=data.type,
+    category=data.category,
+    amount=data.amount,
+    currency="TRY",
+    transaction_date=data.transaction_date,
+    description=data.description,
+)
+```
+
+**Değiştir:**
+```python
+new_tx = FinancialTransaction(
+    agency_id=agency_id,
+    property_id=data.property_id,
+    unit_id=data.unit_id,
+    tenant_id=data.tenant_id,
+    type=data.type,
+    category=data.category,
+    amount=data.amount,
+    currency="TRY",
+    transaction_date=data.transaction_date,
+    description=data.description,
+    custom_category=data.custom_category,  # ✅ EKLENDI — Özel kategori kaydediliyor
+)
+```
+
+### 🧪 Doğrulama
+1. Mali Rapor ekranında "Yeni İşlem Ekle" aç
+2. "Yeni Kategori Oluştur" ile özel kategori ekle (örn: "Kira Geçişi")
+3. İşlemi kaydet
+4. Veritabanında `financial_transactions.custom_category` sütununda değer olmalı
+5. Aynı işlem tekrar listelendiğinde özel kategori görünmeli
+
+---
+
+## EKSİKLİK 3 — BI Analytics Admin-Only Erişim Kontrolü Yok (Kritik)
+
+### 📍 Konum
+`backend/app/api/endpoints/analytics.py` — satır 356
+
+### 🔍 Sorun
+PRD §4.1.10 ve §4.1.10-E'ye göre BI Analytics ekranına **yalnızca Admin rolü** erişebilir. Mevcut kodda sadece yorum var ama gerçek rol kontrolü yok.
+
+### ✅ Çözüm
+
+**Dosya:** `backend/app/api/endpoints/analytics.py`
+
+**Bul:** (satır ~345–358)
+```python
+@router.get("/bi-dashboard", response_model=BIAnalyticsDashboard)
+async def get_bi_analytics_dashboard(
+    current_user: User = Depends(deps.get_current_user),
+    agency_id: UUID = Depends(deps.get_current_user_agency_id),
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """
+    BI Analytics Dashboard — Emlak ofisi yöneticisinin (Kurucu Emlakçı / Admin)
+    tüm stratejik metriklerini bir arada döner.
+    PRD §4.1.10
+
+    NOT: Yalnızca admin rolü erişebilir (ileride auth kontrolü eklenecek).
+    """
+```
+
+**Değiştir:**
+```python
+@router.get("/bi-dashboard", response_model=BIAnalyticsDashboard)
+async def get_bi_analytics_dashboard(
+    current_user: User = Depends(deps.get_current_user),
+    agency_id: UUID = Depends(deps.get_current_user_agency_id),
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """
+    BI Analytics Dashboard — Emlak ofisi yöneticisinin (Kurucu Emlakçı / Admin)
+    tüm stratejik metriklerini bir arada döner.
+    PRD §4.1.10
+    """
+    # ✅ EKLENDI — Admin rolü kontrolü (PRD §4.1.10-E)
+    from app.models.users import AgencyStaff
+
+    staff_stmt = select(AgencyStaff).where(
+        AgencyStaff.user_id == current_user.id,
+        AgencyStaff.agency_id == agency_id,
+    )
+    staff_result = await db.execute(staff_stmt)
+    staff_record = staff_result.scalar_one_or_none()
+
+    if not staff_record or staff_record.role != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Bu sayfaya yalnızca Admin erişebilir."
+        )
+```
+
+**Dosyanın başındaki import'lara ekle** (varsa kontrol et, yoksa ekle):
+```python
 from app.models.users import AgencyStaff
-
-agent_stmt = (
-    select(User)
-    .join(AgencyStaff, User.id == AgencyStaff.user_id)
-    .where(
-        AgencyStaff.agency_id == agency_id,
-    )
-    .limit(1)
-)
 ```
 
-**Tam satırlar (yaklaşık 499-505):**
-```python
-agent_stmt = (
-    select(User)
-    .join(AgencyStaff, User.id == AgencyStaff.user_id)
-    .where(
-        AgencyStaff.agency_id == agency_id,
-    )
-    .limit(1)
-)
-agent_res = await db.execute(agent_stmt)
-agent_user = agent_res.scalar_one_or_none()
-```
-
-**Doğrulama:**
-```bash
-cd backend
-uvicorn app.main:app --reload --port 8000
-# Postman/curl ile test:
-# POST /landlord/conversations  (token ile) → 200 dönmeli, 500 HATA OLMAMALI
-```
+### 🧪 Doğrulama
+1. Admin kullanıcıyla `/bi-dashboard` endpoint'ini çağır → 200 OK
+2. Agent/Danışman rolüyle çağır → 403 Forbidden hatası dönmeli
+3. Backend log: `detail: "Bu sayfaya yalnızca Admin erişebilir."`
 
 ---
 
-### Adım 1.2: Frontend — Chat `client_role` Schema Uyumsuzluğu Düzeltmesi
+## EKSİKLİK 4 — Sözleşme PDF Yükleme Flutter Bağlantısı Yok (Orta)
 
-**Dosya:** `frontend/lib/features/agent/tabs/chat_tab.dart`
-**Satır:** ~574-577
-**Bug:** `_NewChatSheet._startOrOpenChat()` `POST /chat/conversations` isteğinde `client_role` gönderiyor ama backend `ConversationCreate` schema'sında bu alan yok. Sonuç: `422 Unprocessable Entity`.
+### 📍 Konum
+`frontend/lib/features/agent/screens/tenants_management_screen.dart` — satır 496–502
 
-**Mevcut hatalı kod (satır ~574-577):**
+### 🔍 Sorun
+Backend endpoint hazır (`POST /tenants/{tenant_id}/upload-contract`) ama Flutter'da `file_picker` + API çağrısı bağlanmamış. Mevcut fonksiyon sadece snackbar gösteriyor.
+
+### ✅ Çözüm
+
+**Dosya:** `frontend/lib/features/agent/screens/tenants_management_screen.dart`
+
+**Bul:** (satır ~496–502)
 ```dart
-final response = await ApiClient.dio.post('/chat/conversations', data: {
-  'client_user_id': user['user_id'] ?? user['id'],
-  'client_role': role,  // ❌ HATA: Backend buna cevap vermiyor
-});
-```
-
-**Düzeltme — `client_role` satırını kaldır:**
-```dart
-final response = await ApiClient.dio.post('/chat/conversations', data: {
-  'client_user_id': user['user_id'] ?? user['id'],
-});
-```
-
-**Doğrulama:**
-- Chat Tab → Yeni Sohbet → Kiracı seç → Sohbet oluştur.
-- 201 veya 200 dönmeli; 422 hatası alınmamalı.
-
----
-
-## FAZA 2 — CHAT MEDYA GÖNDERİMİ
-
----
-
-### Adım 2.1: `chat_window_screen.dart` — Görsel Seçici ve Upload Entegrasyonu
-
-**Dosya:** `frontend/lib/features/agent/screens/chat_window_screen.dart`
-**Satır:** ~821-849
-**Durum:** `_showAttachmentSheet()` sadece snackbar gösteriyor. Gerçek `image_picker`/`file_picker` implementasyonu eklenecek.
-
-**Mevcut kod (satır ~821-849):**
-```dart
-// Mevcut placeholder:
-onTap: () {
-  Navigator.pop(ctx2);
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text('Fotoğraf seçimi için image_picker gerekli'),
-        backgroundColor: AppColors.warning),
-  );
-},
-```
-
-**Yeni eklenmesi gereken import'lar (dosya başına, mevcut import'ların yanına):**
-```dart
-import 'package:image_picker/image_picker.dart';
-import 'package:file_picker/file_picker.dart';
-```
-
-**`chat_window_screen.dart` _ChatWindowScreenState sınıfına yeni metodlar ekle:**
-
-```dart
-// Satır ~870 civarı, _buildAttachmentTile ve _showAttachmentSheet'in altına ekle:
-
-Future<void> _pickAndSendImage() async {
-  final picker = ImagePicker();
-  final XFile? image = await picker.pickImage(
-    source: ImageSource.gallery,
-    maxWidth: 1920,
-    maxHeight: 1920,
-    imageQuality: 85,
-  );
-  if (image == null) return;
-
-  Navigator.pop(context); // Bottom sheet'i kapat
-
-  // Önce upload et
-  final uploadResp = await _uploadMedia(image.path, 'image');
-  if (uploadResp != null) {
-    // Mesaj olarak gönder
-    await _sendMessageWithAttachment(uploadResp);
-  }
-}
-
-Future<void> _pickAndSendFile() async {
-  final result = await FilePicker.platform.pickFiles(
-    type: FileType.custom,
-    allowedExtensions: ['pdf', 'doc', 'docx'],
-    allowMultiple: false,
-  );
-  if (result == null || result.files.isEmpty) return;
-
-  final file = result.files.first;
-  if (file.path == null) return;
-
-  Navigator.pop(context); // Bottom sheet'i kapat
-
-  // Önce upload et
-  final uploadResp = await _uploadMedia(file.path!, 'document');
-  if (uploadResp != null) {
-    await _sendMessageWithAttachment(uploadResp);
-  }
-}
-
-Future<String?> _uploadMedia(String filePath, String category) async {
-  try {
-    final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(filePath),
-      'category': category,
-    });
-    final resp = await ApiClient.dio.post(
-      '/media/upload',
-      data: formData,
-      options: Options(
-        headers: {'Content-Type': 'multipart/form-data'},
-        receiveTimeout: const Duration(seconds: 30),
-        sendTimeout: const Duration(seconds: 30),
-      ),
-    );
-    if (resp.statusCode == 200 && resp.data['url'] != null) {
-      return resp.data['url'] as String;
-    }
-  } catch (e) {
-    _showError('Yükleme hatası: $e');
-  }
-  return null;
-}
-
-Future<void> _sendMessageWithAttachment(String url) async {
-  final msgData = {
-    'type': 'message',
-    'conversation_id': widget.conversation.id.toString(),
-    'attachment_url': url,
-  };
-  await ref.read(chatProvider.notifier).sendMessage(
-    widget.conversation.id.toString(),
-    msgData,
-  );
+Future<void> _uploadContract(String tenantId) async {
+    // In a real app, this would use file_picker to pick PDF/image
+    // Then PATCH /tenants/{id}/upload-contract with the returned URL
+    _showSuccess('Sözleşme yükleme: Backend endpoint hazır (POST /upload/media → /tenants/{id}/upload-contract)');
 }
 ```
 
-**Bottom sheet'deki `onTap` handler'larını güncelle:**
-
-`_showAttachmentSheet()` içindeki iki `onTap` callback'ini değiştir:
-
+**Değiştir:**
 ```dart
-Expanded(child: _buildAttachmentTile(
-  Icons.image_outlined, 'Fotoğraf',
-  'Galeri veya kamera',
-  AppColors.success,
-  () => _pickAndSendImage(),  // ✅ Güncellendi
-)),
-
-Expanded(child: _buildAttachmentTile(
-  Icons.picture_as_pdf_outlined, 'Belge',
-  'PDF dosyası gönder',
-  AppColors.error,
-  () => _pickAndSendFile(),  // ✅ Güncellendi
-)),
-```
-
-**`dio` import'ı eksikse dosya başına ekle:**
-```dart
-import 'package:dio/dio.dart';
-```
-
-**Not:** `image_picker` ve `file_picker` paketleri `pubspec.yaml`'da zaten mevcut (`file_picker: ^8.1.2`). Ek package eklemeye gerek yok.
-
-**Doğrulama:**
-- Chat aç → Ek dosya butonu → Galeri'den fotoğraf seç → Yüklenip mesaj olarak gönderilmeli.
-- Aynısı PDF dosyası için de test edilmeli.
-
----
-
-## FAZA 3 — TENANT PANELİ API KÖPRÜSÜ
-
----
-
-### Adım 3.1: Tenant Finance Tab — Dekont Upload Gerçek Implementasyonu
-
-**Dosya:** `frontend/lib/features/tenant/tabs/tenant_finance_tab.dart`
-**Satır:** ~108-138
-**Durum:** `_buildUploadReceiptBox()` sadece snackbar gösteriyor. Backend'de `/finance/upload-statement` endpoint'i hazır.
-
-**Eklenecek import'lar (dosya başına):**
-```dart
-import 'package:file_picker/file_picker.dart';
-import 'package:dio/dio.dart';
-import '../../../core/network/api_client.dart';
-```
-
-**`_buildUploadReceiptBox` metodunu değiştir:**
-```dart
-Widget _buildUploadReceiptBox(BuildContext context) {
-  return InkWell(
-    onTap: () => _pickAndUploadReceipt(context),
-    borderRadius: BorderRadius.circular(24),
-    child: Container(
-      padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        color: AppColors.accent.withValues(alpha:0.1),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.accent.withValues(alpha:0.4), width: 1.5),
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
-            child: const Icon(Icons.receipt_long_rounded, color: Colors.white, size: 36),
-          ),
-          const SizedBox(height: 16),
-          const Text("Yeni Dekont / Makbuz Yükle", style: TextStyle(color: AppColors.accent, fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          const Text("EFT/Havale yaptıysanız makbuzu buradan yükleyin. AI sistemimiz onu okuyup Emlakçınıza iletecektir.", textAlign: TextAlign.center, style: TextStyle(color: AppColors.textBody, fontSize: 13, height: 1.4)),
-        ],
-      ),
-    ),
-  );
-}
-
-Future<void> _pickAndUploadReceipt(BuildContext context) async {
-  final result = await FilePicker.platform.pickFiles(
-    type: FileType.custom,
-    allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
-    allowMultiple: false,
-  );
-  if (result == null || result.files.isEmpty) return;
-
-  final file = result.files.first;
-  if (file.path == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Dosya seçilemedi'),
-        backgroundColor: AppColors.error,
-      ),
-    );
-    return;
-  }
-
-  // Yükleme göster
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-      content: Text('Dekont yükleniyor...'),
-      backgroundColor: AppColors.accent,
-      duration: Duration(seconds: 1),
-    ),
-  );
-
-  try {
-    final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(file.path!),
-    });
-    final resp = await ApiClient.dio.post(
-      '/finance/upload-statement',
-      data: formData,
-      options: Options(
-        headers: {'Content-Type': 'multipart/form-data'},
-        receiveTimeout: const Duration(seconds: 60),
-        sendTimeout: const Duration(seconds: 60),
-      ),
-    );
-    if (resp.statusCode == 200) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Dekont başarıyla yüklendi! Emlakçınız inceleyecek.'),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    }
-  } catch (e) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Yükleme hatası: $e'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
+Future<void> _uploadContract(String tenantId) async {
+    try {
+      // 1. PDF dosyasını seç
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+        allowMultiple: false,
       );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final file = result.files.single;
+      if (file.path == null) {
+        _showError('Dosya seçilemedi');
+        return;
+      }
+
+      // 2. Dosyayı Hetzner Object Storage'a yükle
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(
+          file.path!,
+          filename: file.name,
+        ),
+        'category': 'contracts',  // contracts klasörüne yüklenecek
+      });
+
+      final uploadResp = await ApiClient.dio.post(
+        '/media/upload',
+        data: formData,
+      );
+
+      if (uploadResp.statusCode != 200 || uploadResp.data == null) {
+        _showError('Dosya yüklenemedi');
+        return;
+      }
+
+      final fileUrl = uploadResp.data['url'] as String;
+
+      // 3. Backend'e URL'i bildir
+      final updateResp = await ApiClient.dio.patch(
+        '/tenants/$tenantId/upload-contract',
+        data: {'contract_url': fileUrl},
+      );
+
+      if (updateResp.statusCode == 200) {
+        _showSuccess('Sözleşme başarıyla yüklendi');
+
+        // Kiracı listesini yenile
+        _loadTenants();
+      } else {
+        _showError('Sözleşme URL güncellenemedi');
+      }
+    } catch (e) {
+      _showError('Yükleme hatası: $e');
     }
   }
-}
 ```
 
-**Doğrulama:**
-- Tenant Finance Tab → Dekont yükle kutusuna tıkla → PDF/görsel seç → Backend'e yükle.
+**Not:** `MultipartFile` ve `FormData` için şu import'ların dosyada olduğundan emin ol:
+```dart
+import 'dart:io';
+import 'package:dio/dio.dart';
+import 'package:file_picker/file_picker.dart';
+```
+
+### 🧪 Doğrulama
+1. Kiracı Yönetimi ekranını aç
+2. Bir kiracının satırındaki "Sözleşme Yükle" butonuna tıkla
+3. PDF dosya seç (dosya seçici açılmalı)
+4. Yükle tamamlandığında snackbar "Sözleşme başarıyla yüklendi" mesajı verir
+5. Veritabanında `tenants.contract_document_url` güncellenmiş olmalı
 
 ---
 
-### Adım 3.2: Tenant Destek Tab — Ticket Açma Formu API Bağlantısı
+## EKSİKLİK 5 — Ev Sahibi Schema `documents` Alanı Yok (Orta)
+
+### 📍 Konum
+`backend/app/schemas/landlord.py` — `LandlordTenantPerformance` class (satır 61–81)
+
+### 🔍 Sorun
+Ev Sahibi, kiracı performansı ekranında sözleşme belgelerini göremez. `LandlordTenantPerformance` response schema'sında `documents` alanı bulunmuyor. Tenant modelinde `documents` alanı mevcut (`backend/app/models/tenants.py` satır 42).
+
+### ✅ Çözüm
+
+**Dosya:** `backend/app/schemas/landlord.py`
+
+**Bul:** (satır 61–81)
+```python
+class LandlordTenantPerformance(BaseModel):
+    """Kiracı performans bilgisi (ödeme geçmişi vb.)"""
+    tenant_id: UUID4
+    unit_id: UUID4
+    property_name: str
+    door_number: str
+    tenant_name: Optional[str]
+    tenant_phone: Optional[str]
+    rent_amount: int
+    payment_day: int
+    contract_start: date
+    contract_end: date
+    status: str
+    is_active: bool
+    months_rented: int
+    on_time_payments: int
+    late_payments: int = 0
+    missed_payments: int = 0
+    payment_score: float = 100.0
+    payment_history: List[PaymentMonthItem] = []
+```
+
+**Değiştir (satır 80'den sonra ekle):**
+```python
+    payment_history: List[PaymentMonthItem] = []
+    documents: Optional[List[Dict[str, Any]]] = []  # ✅ EKLENDI — Sözleşme belgeleri (PRD §4.3.2-C)
+```
+
+**Şimdi backend'de bu veriyi döndürmemiz gerekiyor.** İlgili endpoint'i bul ve güncelle:
+
+**Dosya:** `backend/app/api/endpoints/landlord.py` (veya ilgili dosya)
+
+`LandlordTenantPerformance` döndüren fonksiyonu bul (genellikle `/landlord/unit/{unit_id}/tenant-performance` gibi bir endpoint olmalı). Orada Tenant modelinden `documents` alanını çekip schema'ya ekle.
+
+Örnek (endpoint'te değişiklik gerekirse):
+```python
+# LandlordTenantPerformance response'da documents alanını doldur
+tenant_record = result.scalar_one_or_none()
+documents = tenant_record.documents if tenant_record else []
+
+return LandlordTenantPerformance(
+    ...
+    documents=documents,  # ✅ EKLENDI
+)
+```
+
+### 🧪 Doğrulama
+1. Ev Sahibi panelinde bir daireye tıkla
+2. "Kiracı Performansı" bölümünde belgeler listesi görünür olmalı
+3. `documents` alanı boş değilse (sözleşme yüklendiyse) PDF linkleri görünür
+
+---
+
+## EKSİKLİK 6 — Chat Offline Timestamp Korunmuyor (Orta)
+
+### 📍 Konum
+`frontend/lib/core/offline/sync_service.dart` — satır 56–78
+
+### 🔍 Sorun
+Offline gönderilen mesajların orijinal zaman damgası (`created_at`) sunucuya replay edilmiyor. Bağlantı gelince mesaj yeni timestamp ile kaydediliyor.
+
+PRD §5.2: *"cihaz internet bağlantısını yeniden sağladığı anda... kullanıcının asıl 'Gönderme' zaman damgasıyla (timestamp) karşı tarafa iletilir"*
+
+### ✅ Çözüm
+
+**Dosya:** `frontend/lib/core/offline/offline_storage.dart` (outbox mesajını kaydeden yer)
+
+Outbox'a kaydedilen mesajda `created_at` timestamp'i saklanıyor olmalı. Önce kontrol et:
+
+```dart
+// offline_storage.dart — outbox'a mesaj eklerken timestamp ekle
+Future<void> addToOutbox({
+  required String localId,
+  required String conversationId,
+  required String message,
+  required DateTime createdAt,  // ✅ Eklenmeli
+}) async {
+  final outbox = await _getOutbox();
+  outbox.add({
+    'local_id': localId,
+    'conversation_id': conversationId,
+    'message': message,
+    'created_at': createdAt.toIso8601String(),  // ✅ Eklenmeli
+  });
+  await _saveOutbox(outbox);
+}
+```
+
+**Dosya:** `frontend/lib/core/offline/sync_service.dart`
+
+**Bul:** (satır 56–78)
+```dart
+for (final msg in pending) {
+  final id = msg['local_id'] as String;
+  final conversationId = msg['conversation_id'] as String?;
+  final message = msg['message'] as String? ?? '';
+
+  try {
+    if (conversationId != null && conversationId.isNotEmpty) {
+      final resp = await ApiClient.dio.post('/chat/messages', data: {
+        'conversation_id': conversationId,
+        'message': message,
+        'type': 'message',
+      });
+```
+
+**Değiştir:**
+```dart
+for (final msg in pending) {
+  final id = msg['local_id'] as String;
+  final conversationId = msg['conversation_id'] as String?;
+  final message = msg['message'] as String? ?? '';
+  final createdAtStr = msg['created_at'] as String?;
+
+  try {
+    if (conversationId != null && conversationId.isNotEmpty) {
+      final requestData = {
+        'conversation_id': conversationId,
+        'message': message,
+        'type': 'message',
+      };
+
+      // ✅ EKLENDI — Orijinal timestamp'i koru (PRD §5.2)
+      if (createdAtStr != null) {
+        requestData['client_created_at'] = createdAtStr;
+      }
+
+      final resp = await ApiClient.dio.post('/chat/messages', data: requestData);
+```
+
+**Backend'de karşılamak için** — Backend endpoint'inde `client_created_at` varsa onu kullan, yoksa sunucu zamanını kullan:
+
+**Dosya:** `backend/app/api/endpoints/chat.py` — `POST /chat/messages`
+
+```python
+@router.post("/messages")
+async def send_message(
+    conversation_id: str,
+    message: str,
+    type: str = "message",
+    client_created_at: Optional[str] = None,  # ✅ EKLENDI
+    ...
+):
+    # client_created_at varsa onu kullan, yoksa şimdiki zamanı kullan
+    if client_created_at:
+        try:
+            created_at = datetime.fromisoformat(client_created_at.replace("Z", "+00:00"))
+        except:
+            created_at = datetime.utcnow()
+    else:
+        created_at = datetime.utcnow()
+```
+
+### 🧪 Doğrulama
+1.飞行 MODE'u aç (interneti kapat)
+2. Kiracıya mesaj gönder → "Bekliyor" ikonu görünür
+3. Internet'i aç → mesaj sync olur
+4. Veritabanında `chat_messages.created_at` orijinal gönderim zamanını gösterir (sunucu zamanını değil)
+
+---
+
+## EKSİKLİK 7 — Fotoğraflara Timestamp Damgası Basılmıyor (Orta)
+
+### 📍 Konum
+`frontend/lib/features/tenant/tabs/tenant_support_tab.dart` — satır 516–527
+
+### 🔍 Sorun
+PRD §4.2.2-B ve §4.1.7-B'ye göre: *"Sistem bu fotoğrafların üzerine arka planda Tarih ve Saat Etiketi (Timestamp) basar"*
+
+Mevcut kod sadece `ImagePicker` ile görsel seçiyor, üzerine timestamp basmıyor.
+
+### ✅ Çözüm
 
 **Dosya:** `frontend/lib/features/tenant/tabs/tenant_support_tab.dart`
 
-**Mevcut durumu anlamak için dosyayı oku.** Eğer `_buildCreateTicketDialog()` veya benzeri bir fonksiyon placeholder snackbar gösteriyorsa, backend `POST /tenants/tickets/` endpoint'ine bağlanacak şekilde güncellenir.
-
-**Genel patern:**
+**Mevcut:** `_pickAndStampImage` sadece dosya seçiyor:
 ```dart
-Future<void> _submitTicket({
-  required String title,
-  required String description,
-  required BuildContext context,
-}) async {
-  try {
-    final resp = await ApiClient.dio.post('/tenants/tickets', data: {
-      'title': title,
-      'description': description,
-    });
-    if (resp.statusCode == 201) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Talebiniz iletildi!'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-        Navigator.pop(context);
-      }
-    }
-  } catch (e) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Hata: $e'), backgroundColor: AppColors.error),
-      );
-    }
-  }
-}
-```
-
-**Destek talebi formunda fotoğraf yükleme varsa (PRD §4.2.2):**
-- `image_picker` ile kanıt fotoğrafı çek.
-- Fotoğrafı `/media/upload` endpoint'ine yükle → URL'i ticket oluştururken `attachments` listesine ekle.
-
----
-
-### Adım 3.3: Tenant Documents Tab — API Bağlantısı
-
-**Dosya:** `frontend/lib/features/tenant/tabs/tenant_documents_tab.dart`
-
-**Beklenen API:** `GET /tenants/me/documents` → `TenantDocumentsResponse`
-
-**Provider'da (`tenant_provider.dart`) eklenmesi gereken:**
-```dart
-// tenant_provider.dart ~satır 200+
-final tenantDocumentsProvider = FutureProvider.family<TenantDocumentsResponse, void>((
-  ref,
-  _,
-) async {
-  final resp = await ApiClient.dio.get('/tenants/me/documents');
-  return TenantDocumentsResponse.fromJson(resp.data);
-});
-```
-
-**Tab'da kullanım:**
-```dart
-final docsAsync = ref.watch(tenantDocumentsProvider);
-docsAsync.when(
-  data: (docs) => ListView.builder(
-    itemCount: docs.documents.length,
-    itemBuilder: (_, i) => _buildDocumentTile(docs.documents[i]),
-  ),
-  // ...
-)
-```
-
----
-
-### Adım 3.4: Tenant Chat Tab — WebSocket Bağlantısı Aktifleştirme
-
-**Dosya:** `frontend/lib/features/tenant/tabs/tenant_chat_tab.dart`
-
-**Mevcut durumu anlamak için dosyayı oku.** Chat widget'ı mevcutsa WebSocket bağlantısı için `ChatProvider`'ın `initWebSocket()` veya `connectWebSocket()` metodunu çağır.
-
-**Beklenen yapı:**
-```dart
-@override
-void initState() {
-  super.initState();
-  // WebSocket bağlantısı — agent/tabs/chat_tab.dart'daki paterni takip et
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    ref.read(chatProvider.notifier).connectWebSocket();
-  });
-}
-```
-
-**WebSocket token'ı için:** `ApiClient.simpleAuthToken` veya Firebase token kullanılır. Backend `chat.py`'de `deps.get_current_user` WebSocket auth için `Authorization` header'ını okur.
-
----
-
-## FAZA 4 — BİNA OPERASYONLARI KISAYOLU
-
----
-
-### Adım 4.1: Ticket Detail Sheet — Bina Operasyonu Gerçek API Bağlantısı
-
-**Dosya:** `frontend/lib/features/agent/widgets/ticket_detail_sheet.dart`
-**Satır:** ~109-122
-**Durum:** `_addToBuildingOps()` sadece snackbar gösteriyor. `POST /building-logs/` backend'e gerçek istek atılacak.
-
-**Mevcut hatalı kod:**
-```dart
-void _addToBuildingOps() {
-  Navigator.pop(context);
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text('Bina Operasyonlarına eklendi: ${widget.ticket.title}'),
-      // ...
-    ),
-  );
-}
-```
-
-**Değiştirilecek kod:**
-```dart
-Future<void> _addToBuildingOps() async {
-  Navigator.pop(context);
-
-  final propertyId = widget.ticket.propertyId;
-  if (propertyId == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Bu talebe mülk bilgisi bağlı değil'),
-        backgroundColor: AppColors.error,
-      ),
+Future<void> _pickAndStampImage() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      allowMultiple: false,
     );
-    return;
-  }
+    if (result == null || result.files.isEmpty) return;
 
-  try {
-    final resp = await ApiClient.dio.post('/building-logs/', data: {
-      'property_id': propertyId.toString(),
-      'title': '[Destek Ticket] ${widget.ticket.title}',
-      'description': widget.ticket.description,
-      'operation_date': DateTime.now().toIso8601String().split('T')[0],
-      'add_to_financial_expense': false,
-    });
+    final path = result.files.single.path;
+    if (path == null) return;
 
-    if (resp.statusCode == 201) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Bina Operasyonlarına eklendi: ${widget.ticket.title}'),
-            backgroundColor: AppColors.success,
-            action: SnackBarAction(
-              label: 'Mali Rapor',
-              textColor: Colors.white,
-              onPressed: () {
-                // TODO: Mali Rapor ekranına yönlendir
-                // Navigator.push(context, MaterialPageRoute(builder: (_) => MaliRaporScreen()));
-              },
-            ),
-          ),
-        );
-      }
-    }
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Hata: $e'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    }
-  }
+    setState(() => _attachmentPath = path);
 }
 ```
 
-**Backend'de `building-logs` endpoint'ini kontrol et** (`backend/app/api/endpoints/operations.py`):
-`POST /building-logs/` mevcut değilse `operations.py`'de oluştur:
-```python
-@router.post("/building-logs/", response_model=BuildingOperationLogResponse, status_code=201)
-async def create_building_log(
-    data: BuildingOperationLogCreate,
-    current_user: User = Depends(deps.get_current_user),
-    agency_id: uuid.UUID = Depends(deps.get_current_user_agency_id),
-    db: AsyncSession = Depends(deps.get_db),
-):
-    """Yeni bina operasyonu oluşturur."""
-    log = BuildingOperationLog(
-        agency_id=agency_id,
-        property_id=data.property_id,
-        title=data.title,
-        description=data.description,
-        operation_date=data.operation_date,
-        invoice_url=data.invoice_url,
-    )
-    db.add(log)
-    await db.commit()
-    await db.refresh(log)
-    return log
-```
-
-**Ayrıca schema eksikse (`schemas/operations.py`):**
-```python
-class BuildingOperationLogCreate(BaseModel):
-    property_id: UUID
-    title: str
-    description: Optional[str] = None
-    operation_date: date
-    invoice_url: Optional[str] = None
-    add_to_financial_expense: bool = False
-```
-
----
-
-## FAZA 5 — FİNANS KATEGORİ YÖNETİMİ
-
----
-
-### Adım 5.1: Backend — `custom_category` Kolonu ve Schema Güncellemesi
-
-**Dosya:** `backend/app/models/finance.py`
-**Eklenecek kolon:** `FinancialTransaction` tablosuna `custom_category` String kolonu.
-
-**`FinancialTransaction` sınıfına ekle (satır ~43, `description` kolonunun altına):**
-```python
-custom_category = Column(String, nullable=True)  # Kullanıcı özel kategori adı
-```
-
-**Migrasyon oluştur:**
-```bash
-cd backend
-alembic revision --autogenerate -m "add custom_category to financial_transactions"
-alembic upgrade head
-```
-
-**Dosya:** `backend/app/schemas/finance.py`
-**`ManualTransactionCreate` schema'sına ekle:**
-```python
-class ManualTransactionCreate(BaseModel):
-    # ... mevcut alanlar ...
-    custom_category: Optional[str] = None  # ✅ Eklenecek
-```
-
-**`TransactionResponse` schema'sına ekle:**
-```python
-class TransactionResponse(BaseModel):
-    # ... mevcut alanlar ...
-    custom_category: Optional[str] = None  # ✅ Eklenecek
-```
-
----
-
-### Adım 5.2: Frontend — Mali Rapor "Yeni Kategori Oluştur" UI
-
-**Dosya:** `frontend/lib/features/agent/screens/mali_rapor_screen.dart`
-
-**Mali rapor "Yeni İşlem Ekle" formunda kategori seçimi varsa, "Yeni Kategori Oluştur" seçeneği ekle:**
-
+**Değiştir:**
 ```dart
-// Form'daki kategori Dropdown'ı:
-// Mevcut yapı: DropdownButtonFormField<CategoryEnum>
-// Ek kısım olarak:
-
-// "Özel Kategori" Switch veya "Yeni Oluştur" TextField
-Row(
-  children: [
-    Expanded(
-      child: DropdownButtonFormField<CategoryEnum>(
-        value: _selectedCategory,
-        decoration: InputDecoration(labelText: 'Kategori'),
-        items: CategoryEnum.values.map((c) {
-          return DropdownMenuItem(
-            value: c,
-            child: Text(c.name),
-          );
-        }).toList(),
-        onChanged: (v) => setState(() => _selectedCategory = v),
-      ),
-    ),
-    IconButton(
-      icon: const Icon(Icons.add_circle_outline, color: AppColors.accent),
-      onPressed: () => _showCreateCategoryDialog(),
-      tooltip: 'Yeni Kategori Oluştur',
-    ),
-  ],
-)
-```
-
-**`_showCreateCategoryDialog()`:**
-```dart
-void _showCreateCategoryDialog() {
-  final controller = TextEditingController();
-  showDialog(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      backgroundColor: AppColors.surface,
-      title: const Text('Yeni Kategori', style: TextStyle(color: Colors.white)),
-      content: TextField(
-        controller: controller,
-        style: const TextStyle(color: Colors.white),
-        decoration: const InputDecoration(
-          hintText: 'Kategori adı',
-          hintStyle: TextStyle(color: AppColors.textBody),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx),
-          child: const Text('İptal'),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            if (controller.text.trim().isNotEmpty) {
-              setState(() {
-                _customCategoryName = controller.text.trim();
-                _selectedCategory = CategoryEnum.other; // Özel = other'e düşer
-              });
-              Navigator.pop(ctx);
-            }
-          },
-          child: const Text('Oluştur'),
-        ),
-      ],
-    ),
-  );
-}
-```
-
-**Form gönderildiğinde `custom_category` alanını ekle:**
-```dart
-// Form submit'te:
-data: {
-  'type': _isIncome ? 'income' : 'expense',
-  'category': _selectedCategory.name,
-  'custom_category': _customCategoryName, // ✅ Eklenecek
-  'amount': _amount,
-  // ...
-}
-```
-
----
-
-## FAZA 6 — OTP RATE LIMITING (SMS PUMPING KORUMASI)
-
----
-
-### Adım 6.1: Backend — Şifre Sıfırlama Rate Limit Table ve Endpoint
-
-**Dosya:** `backend/app/models/users.py`
-**Eklenecek:** `PasswordResetAttempt` modeli (aylık limit takibi için).
-
-**`users.py`'e ekle:**
-```python
-class PasswordResetAttempt(BaseModel):
-    """OTP şifre sıfırlama talebi takibi — SMS Pumping koruması"""
-    __tablename__ = "password_reset_attempts"
-
-    phone_number = Column(String, nullable=False, index=True)
-    attempted_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    ip_address = Column(String, nullable=True)
-```
-
-**Migrasyon:**
-```bash
-alembic revision --autogenerate -m "add password_reset_attempts table"
-alembic upgrade head
-```
-
----
-
-### Adım 6.2: Backend — Rate Limit Logic ve Endpoint Güncellemesi
-
-**Dosya:** `backend/app/api/endpoints/auth.py`
-
-**Mevcut `create_invite` veya yeni bir endpoint olarak ekle.** PRD §4.1.4-D kapsamında `/auth/request-password-reset-otp` endpoint'i:
-
-```python
-from datetime import datetime, timedelta
-from app.models.users import PasswordResetAttempt
-
-MONTHLY_LIMIT = 15  # PRD §4.1.4-D: ayda 15 kez
-
-@router.post("/request-password-reset-otp")
-async def request_password_reset_otp(
-    phone_number: str,  # form_field
-    current_user: User = Depends(deps.get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Şifre sıfırlama OTP'si talep eder.
-    PRD §4.1.4-D: Aylık 15 limit kontrolü.
-    """
-    # 1) Limit kontrolü — bu ay içinde kaç talep var?
-    first_of_month = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0)
-    stmt = select(func.count(PasswordResetAttempt.id)).where(
-        PasswordResetAttempt.phone_number == phone_number,
-        PasswordResetAttempt.attempted_at >= first_of_month,
-    )
-    result = await db.execute(stmt)
-    count = result.scalar() or 0
-
-    if count >= MONTHLY_LIMIT:
-        raise HTTPException(
-            status_code=429,
-            detail=(
-                "Bu ay için şifre sıfırlama limitine ulaşıldı (15/ay). "
-                "Lütfen emlakçınızla iletişime geçin."
-            ),
-        )
-
-    # 2) Meşru talep — Firebase verifyPhoneNumber tetikle
-    # (Firebase Admin SDK ile)
-    # Firebase otomatik olarak rate limiting yapar (Play Integrity, reCAPTCHA)
-    # Bu aşamada sadece kaydı tut
-    attempt = PasswordResetAttempt(
-        phone_number=phone_number,
-        attempted_at=datetime.utcnow(),
-    )
-    db.add(attempt)
-    await db.commit()
-
-    # 3) Firebase OTP gönder (mevcut Firebase Admin SDK flow'u)
-    # Firebase verifyPhoneNumber otomatik olarak çalışır
-    return {"message": "Doğrulama kodu gönderildi."}
-```
-
-**Not:** `func` import'unu dosya başına ekle:
-```python
-from sqlalchemy import func
-```
-
-**Doğrulama:**
-```bash
-# 15'ten fazla istek at — 16. istek 429 dönmeli
-curl -X POST http://localhost:8000/api/v1/auth/request-password-reset-otp \
-  -H "Content-Type: application/json" \
-  -d '{"phone_number": "+905551112233"}'
-```
-
----
-
-## FAZA 7 — OFFLINE OKUMA ÖNBELLEKLEME
-
----
-
-### Adım 7.1: Offline Cache — Portföy ve Kiracı Verisi
-
-**Dosya:** `frontend/lib/core/offline/offline_cache_provider.dart`
-
-**Mevcut yapı:** `OfflineStorage` sınıfı mevcut. `ConnectivityService` ve `SyncService` mevcut.
-
-**Eklenecek:** API yanıtlarını başarılı fetch sonrası Hive'a yazma ve bağlantısız okuma.
-
-**`properties_provider.dart`'a offline okuma/yazma ekle:**
-
-```dart
-// PropertiesProvider — fetch sonrası cache'e yaz:
-Future<void> fetchProperties() async {
-  try {
-    final resp = await ApiClient.dio.get('/properties');
-    final properties = (resp.data as List)
-        .map((p) => PropertySummary.fromJson(p))
-        .toList();
-
-    // ✅ Offline cache'e yaz
-    await OfflineStorage.instance.write(
-      'cached_properties',
-      resp.data,
+Future<void> _pickAndStampImage() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      allowMultiple: false,
     );
+    if (result == null || result.files.isEmpty) return;
 
-    state = AsyncValue.data(properties);
-  } on DioException catch (e) {
-    if (e.type == DioExceptionType.connectionError ||
-        e.type == DioExceptionType.connectionTimeout) {
-      // ✅ Bağlantı yok — cache'den oku
-      final cached = await OfflineStorage.instance.read('cached_properties');
-      if (cached != null) {
-        final properties = (cached as List)
-            .map((p) => PropertySummary.fromJson(p as Map<String, dynamic>))
-            .toList();
-        state = AsyncValue.data(properties);
-        return;
-      }
+    final path = result.files.single.path;
+    if (path == null) return;
+
+    // ✅ EKLENDI — Görsel üzerine timestamp bas (PRD §4.2.2-B)
+    final stampedPath = await _stampImageWithTimestamp(path);
+    if (stampedPath != null) {
+      setState(() => _attachmentPath = stampedPath);
+    } else {
+      // Timestamp basılamazsa orijinal dosyayı kullan
+      setState(() => _attachmentPath = path);
     }
-    state = AsyncValue.error(e, StackTrace.current);
-  }
+}
+
+Future<String?> _stampImageWithTimestamp(String imagePath) async {
+    try {
+      // Görseli oku
+      final bytes = await File(imagePath).readAsBytes();
+      final codec = await instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      final image = frame.image;
+
+      // Canvas oluştur
+      final recorder = PictureRecorder();
+      final canvas = Canvas(recorder);
+      final size = Size(image.width.toDouble(), image.height.toDouble());
+
+      // Orijinal görseli çiz
+      canvas.drawImage(image, Offset.zero, Paint());
+
+      // Timestamp metni oluştur
+      final timestamp = _timestampNow();
+      final textStyle = TextStyle(
+        color: Colors.white,
+        fontSize: size.width * 0.03,  // Responsive font size
+        fontWeight: FontWeight.bold,
+        shadows: const [
+          Shadow(
+            offset: Offset(1, 1),
+            blurRadius: 3,
+            color: Colors.black54,
+          ),
+        ],
+      );
+
+      // Sağ alt köşeye timestamp bas
+      final textSpan = TextSpan(text: timestamp, style: textStyle);
+      final textPainter = TextPainter(
+        text: textSpan,
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout();
+
+      // Padding
+      final padding = size.width * 0.02;
+      final offset = Offset(
+        size.width - textPainter.width - padding,
+        size.height - textPainter.height - padding,
+      );
+
+      // Arka plan kutusu çiz (okunakarlık için)
+      final bgRect = Rect.fromLTWH(
+        offset.dx - 4,
+        offset.dy - 2,
+        textPainter.width + 8,
+        textPainter.height + 4,
+      );
+      canvas.drawRect(bgRect, Paint()..color = Colors.black38);
+
+      textPainter.paint(canvas, offset);
+
+      // Kaydet
+      final picture = recorder.endRecording();
+      final stampedImage = await picture.toImage(
+        image.width,
+        image.height,
+      );
+      final pngBytes = await stampedImage.toByteData(
+        format: ImageByteFormat.png,
+      );
+
+      if (pngBytes == null) return null;
+
+      // Geçici dosyaya yaz
+      final dir = await getTemporaryDirectory();
+      final stampedFile = File(
+        '${dir.path}/stamped_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
+      await stampedFile.writeAsBytes(pngBytes.buffer.asUint8List());
+
+      return stampedFile.path;
+    } catch (e) {
+      debugPrint('Timestamp basma hatası: $e');
+      return null;
+    }
 }
 ```
 
-**`OfflineStorage.instance` metodları** (`offline_storage.dart` içinde):
+**Ek olarak dosyanın başına import ekle:**
 ```dart
-Future<void> write(String key, dynamic data) async {
-  final box = await Hive.openBox('offline_cache');
-  await box.put(key, jsonEncode(data));
-}
-
-Future<dynamic> read(String key) async {
-  final box = await Hive.openBox('offline_cache');
-  final raw = box.get(key);
-  if (raw == null) return null;
-  return jsonDecode(raw as String);
-}
+import 'dart:ui' as ui;
+import 'dart:typed_data';
+import 'package:flutter/rendering.dart';
 ```
 
-**`SyncService`** (`sync_service.dart`) — bağlantı geldiğinde cache'i invalidate et:
+### 🧪 Doğrulama
+1. Kiracı olarak Destek ekranını aç
+2. "Yeni Talep" aç
+3. Fotoğraf ekle butonuna tıkla
+4. Fotoğraf seç
+5. Gönderilen fotoğrafta sağ alt köşede tarih-saat damgası görünür olmalı
+6. Admin Destek ekranında da aynı damga görünür
+
+---
+
+## EKSİKLİK 8 — "Destek İstiyorum" Buton Metni Farklı (Düşük)
+
+### 📍 Konum
+`frontend/lib/features/tenant/tabs/tenant_support_tab.dart` — satır 184
+
+### 🔍 Sorun
+PRD §4.2.2'de buton metni: *"🛠️ Destek İstiyorum"*
+Mevcut kod: *"Yeni Talep"*
+
+### ✅ Çözüm
+
+**Dosya:** `frontend/lib/features/tenant/tabs/tenant_support_tab.dart`
+
+**Bul:** (satır ~183–187)
 ```dart
-ConnectivityService.instance.addListener(() async {
-  if (ConnectivityService.instance.isConnected) {
-    // Arka planda yenile
-    ref.read(propertiesProvider.notifier).fetchProperties();
-  }
-});
+label: const Text(
+    'Yeni Talep',
+    style: TextStyle(fontWeight: FontWeight.bold),
+),
 ```
+
+**Değiştir:**
+```dart
+label: const Text(
+    'Destek İstiyorum',  // ✅ DÜZELTILDI — PRD §4.2.2 ile uyumlu
+    style: TextStyle(fontWeight: FontWeight.bold),
+),
+```
+
+Ayrıca aynı dosyada PRD §4.2.2'deki diğer metinlerle uyum için kontrol et:
+- Satır 626: `'Yeni Destek Talebi'` → `'Destek İstiyorum'` olarak değiştirilebilir (opsiyonel)
+
+### 🧪 Doğrulama
+1. Kiracı Destek ekranını aç
+2. FAB butonunun altında "Destek İstiyorum" yazısı görünür
 
 ---
 
-## ADIMLARIN ÖNCELİK SIRALAMASI (Hızlı Referans)
+## SIRALAMA ÖNERİSİ (Öncelik Sırasına Göre)
 
-```
-1. FAZA 1 — Kritik Bug'lar
-   1.1 landlord.py User.agency_id düzelt          [ ~10 dakika ]
-   1.2 chat client_role schema uyumsuzluğu      [ ~5 dakika ]
-
-2. FAZA 2 — Chat Medya Gönderimi
-   2.1 chat_window_screen medya upload          [ ~20 dakika ]
-
-3. FAZA 3 — Tenant Panel API Bağlantısı
-   3.1 tenant_finance_tab receipt upload         [ ~15 dakika ]
-   3.2 tenant_support_tab ticket oluşturma       [ ~15 dakika ]
-   3.3 tenant_documents_tab API bağlantısı       [ ~10 dakika ]
-   3.4 tenant_chat_tab WebSocket                 [ ~10 dakika ]
-
-4. FAZA 4 — Bina Operasyonları Kısayolu
-   4.1 ticket_detail_sheet bina ops API          [ ~15 dakika ]
-
-5. FAZA 5 — Finans Kategori Yönetimi
-   5.1 backend custom_category kolonu            [ ~10 dakika + migration ]
-   5.2 frontend mali rapor özel kategori UI     [ ~20 dakika ]
-
-6. FAZA 6 — OTP Rate Limiting
-   6.1 backend PasswordResetAttempt model        [ ~10 dakika + migration ]
-   6.2 endpoint rate limit logic                 [ ~10 dakika ]
-
-7. FAZA 7 — Offline Okuma Cache
-   7.1 properties_provider offline yazma/okuma    [ ~20 dakika ]
-   7.2 SyncService cache invalidation            [ ~10 dakika ]
-```
-
-**Toplam tahmini süre:** ~2.5 saat
+1. **Eksiklik 1** (`ai_matched`) — Hemen düzelt, AI tahsilat akışının doğru çalışması için kritik
+2. **Eksiklik 2** (`custom_category`) — Hemen düzelt, mali rapor özelliği için kritik
+3. **Eksiklik 3** (Admin kontrolü) — Hemen düzelt, güvenlik için kritik
+4. **Eksiklik 4** (PDF yükleme) — Orta vadede düzelt
+5. **Eksiklik 5** (Landlord documents) — Orta vadede düzelt
+6. **Eksiklik 6** (Chat timestamp) — Orta vadede düzelt
+7. **Eksiklik 7** (Foto timestamp) — Orta vadede düzelt
+8. **Eksiklik 8** (Buton metni) — Düşük öncelikli
 
 ---
 
-## TEST KOORDİNATÖRÜ
+## TEST PLANI
 
-Her FAZA tamamlandığında şu testler yapılmalı:
+Her düzeltmeden sonra şunları test et:
 
-| FAZA | Test |
-|---|---|
-| 1.1 | `POST /landlord/conversations` → 200 dönmeli, 500 HATA OLMAMALI |
-| 1.2 | Chat → Yeni Sohbet → Kiracı → Sohbet açılmalı, 422 HATA OLMAMALI |
-| 2.1 | Chat → Ek dosya → Fotoğraf seç → Yükle → Mesajda görünmeli |
-| 3.1 | Tenant Finance → Dekont yükle → PDF seç → Backend'e ulaşmalı |
-| 3.2 | Tenant Support → Yeni talep aç → Backend'e ulaşmalı |
-| 4.1 | Ticket → "Bina Operasyonu" → Kayıt oluşmalı |
-| 5.1 | Migration çalışmalı, kolon DB'de görünmeli |
-| 5.2 | Mali Rapor → Yeni İşlem → Özel kategori yazılabilmeli |
-| 6.1 | Migration çalışmalı, tablo DB'de görünmeli |
-| 6.2 | 16. OTP talebi → 429 dönmeli |
-| 7.1 | Bağlantı kes → API hata → Cache'den okuma yapılmalı |
-
----
-
-*Bu dosya `development_report.md` uyarınca hazırlanmıştır. Her FAZA sırayla uygulanmalıdır.*
+| Düzeltme | Test Adımları |
+|----------|--------------|
+| ai_matched | PDF ekstresi yükle → `financial_transactions.ai_matched = True` kontrol et |
+| custom_category | Manuel işlem ekle → Özel kategori seç → DB'de `custom_category` dolu kontrol et |
+| Admin kontrolü | Agent rolüyle BI Dashboard çağır → 403 hatası al |
+| PDF yükleme | Sözleşme yükle → Backend endpoint çağır → `contract_document_url` güncellenir |
+| Landlord docs | Ev Sahibi panelinde kiracı detayı aç → Belgeler listesi görünür |
+| Chat timestamp | Offline mesaj → Sync → `created_at` orijinal zamanı gösterir |
+| Foto timestamp | Destek talebi fotoğrafı → Yüklenen fotoğrafta tarih damgası görünür |
+| Buton metni | Kiracı Destek aç → "Destek İstiyorum" yazısı görünür |

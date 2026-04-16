@@ -19,6 +19,7 @@ class TransactionModel {
   final int? daysUntilDue; // Ödemeye X gün var (pending için)
   final int? overdueDays; // X gün gecikti (overdue için)
   final double? expectedAmount; // Beklenen tutar (partial için)
+  final String? tenantUserId; // Kiracı user_id — chat başlatmak için
 
   TransactionModel({
     required this.id,
@@ -31,6 +32,7 @@ class TransactionModel {
     this.daysUntilDue,
     this.overdueDays,
     this.expectedAmount,
+    this.tenantUserId,
   });
 
   TransactionModel copyWith({
@@ -38,6 +40,7 @@ class TransactionModel {
     int? daysUntilDue,
     int? overdueDays,
     double? expectedAmount,
+    String? tenantUserId,
   }) {
     return TransactionModel(
       id: id,
@@ -50,6 +53,7 @@ class TransactionModel {
       daysUntilDue: daysUntilDue ?? this.daysUntilDue,
       overdueDays: overdueDays ?? this.overdueDays,
       expectedAmount: expectedAmount ?? this.expectedAmount,
+      tenantUserId: tenantUserId ?? this.tenantUserId,
     );
   }
 }
@@ -100,13 +104,14 @@ class FinanceNotifier extends StateNotifier<AsyncValue<List<TransactionModel>>> 
           
           models.add(
             TransactionModel(
-              id: item['matched_tenant_id'] ?? "trx_${Random().nextInt(10000)}", 
-              date: aiData['date'] ?? "Bilinmiyor", 
+              id: item['matched_tenant_id'] ?? "trx_${Random().nextInt(10000)}",
+              date: aiData['date'] ?? "Bilinmiyor",
               senderName: aiData['sender_name'] ?? "Bilinmiyor",
               amount: double.tryParse(aiData['amount']?.toString() ?? '0') ?? 0.0,
               description: "[AI Analizi]: $eval | Orjinal: ${aiData['description'] ?? ''}",
               status: isMatched ? MatchStatus.matched : MatchStatus.pending,
               aiConfidence: score * 100,
+              tenantUserId: item['matched_tenant_id'],
             )
           );
        }
@@ -144,6 +149,21 @@ class FinanceNotifier extends StateNotifier<AsyncValue<List<TransactionModel>>> 
     } catch (e) {
       debugPrint("İhtar gönderme hatası: $e");
     }
+  }
+
+  /// Geciken kiracıya uygulama içi sohbet başlatır — PRD §4.1.5
+  Future<String?> openChatWithTenant(String tenantUserId) async {
+    try {
+      final resp = await ApiClient.dio.post('/chat/conversations', data: {
+        'client_user_id': tenantUserId,
+      });
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        return resp.data['id'];
+      }
+    } catch (e) {
+      debugPrint("Sohbet başlatma hatası: $e");
+    }
+    return null;
   }
 
   Future<void> markAsReceived(String transactionId) async {

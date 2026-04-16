@@ -351,7 +351,15 @@ class _OverviewTab extends StatelessWidget {
           children: [
             Expanded(child: _buildKPICard('Aktif Kiracı', '${kpis.activeTenants}', Icons.people, const Color(0xFF7B8EAD))),
             const SizedBox(width: 12),
-            Expanded(child: _buildKPICard('Bekleyen Aidat', '₺${_fmt(kpis.totalPendingDues)}', Icons.pending_actions, const Color(0xFFAD7B7B))),
+            Expanded(child: _buildKPICard('Beklenen Kira', '₺${_fmt(kpis.expectedRent)}', Icons.account_balance_wallet, const Color(0xFF8B7355))),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(child: _buildKPICard('Tahsil Edilen', '₺${_fmt(kpis.collectedRent)}', Icons.check_circle, const Color(0xFF6B8E6B))),
+            const SizedBox(width: 12),
+            Expanded(child: _buildKPICard('Gecikmeli Bakiye', '₺${_fmt(kpis.delayedBalance)}', Icons.warning, const Color(0xFFAD7B7B))),
           ],
         ),
       ],

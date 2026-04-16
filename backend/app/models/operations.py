@@ -4,6 +4,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from .base import BaseModel
 
+
 class TicketPriority(str, enum.Enum):
     low = "low"
     medium = "medium"
@@ -15,6 +16,18 @@ class TicketStatus(str, enum.Enum):
     in_progress = "in_progress"
     resolved = "resolved"
     closed = "closed"
+
+
+class OperationCategory(str, enum.Enum):
+    """Bina operasyon kategorileri — PRD §4.1.9"""
+    cleaning = "cleaning"           # Temizlik
+    elevator = "elevator"          # Asansör
+    electrical = "electrical"     # Elektrik
+    plumbing = "plumbing"          # Tesisat
+    painting = "painting"          # Boya / Tadilat
+    landscaping = "landscaping"    # Bahçe / Peyzaj
+    security = "security"         # Güvenlik
+    other = "other"               # Diğer
 
 class SupportTicket(BaseModel):
     """Kiracı arıza ve şikayet bildirimleri."""
@@ -54,6 +67,7 @@ class BuildingOperationLog(BaseModel):
 
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
+    category = Column(Enum(OperationCategory), default=OperationCategory.other, nullable=True)  # PRD §4.1.9 — Kategori
     cost = Column(Integer, default=0)
     invoice_url = Column(String, nullable=True)
     is_reflected_to_finance = Column(Boolean, default=False)

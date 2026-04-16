@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc, extract
 from sqlalchemy.orm import selectinload
@@ -9,7 +9,7 @@ from uuid import UUID
 import uuid
 
 from app.api import deps
-from app.models.users import User
+from app.models.users import User, AgencyStaff, Agency
 from app.models.properties import Property, PropertyUnit
 from app.models.tenants import Tenant, LandlordUnit
 from app.models.finance import FinancialTransaction, PaymentSchedule, TransactionType, TransactionCategory, PaymentStatus
@@ -61,14 +61,35 @@ async def _build_portfolio_performance(db: AsyncSession, agency_id: UUID) -> Por
             occupancy_rate=round(p_occ / p_total * 100, 1) if p_total > 0 else 0.0,
         ))
 
-    # Son 12 ay trend
+    # Son 12 ay trend — gerçek tarihsel veri
+    # Her ay için o ayın DOLULUK ORANI = o ayda rented olan birim sayısı / toplam birim
+    # Kiracı start_date/actual_end_date kayıtlarından aylık doluluk tahmini
     now = date.today()
     occupancy_trend = []
     for i in range(11, -1, -1):
         m = (now - relativedelta(months=i)).replace(day=1)
-        # Basit: o aydaki doluluk oranı (ampirik - gerçek zaman serisi için historical data gerekir)
-        # Şimdilik mevcut oranı kullanalım, tarihsel veri yoksa aynı Repeats
-        rate = overall_rate
+        m_end = m + relativedelta(months=1)
+
+        # Bu ayda (m_start .. m_end) DOLULUK durumunda olan kiracıların birimleri
+        # Dolu = kiracı o ayda aktifti:
+        #   start_date < m_end (o aydan önce girmiş) AND
+        #   (actual_end_date IS NULL AND end_date >= m) OR (actual_end_date >= m_start)
+        rented_stmt = select(PropertyUnit.id).join(
+            Tenant, Tenant.unit_id == PropertyUnit.id
+        ).where(
+            PropertyUnit.agency_id == agency_id,
+            Tenant.start_date < m_end,
+            (
+                (Tenant.actual_end_date.is_(None) & (Tenant.end_date >= m)) |
+                (Tenant.actual_end_date >= m)
+            ),
+        )
+        rented_result = await db.execute(rented_stmt)
+        rented_count = len(rented_result.scalars().all())
+
+        # Toplam birim
+        total_units_hist = len(units)
+        rate = (rented_count / total_units_hist * 100) if total_units_hist > 0 else 0.0
         occupancy_trend.append(OccupancyTrendItem(month=_month_str(m), occupancy_rate=round(rate, 1)))
 
     # Boş daire yaşlandırma
@@ -352,9 +373,22 @@ async def get_bi_analytics_dashboard(
     BI Analytics Dashboard — Emlak ofisi yöneticisinin (Kurucu Emlakçı / Admin)
     tüm stratejik metriklerini bir arada döner.
     PRD §4.1.10
-
-    NOT: Yalnızca admin rolü erişebilir (ileride auth kontrolü eklenecek).
     """
+    # ✅ EKLENDI — Admin rolü kontrolü (PRD §4.1.10-E)
+    staff_stmt = select(AgencyStaff).where(
+        AgencyStaff.user_id == current_user.id,
+        AgencyStaff.agency_id == agency_id,
+    )
+    staff_result = await db.execute(staff_stmt)
+    staff_record = staff_result.scalar_one_or_none()
+
+    if not staff_record or staff_record.role != "admin":
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=403,
+            detail="Bu sayfaya yalnızca Admin erişebilir."
+        )
+
     portfolio = await _build_portfolio_performance(db, agency_id)
     tenant_churn = await _build_tenant_churn(db, agency_id)
     financial = await _build_financial_annual(db, agency_id)
@@ -365,6 +399,128 @@ async def get_bi_analytics_dashboard(
         tenant_churn=tenant_churn,
         financial=financial,
         collection=collection,
+    )
+
+
+@router.get("/bi/report")
+async def download_bi_pdf(
+    current_user: User = Depends(deps.get_current_user),
+    agency_id: UUID = Depends(deps.get_current_user_agency_id),
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """
+    BI Analytics PDF raporu indirir — PRD §4.1.10-E.
+    Logo, tarihli, profesyonel format. Yalnızca Admin erişimli.
+    """
+    # Admin kontrolü
+    staff_stmt = select(AgencyStaff).where(
+        AgencyStaff.user_id == current_user.id,
+        AgencyStaff.agency_id == agency_id,
+    )
+    staff_result = await db.execute(staff_stmt)
+    staff_record = staff_result.scalar_one_or_none()
+    if not staff_record or staff_record.role != "admin":
+        raise HTTPException(status_code=403, detail="Bu sayfaya yalnızca Admin erişebilir.")
+
+    portfolio = await _build_portfolio_performance(db, agency_id)
+    tenant_churn = await _build_tenant_churn(db, agency_id)
+    financial = await _build_financial_annual(db, agency_id)
+    collection = await _build_collection_performance(db, agency_id)
+
+    agency_stmt = select(Agency).where(Agency.id == agency_id)
+    agency_res = await db.execute(agency_stmt)
+    agency = agency_res.scalar_one_or_none()
+    agency_name = agency.name if agency else ""
+
+    dashboard_data = {
+        "kpis": {
+            "total_properties": portfolio.total_properties if portfolio else 0,
+            "total_units": portfolio.total_units if portfolio else 0,
+            "occupied_units": portfolio.occupied_units if portfolio else 0,
+            "vacant_units": portfolio.vacant_units if portfolio else 0,
+            "occupancy_rate": portfolio.overall_occupancy_rate if portfolio else 0,
+            "active_tenants": tenant_churn.total_active_tenants if tenant_churn else 0,
+            "this_month_collected": 0,
+            "pending_this_month": collection.total_outstanding if collection else 0,
+            "overdue_amount": collection.overdue_amount if collection else 0,
+        },
+        "occupancy_trend": portfolio.occupancy_trend if portfolio else [],
+        "tenant_churn": tenant_churn.model_dump() if tenant_churn else {},
+        "financial_annual": financial.model_dump() if financial else {},
+        "collection": collection.model_dump() if collection else {},
+    }
+
+    from app.services.pdf_service import build_bi_pdf
+    pdf_bytes = build_bi_pdf(dashboard_data, agency_name=agency_name)
+
+    from fastapi.responses import StreamingResponse
+    import io
+    filename = f"bi-rapor-{date.today().strftime('%Y-%m-%d')}.pdf"
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/bi/export")
+async def export_bi_analytics(
+    current_user: User = Depends(deps.get_current_user),
+    agency_id: UUID = Depends(deps.get_current_user_agency_id),
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """
+    BI Analytics verilerini .xlsx olarak dışa aktarır — PRD §4.1.10-E.
+    Yalnızca Admin rolü erişebilir.
+    """
+    # Admin kontrolü
+    staff_stmt = select(AgencyStaff).where(
+        AgencyStaff.user_id == current_user.id,
+        AgencyStaff.agency_id == agency_id,
+    )
+    staff_result = await db.execute(staff_stmt)
+    staff_record = staff_result.scalar_one_or_none()
+    if not staff_record or staff_record.role != "admin":
+        raise HTTPException(status_code=403, detail="Bu sayfaya yalnızca Admin erişebilir.")
+
+    portfolio = await _build_portfolio_performance(db, agency_id)
+    tenant_churn = await _build_tenant_churn(db, agency_id)
+    financial = await _build_financial_annual(db, agency_id)
+    collection = await _build_collection_performance(db, agency_id)
+
+    from app.services.excel_service import export_analytics_to_excel
+    agency_stmt = select(Agency).where(Agency.id == agency_id)
+    agency_res = await db.execute(agency_stmt)
+    agency = agency_res.scalar_one_or_none()
+    agency_name = agency.name if agency else ""
+
+    dashboard_data = {
+        "kpis": {
+            "total_properties": portfolio.total_properties if portfolio else 0,
+            "total_units": portfolio.total_units if portfolio else 0,
+            "occupied_units": portfolio.occupied_units if portfolio else 0,
+            "vacant_units": portfolio.vacant_units if portfolio else 0,
+            "occupancy_rate": portfolio.overall_occupancy_rate if portfolio else 0,
+            "active_tenants": tenant_churn.total_active_tenants if tenant_churn else 0,
+            "this_month_collected": 0,
+            "pending_this_month": collection.total_outstanding if collection else 0,
+            "overdue_amount": collection.overdue_amount if collection else 0,
+        },
+        "occupancy_trend": portfolio.occupancy_trend if portfolio else [],
+        "tenant_churn": tenant_churn.model_dump() if tenant_churn else {},
+        "financial_annual": financial.model_dump() if financial else {},
+    }
+
+    excel_bytes = export_analytics_to_excel(dashboard_data, agency_name=agency_name)
+
+    from fastapi.responses import StreamingResponse
+    import io
+    return StreamingResponse(
+        io.BytesIO(excel_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="bi-analytics-{date.today().strftime("%Y-%m-%d")}.xlsx"'
+        },
     )
 
 

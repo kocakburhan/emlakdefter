@@ -58,6 +58,7 @@ class TransactionResponse(BaseModel):
     receipt_url: Optional[str] = None
     status: str = "completed"  # PRD §6.D: completed, pending_approval, partial
     ai_matched: bool = False  # PRD §6.D: Yapay zeka/PDF okuma işleminden mi geldi?
+    ai_confidence: Optional[float] = None  # AI eşleşme güven skoru (0-100)
 
     class Config:
         from_attributes = True

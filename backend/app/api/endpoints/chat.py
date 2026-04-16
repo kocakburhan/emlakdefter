@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from sqlalchemy.orm import selectinload
 from datetime import datetime
-from typing import Dict, List
+from typing import Dict, List, Optional
 import uuid
 
 from app.api import deps
@@ -16,35 +16,9 @@ from app.schemas.chat import (
 from app.database import AsyncSessionLocal
 from jose import jwt, JWTError
 from app.core.security import SECRET_KEY, ALGORITHM
+from app.core.websocket_manager import ws_manager
 
 router = APIRouter()
-
-
-class ConnectionManager:
-    """Canlı WebSocket bağlantılarını yönetir."""
-    def __init__(self):
-        self.active_connections: Dict[str, List[WebSocket]] = {}
-
-    async def connect(self, websocket: WebSocket, conversation_id: str):
-        await websocket.accept()
-        if conversation_id not in self.active_connections:
-            self.active_connections[conversation_id] = []
-        self.active_connections[conversation_id].append(websocket)
-
-    def disconnect(self, websocket: WebSocket, conversation_id: str):
-        if conversation_id in self.active_connections:
-             if websocket in self.active_connections[conversation_id]:
-                 self.active_connections[conversation_id].remove(websocket)
-             if not self.active_connections[conversation_id]:
-                 del self.active_connections[conversation_id]
-
-    async def broadcast_to_room(self, message_data: dict, conversation_id: str):
-        if conversation_id in self.active_connections:
-            for connection in self.active_connections[conversation_id]:
-                await connection.send_json(message_data)
-
-
-manager = ConnectionManager()
 
 
 async def get_user_from_token_for_ws(token: str) -> User:
@@ -71,6 +45,7 @@ async def get_user_from_token_for_ws(token: str) -> User:
 @router.get("/conversations", response_model=List[ChatConversationResponse])
 async def list_conversations(
     include_archived: bool = False,
+    search: Optional[str] = None,  # §4.1.8-A: Kiracı adına veya daire numarasına göre filtreleme
     current_user: User = Depends(deps.get_current_user),
     agency_id: uuid.UUID = Depends(deps.get_current_user_agency_id),
     db: AsyncSession = Depends(deps.get_db),
@@ -78,6 +53,7 @@ async def list_conversations(
     """
     Kullanıcının tüm sohbetlerini listeler (WhatsApp listesi gibi).
     Her sohbet için son mesaj ve karşı tarafın ismi döner.
+    Ayrıca 'search' parametresiyle kiracı adına veya daire numarasına göre anlık filtreleme yapılabilir — PRD §4.1.8-A.
     """
     query = (
         select(ChatConversation)
@@ -106,15 +82,36 @@ async def list_conversations(
         prop_res = await db.execute(prop_stmt)
         prop = prop_res.scalar_one_or_none()
 
+        client_name = client_user.full_name if client_user else "Bilinmeyen"
+        property_name = prop.name if prop else None
+
+        # §4.1.8-A: Arama filtresi
+        if search:
+            s = search.lower()
+            door_match = False
+            # Daire numarasını kontrol et (property.id üzerinden unit'e bak)
+            from app.models.properties import PropertyUnit
+            unit_stmt = select(PropertyUnit).where(
+                PropertyUnit.property_id == conv.property_id,
+                PropertyUnit.door_number.ilike(f"%{search}%"),
+            )
+            unit_res = await db.execute(unit_stmt)
+            unit = unit_res.scalar_one_or_none()
+            if unit:
+                door_match = True
+
+            if s not in client_name.lower() and s not in (property_name or "").lower() and not door_match:
+                continue
+
         responses.append(ChatConversationResponse(
             id=conv.id,
             agency_id=conv.agency_id,
             agent_user_id=conv.agent_user_id,
             client_user_id=conv.client_user_id,
             property_id=conv.property_id,
-            client_name=client_user.full_name if client_user else "Bilinmeyen",
+            client_name=client_name,
             client_role="Kiracı" if client_user and "tenant" in str(client_user.role) else "Ev Sahibi",
-            property_name=prop.name if prop else None,
+            property_name=property_name,
             last_message=last_msg.content if last_msg else None,
             last_message_at=last_msg.created_at if last_msg else conv.created_at,
             unread_count=0,
@@ -235,11 +232,21 @@ async def send_message(
     if not conv:
         raise HTTPException(status_code=404, detail="Sohbet bulunamadı.")
 
+    # client_created_at varsa kullan, yoksa sunucu zamanı kullan (PRD §5.2)
+    created_at = datetime.utcnow()
+    if message_in.client_created_at:
+        try:
+            client_ts = message_in.client_created_at.replace("Z", "+00:00")
+            created_at = datetime.fromisoformat(client_ts)
+        except Exception:
+            pass  # Geçersiz format, sunucu zamanını kullan
+
     db_msg = ChatMessage(
         conversation_id=message_in.conversation_id,
         sender_user_id=current_user.id,
         content=message_in.content or "",
         attachment_url=message_in.attachment_url,
+        created_at=created_at,  # ✅ EKLENDI — Offline timestamp korunur
     )
     db.add(db_msg)
 
@@ -249,7 +256,7 @@ async def send_message(
     await db.refresh(db_msg)
 
     # WebSocket ile broadcast
-    await manager.broadcast_to_room({
+    await ws_manager.broadcast_to_room({
         "type": "message",
         "id": str(db_msg.id),
         "conversation_id": str(db_msg.conversation_id),
@@ -287,7 +294,7 @@ async def edit_message(
     await db.commit()
     await db.refresh(msg)
 
-    await manager.broadcast_to_room({
+    await ws_manager.broadcast_to_room({
         "type": "message_edited",
         "id": str(msg.id),
         "conversation_id": str(msg.conversation_id),
@@ -299,37 +306,97 @@ async def edit_message(
     return ChatMessageResponse.model_validate(msg)
 
 
-@router.delete("/messages/{message_id}", status_code=200)
+@router.delete("/messages/{message_id}", status_code=403)
 async def delete_message(
     message_id: uuid.UUID,
     current_user: User = Depends(deps.get_current_user),
     agency_id: uuid.UUID = Depends(deps.get_current_user_agency_id),
     db: AsyncSession = Depends(deps.get_db),
 ):
-    """Mesajı soft-delete olarak siler (30 saniye içinde geri alınabilir)."""
+    """
+    PRD §4.1.8-B: Mesajlar hukuki arşiv niteliğinde olduğundan
+    kullanıcı tarafından hiçbir şekilde silinemez.
+    Bu endpoint her zaman 403 döner — silme işlemi desteklenmez.
+    """
+    raise HTTPException(
+        status_code=403,
+        detail="Mesajlar yasal arşiv niteliğinde olduğundan silinemez."
+    )
+
+
+# ──────────────────────────────────────────────
+# §4.1.8-B: OKUNDU BİLGİSİ
+# ──────────────────────────────────────────────
+
+@router.patch("/messages/{message_id}/read", status_code=200)
+async def mark_message_read(
+    message_id: uuid.UUID,
+    current_user: User = Depends(deps.get_current_user),
+    agency_id: uuid.UUID = Depends(deps.get_current_user_agency_id),
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """
+    Tek bir mesajı okundu olarak işaretler — PRD §4.1.8-B.
+    """
     msg = await db.get(ChatMessage, message_id)
     if not msg:
         raise HTTPException(status_code=404, detail="Mesaj bulunamadı")
-    if msg.sender_user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Bu mesajı silemezsiniz")
 
-    elapsed = (datetime.utcnow() - msg.created_at).total_seconds()
-    if elapsed > 30:
-        raise HTTPException(status_code=400, detail="Mesaj silme süresi dolmuş (30 sn)")
-
-    msg.is_deleted = True
-    msg.deleted_at = datetime.utcnow().isoformat()
-    msg.deleted_by = current_user.id
+    # Okundu bilgisini güncelle
+    msg.is_read = True
     await db.commit()
 
-    await manager.broadcast_to_room({
-        "type": "message_deleted",
-        "id": str(msg.id),
+    # WebSocket ile bildir (✓✓ göstergesi için)
+    await ws_manager.broadcast_to_room({
+        "type": "message_read",
+        "message_id": str(msg.id),
         "conversation_id": str(msg.conversation_id),
-        "deleted_at": msg.deleted_at,
+        "read_by": str(current_user.id),
     }, str(msg.conversation_id))
 
-    return {"success": True, "deleted_message_id": str(msg.id)}
+    return {"success": True, "message_id": str(msg.id)}
+
+
+@router.patch("/conversations/{conversation_id}/read-all", status_code=200)
+async def mark_conversation_read(
+    conversation_id: uuid.UUID,
+    current_user: User = Depends(deps.get_current_user),
+    agency_id: uuid.UUID = Depends(deps.get_current_user_agency_id),
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """
+    Bir sohbetteki tüm okunmamış mesajları okundu olarak işaretler — PRD §4.1.8-B.
+    """
+    conv = await db.get(ChatConversation, conversation_id)
+    if not conv or conv.agency_id != agency_id:
+        raise HTTPException(status_code=404, detail="Sohbet bulunamadı")
+
+    # Okunmamış mesajları bul (bu kullanıcının göndermediği, okunmamış olanlar)
+    stmt = select(ChatMessage).where(
+        ChatMessage.conversation_id == conversation_id,
+        ChatMessage.sender_user_id != current_user.id,
+        ChatMessage.is_read == False,
+        ChatMessage.is_deleted == False,
+    )
+    result = await db.execute(stmt)
+    unread_messages = result.scalars().all()
+
+    count = 0
+    for msg in unread_messages:
+        msg.is_read = True
+        count += 1
+
+    await db.commit()
+
+    # WebSocket ile broadcast
+    await ws_manager.broadcast_to_room({
+        "type": "conversation_read",
+        "conversation_id": str(conversation_id),
+        "read_by": str(current_user.id),
+        "read_count": count,
+    }, str(conversation_id))
+
+    return {"success": True, "marked_read": count}
 
 
 # ──────────────────────────────────────────────
@@ -348,7 +415,7 @@ async def websocket_chat_endpoint(websocket: WebSocket, conversation_id: str, to
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
-    await manager.connect(websocket, conversation_id)
+    await ws_manager.connect(websocket, conversation_id)
     try:
         while True:
             data = await websocket.receive_json()
@@ -377,9 +444,9 @@ async def websocket_chat_endpoint(websocket: WebSocket, conversation_id: str, to
                         "is_edited": False,
                     }
 
-                await manager.broadcast_to_room(broadcast_data, conversation_id)
+                await ws_manager.broadcast_to_room(broadcast_data, conversation_id)
 
     except WebSocketDisconnect:
-        manager.disconnect(websocket, conversation_id)
+        ws_manager.disconnect(websocket, conversation_id)
     except Exception:
-        manager.disconnect(websocket, conversation_id)
+        ws_manager.disconnect(websocket, conversation_id)

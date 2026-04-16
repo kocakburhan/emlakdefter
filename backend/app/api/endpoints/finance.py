@@ -16,6 +16,7 @@ from app.schemas.finance import (
     PaymentScheduleResponse,
 )
 from app.services.finance_service import process_and_match_statement
+from app.services.excel_service import export_transactions_to_excel
 
 router = APIRouter()
 
@@ -105,6 +106,113 @@ async def list_transactions(
         total_expense=total_expense,
         net_balance=total_income - total_expense,
         count=len(transactions),
+    )
+
+
+@router.get("/transactions/export")
+async def export_transactions(
+    tx_type: Optional[str] = None,
+    category: Optional[str] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    current_user: User = Depends(deps.get_current_user),
+    agency_id: uuid.UUID = Depends(deps.get_current_user_agency_id),
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """
+    Finansal işlemleri .xlsx olarak dışa aktarır — PRD §4.1.5.
+    """
+    stmt = (
+        select(FinancialTransaction)
+        .where(FinancialTransaction.agency_id == agency_id)
+        .order_by(desc(FinancialTransaction.transaction_date))
+        .limit(5000)
+    )
+    if tx_type:
+        stmt = stmt.where(FinancialTransaction.type == TransactionType[tx_type])
+    if category:
+        stmt = stmt.where(FinancialTransaction.category == TransactionCategory[category])
+    if start_date:
+        stmt = stmt.where(FinancialTransaction.transaction_date >= start_date)
+    if end_date:
+        stmt = stmt.where(FinancialTransaction.transaction_date <= end_date)
+
+    result = await db.execute(stmt)
+    transactions = result.scalars().all()
+
+    from app.models.users import Agency
+    agency_stmt = select(Agency).where(Agency.id == agency_id)
+    agency_res = await db.execute(agency_stmt)
+    agency = agency_res.scalar_one_or_none()
+    agency_name = agency.name if agency else ""
+
+    excel_bytes = export_transactions_to_excel(
+        [TransactionResponse.model_validate(t).model_dump() for t in transactions],
+        agency_name=agency_name,
+    )
+
+    from fastapi.responses import StreamingResponse
+    import io
+    return StreamingResponse(
+        io.BytesIO(excel_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="finans-{date.today().strftime("%Y-%m-%d")}.xlsx"'
+        },
+    )
+
+
+@router.get("/transactions/report")
+async def download_finance_pdf(
+    tx_type: Optional[str] = None,
+    category: Optional[str] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    current_user: User = Depends(deps.get_current_user),
+    agency_id: uuid.UUID = Depends(deps.get_current_user_agency_id),
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """
+    Finansal işlemleri PDF olarak indirir — PRD §4.1.6.
+    Tarih aralığı ve türe göre filtrelenebilir.
+    """
+    stmt = (
+        select(FinancialTransaction)
+        .where(FinancialTransaction.agency_id == agency_id)
+        .order_by(desc(FinancialTransaction.transaction_date))
+        .limit(5000)
+    )
+    if tx_type:
+        stmt = stmt.where(FinancialTransaction.type == TransactionType[tx_type])
+    if category:
+        stmt = stmt.where(FinancialTransaction.category == TransactionCategory[category])
+    if start_date:
+        stmt = stmt.where(FinancialTransaction.transaction_date >= start_date)
+    if end_date:
+        stmt = stmt.where(FinancialTransaction.transaction_date <= end_date)
+
+    result = await db.execute(stmt)
+    transactions = result.scalars().all()
+
+    from app.models.users import Agency
+    agency_stmt = select(Agency).where(Agency.id == agency_id)
+    agency_res = await db.execute(agency_stmt)
+    agency = agency_res.scalar_one_or_none()
+    agency_name = agency.name if agency else ""
+
+    from app.services.pdf_service import build_finance_pdf
+    pdf_bytes = build_finance_pdf(
+        [TransactionResponse.model_validate(t).model_dump() for t in transactions],
+        agency_name=agency_name,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    filename = f"finans-rapor-{date.today().strftime('%Y-%m-%d')}.pdf"
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -255,6 +363,7 @@ async def create_transaction(
         currency="TRY",
         transaction_date=data.transaction_date,
         description=data.description,
+        custom_category=data.custom_category,  # ✅ EKLENDI — Özel kategori kaydediliyor
     )
     db.add(new_tx)
     await db.commit()

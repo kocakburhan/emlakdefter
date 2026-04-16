@@ -1,8 +1,18 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 import '../network/api_client.dart';
 import 'connectivity_service.dart';
 import 'offline_storage.dart';
+
+/// HTTP 409 — item was already synced (conflict). Safe to remove from queue.
+class ConflictException implements Exception {
+  final String itemId;
+  ConflictException(this.itemId);
+  @override
+  String toString() => 'ConflictException($itemId)';
+}
 
 /// Handles auto-sync of pending queue items when connectivity returns.
 class SyncService {
@@ -14,6 +24,9 @@ class SyncService {
   final ConnectivityService _conn = ConnectivityService();
 
   bool _syncing = false;
+
+  /// ✅ EKLENDI — Merkezi UUID üretimi (§5.3 — çakışma önleme)
+  String generateUuid() => const Uuid().v4();
 
   /// Initialize — wires up connectivity → sync trigger.
   Future<void> initialize() async {
@@ -57,20 +70,36 @@ class SyncService {
       final id = msg['local_id'] as String;
       final conversationId = msg['conversation_id'] as String?;
       final message = msg['message'] as String? ?? '';
+      final createdAtStr = msg['created_at'] as String?;
 
       try {
         if (conversationId != null && conversationId.isNotEmpty) {
-          final resp = await ApiClient.dio.post('/chat/messages', data: {
+          final requestData = {
             'conversation_id': conversationId,
             'message': message,
             'type': 'message',
-          });
+          };
+
+          // ✅ EKLENDI — Orijinal timestamp'i koru (PRD §5.2)
+          if (createdAtStr != null) {
+            requestData['client_created_at'] = createdAtStr;
+          }
+
+          final resp = await ApiClient.dio.post('/chat/messages', data: requestData);
 
           if (resp.statusCode == 200 || resp.statusCode == 201) {
             await _storage.removeFromOutbox(id);
             debugPrint('[SyncService] Chat message $id synced successfully');
+          } else if (resp.statusCode == 409) {
+            // Already synced — safe to remove from queue (§5.3 conflict resolution)
+            await _storage.removeFromOutbox(id);
+            debugPrint('[SyncService] Chat message $id conflict (already synced), removed from queue');
           }
         }
+      } on ConflictException {
+        // UUID conflict — already synced
+        await _storage.removeFromOutbox(id);
+        debugPrint('[SyncService] Chat message $id conflict exception, removed from queue');
       } catch (e) {
         debugPrint('[SyncService] Chat message $id sync failed: $e');
         // Keep in queue for next sync attempt
@@ -143,3 +172,6 @@ class SyncService {
   int get opQueueCount => _storage.opQueueCount;
   int get txQueueCount => _storage.txQueueCount;
 }
+
+/// ─── Sync Status Provider — UI'da "Senkronizasyon Bekliyor" gösterimi için (§5.3)
+final syncServiceProvider = Provider<SyncService>((ref) => SyncService());

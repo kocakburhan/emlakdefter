@@ -1,8 +1,10 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../../core/network/api_client.dart';
 import '../providers/tenant_provider.dart';
 
@@ -181,7 +183,7 @@ class _TenantSupportTabState extends ConsumerState<TenantSupportTab>
           elevation: 4,
           icon: const Icon(Icons.add_rounded),
           label: const Text(
-            'Yeni Talep',
+            'Destek İstiyorum',  // ✅ DÜZELTILDI — PRD §4.2.2 ile uyumlu
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
         ),
@@ -523,7 +525,97 @@ class _CreateTicketSheetState extends ConsumerState<_CreateTicketSheet> {
     final path = result.files.single.path;
     if (path == null) return;
 
-    setState(() => _attachmentPath = path);
+    // ✅ EKLENDI — Görsel üzerine timestamp bas (PRD §4.2.2-B)
+    final stampedPath = await _stampImageWithTimestamp(path);
+    if (stampedPath != null) {
+      setState(() => _attachmentPath = stampedPath);
+    } else {
+      // Timestamp basılamazsa orijinal dosyayı kullan
+      setState(() => _attachmentPath = path);
+    }
+  }
+
+  Future<String?> _stampImageWithTimestamp(String imagePath) async {
+    try {
+      // Görseli oku
+      final bytes = await File(imagePath).readAsBytes();
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      final image = frame.image;
+
+      // Canvas oluştur
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      final size = Size(image.width.toDouble(), image.height.toDouble());
+
+      // Orijinal görseli çiz
+      canvas.drawImage(image, Offset.zero, Paint());
+
+      // Timestamp metni oluştur
+      final timestamp = _timestampNow();
+      final textStyle = TextStyle(
+        color: Colors.white,
+        fontSize: size.width * 0.03,
+        fontWeight: FontWeight.bold,
+        shadows: const [
+          Shadow(
+            offset: Offset(1, 1),
+            blurRadius: 3,
+            color: Colors.black54,
+          ),
+        ],
+      );
+
+      // Sağ alt köşeye timestamp bas
+      final textSpan = TextSpan(text: timestamp, style: textStyle);
+      final textPainter = TextPainter(
+        text: textSpan,
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout();
+
+      // Padding
+      final padding = size.width * 0.02;
+      final offset = Offset(
+        size.width - textPainter.width - padding,
+        size.height - textPainter.height - padding,
+      );
+
+      // Arka plan kutusu çiz (okunakarlık için)
+      final bgRect = Rect.fromLTWH(
+        offset.dx - 4,
+        offset.dy - 2,
+        textPainter.width + 8,
+        textPainter.height + 4,
+      );
+      canvas.drawRect(bgRect, Paint()..color = Colors.black38);
+
+      textPainter.paint(canvas, offset);
+
+      // Kaydet
+      final picture = recorder.endRecording();
+      final stampedImage = await picture.toImage(
+        image.width,
+        image.height,
+      );
+      final pngBytes = await stampedImage.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
+
+      if (pngBytes == null) return null;
+
+      // Geçici dosyaya yaz
+      final dir = await getTemporaryDirectory();
+      final stampedFile = File(
+        '${dir.path}/stamped_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
+      await stampedFile.writeAsBytes(pngBytes.buffer.asUint8List());
+
+      return stampedFile.path;
+    } catch (e) {
+      debugPrint('Timestamp basma hatası: $e');
+      return null;
+    }
   }
 
   Future<void> _submit() async {

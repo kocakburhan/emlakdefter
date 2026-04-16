@@ -14,7 +14,7 @@ from app.models.tenants import Tenant, LandlordUnit
 from app.models.finance import PaymentSchedule, FinancialTransaction
 from app.schemas.tenants import (
     TenantCreate, TenantUpdate, TenantResponse, TenantWithDetailsResponse,
-    LandlordCreate, LandlordResponse, LandlordWithDetailsResponse,
+    LandlordCreate, LandlordUpdate, LandlordResponse, LandlordWithDetailsResponse,
     TenantTicketCreate, TenantTicketResponse, TenantTicketMessageResponse,
     TenantDocumentsResponse, TenantDocumentItem,
 )
@@ -1156,3 +1156,89 @@ async def get_landlord(
         user_full_name=None,
         user_phone=None
     )
+
+
+@router.patch("/landlords/{landlord_id}", response_model=LandlordResponse)
+async def update_landlord(
+    landlord_id: str,
+    landlord_in: LandlordUpdate,
+    current_user: User = Depends(deps.get_current_user),
+    agency_id: UUID = Depends(deps.get_current_user_agency_id),
+    db: AsyncSession = Depends(get_db)
+):
+    """Ev sahibi bilgilerini günceller — PRD §4.1.4"""
+    stmt = select(LandlordUnit).where(
+        LandlordUnit.id == UUID(landlord_id),
+        LandlordUnit.agency_id == agency_id
+    )
+    result = await db.execute(stmt)
+    landlord = result.scalar_one_or_none()
+
+    if not landlord:
+        raise HTTPException(status_code=404, detail="Ev sahibi bulunamadı.")
+
+    update_data = landlord_in.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(landlord, field, value)
+
+    await db.commit()
+    await db.refresh(landlord)
+
+    return landlord
+
+
+@router.delete("/landlords/{landlord_id}", status_code=200)
+async def delete_landlord(
+    landlord_id: str,
+    current_user: User = Depends(deps.get_current_user),
+    agency_id: UUID = Depends(deps.get_current_user_agency_id),
+    db: AsyncSession = Depends(get_db)
+):
+    """Ev sahibini soft-delete olarak siler — PRD §4.1.4"""
+    stmt = select(LandlordUnit).where(
+        LandlordUnit.id == UUID(landlord_id),
+        LandlordUnit.agency_id == agency_id
+    )
+    result = await db.execute(stmt)
+    landlord = result.scalar_one_or_none()
+
+    if not landlord:
+        raise HTTPException(status_code=404, detail="Ev sahibi bulunamadı.")
+
+    landlord.soft_delete()
+    await db.commit()
+
+    return {"success": True, "deleted_landlord_id": str(landlord.id)}
+
+
+@router.delete("/{tenant_id}", status_code=200)
+async def delete_tenant(
+    tenant_id: str,
+    current_user: User = Depends(deps.get_current_user),
+    agency_id: UUID = Depends(deps.get_current_user_agency_id),
+    db: AsyncSession = Depends(get_db)
+):
+    """Kiracıyı soft-delete olarak siler — PRD §4.1.4"""
+    stmt = select(Tenant).where(
+        Tenant.id == UUID(tenant_id),
+        Tenant.agency_id == agency_id
+    )
+    result = await db.execute(stmt)
+    tenant = result.scalar_one_or_none()
+
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Kiracı bulunamadı.")
+
+    tenant.soft_delete()
+
+    # Birimi boş olarak işaretle
+    unit_stmt = select(PropertyUnit).where(PropertyUnit.id == tenant.unit_id)
+    unit_result = await db.execute(unit_stmt)
+    unit = unit_result.scalar_one_or_none()
+    if unit:
+        unit.status = "vacant"
+        unit.vacant_since = datetime.utcnow()
+
+    await db.commit()
+
+    return {"success": True, "deleted_tenant_id": str(tenant.id)}

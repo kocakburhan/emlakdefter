@@ -29,6 +29,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
   List<dynamic> _properties = [];
   bool _isLoading = true;
   String? _error;
+  int _pendingTxCount = 0;
 
   // ─── Filters ────────────────────────────────────────────────────────────────
   String _selectedPeriod = 'this_month';
@@ -116,6 +117,10 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
     });
 
     try {
+      // §5.3 — Offline kuyruk sayısını al
+      final storage = OfflineStorage();
+      _pendingTxCount = storage.txQueueCount;
+
       final dateRange = _getDateRange(_selectedPeriod);
 
       final responses = await Future.wait([
@@ -319,6 +324,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
         setState(() {
           _isCustomCategory = false;
           _formPropertyId = null;
+          _pendingTxCount = storage.txQueueCount;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -361,6 +367,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
         setState(() {
           _isCustomCategory = false;
           _formPropertyId = null;
+          _pendingTxCount = storage.txQueueCount;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -1471,18 +1478,45 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _staggerLabel(6, 'İŞLEMLER'),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-              decoration: BoxDecoration(
-                color: AppColors.accent.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                '${_transactions.length} kayıt',
-                style: const TextStyle(
-                  color: AppColors.accent, fontSize: 11, fontWeight: FontWeight.w600,
+            Row(
+              children: [
+                // §5.3 — Offline kuyruk badge
+                if (_pendingTxCount > 0)
+                  Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD4A574).withValues(alpha:0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.cloud_off, size: 10, color: Color(0xFFD4A574)),
+                        const SizedBox(width: 3),
+                        Text(
+                          '$_pendingTxCount kuyrukta',
+                          style: const TextStyle(
+                            color: Color(0xFFD4A574), fontSize: 10, fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${_transactions.length} kayıt',
+                    style: const TextStyle(
+                      color: AppColors.accent, fontSize: 11, fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ],
         ),

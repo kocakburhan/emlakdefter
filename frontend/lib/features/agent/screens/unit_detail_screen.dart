@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/network/api_client.dart';
 
@@ -911,96 +912,9 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // YouTube dahili oynatıcı
+          // YouTube dahili oynatıcı — §4.1.3-C
           if (_youtubeController.text.isNotEmpty) ...[
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFF0000).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.play_circle_filled,
-                    color: Color(0xFFFF0000),
-                    size: 18,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Video Görüntüleyici',
-                        style: TextStyle(
-                          color: AppColors.textHeader,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Text(
-                        'Dahili oynatıcı ile video açılır',
-                        style: TextStyle(
-                          color: AppColors.textBody,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.open_in_new,
-                      size: 16,
-                      color: AppColors.accent,
-                    ),
-                  ),
-                  onPressed: () => _showVideoPreview(context),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: const Color(0xFFFF0000).withValues(alpha: 0.15),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.video_library,
-                    color: Color(0xFFFF0000),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      _youtubeController.text,
-                      style: TextStyle(
-                        color: AppColors.textBody.withValues(alpha: 0.7),
-                        fontSize: 12,
-                        fontFamily: 'monospace',
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _InlineYoutubePlayer(youtubeUrl: _youtubeController.text),
             const SizedBox(height: 20),
           ],
 
@@ -1186,77 +1100,6 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
                 },
               ),
             ),
-        ],
-      ),
-    );
-  }
-
-  void _showVideoPreview(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.play_circle_fill, color: Color(0xFFFF0000), size: 24),
-            SizedBox(width: 10),
-            Text(
-              'Video Önizleme',
-              style: TextStyle(color: Colors.white, fontSize: 18),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.link,
-                    color: AppColors.accent,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      _youtubeController.text,
-                      style: const TextStyle(
-                        color: AppColors.textBody,
-                        fontSize: 12,
-                        fontFamily: 'monospace',
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Video tarayıcıda açılacak',
-              style: TextStyle(
-                color: AppColors.textBody.withValues(alpha: 0.6),
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              'Kapat',
-              style: TextStyle(color: AppColors.textBody),
-            ),
-          ),
         ],
       ),
     );
@@ -1467,32 +1310,170 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
   }
 }
 
-// Placeholder for TenantsManagementScreen
-class TenantsManagementScreen extends StatelessWidget {
-  final String? propertyId;
-  final String? preselectedUnitId;
+// ─── YouTube Player Widgets — §4.1.3-C ────────────────────────────────────────
 
-  const TenantsManagementScreen({
-    Key? key,
-    this.propertyId,
-    this.preselectedUnitId,
-  }) : super(key: key);
+/// Inline YouTube thumbnail + play overlay — video dialog açar
+class _InlineYoutubePlayer extends StatelessWidget {
+  final String youtubeUrl;
+
+  const _InlineYoutubePlayer({required this.youtubeUrl});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        title: const Text('Kiracı Yönetimi'),
+    final videoId = YoutubePlayer.convertUrlToId(youtubeUrl);
+    if (videoId == null) {
+      return const SizedBox.shrink();
+    }
+    final thumbnailUrl = 'https://img.youtube.com/vi/$videoId/0.jpg';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Video Görüntüleyici',
+          style: TextStyle(
+            color: AppColors.textHeader,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: () => _showVideoDialog(context, videoId),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Thumbnail
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Image.network(
+                  thumbnailUrl,
+                  width: double.infinity,
+                  height: 180,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    width: double.infinity,
+                    height: 180,
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(
+                      Icons.video_library,
+                      color: Color(0xFFFF0000),
+                      size: 48,
+                    ),
+                  ),
+                ),
+              ),
+              // Play button overlay
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.5),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.play_arrow,
+                  color: Colors.white,
+                  size: 40,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        // URL chip
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.link, size: 12, color: Color(0xFFFF0000)),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  youtubeUrl,
+                  style: TextStyle(
+                    color: AppColors.textBody.withValues(alpha: 0.6),
+                    fontSize: 10,
+                    fontFamily: 'monospace',
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showVideoDialog(BuildContext context, String videoId) {
+    showDialog(
+      context: context,
+      builder: (ctx) => _VideoPreviewDialog(videoId: videoId),
+    );
+  }
+}
+
+/// Full video player dialog
+class _VideoPreviewDialog extends StatelessWidget {
+  final String videoId;
+
+  const _VideoPreviewDialog({required this.videoId});
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: const Row(
+        children: [
+          Icon(Icons.play_circle_fill, color: Color(0xFFFF0000), size: 24),
+          SizedBox(width: 10),
+          Text(
+            'Video Önizleme',
+            style: TextStyle(color: Colors.white, fontSize: 18),
+          ),
+        ],
       ),
-      body: const Center(
-        child: Text(
-          'Kiracı Yönetimi\n(Landlord CRUD + WhatsApp Davet)',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: AppColors.textBody),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 220,
+        child: YoutubePlayer(
+          controller: YoutubePlayerController(
+            initialVideoId: videoId,
+            flags: const YoutubePlayerFlags(
+              autoPlay: true,
+              mute: false,
+              enableCaption: false,
+              hideControls: false,
+            ),
+          ),
+          showVideoProgressIndicator: true,
+          progressIndicatorColor: const Color(0xFFFF0000),
+          progressColors: const ProgressBarColors(
+            playedColor: Color(0xFFFF0000),
+            handleColor: Color(0xFFFF0000),
+          ),
         ),
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text(
+            'Kapat',
+            style: TextStyle(color: AppColors.textBody),
+          ),
+        ),
+      ],
     );
   }
 }

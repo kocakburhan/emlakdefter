@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:dio/dio.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/network/api_client.dart';
 
@@ -492,13 +495,441 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
     }
   }
 
+  // ── §4.1.4: Kiracı Düzenleme ───────────────────────────────
+  Future<void> _editTenant(Map<String, dynamic> tenant) async {
+    final editNameController = TextEditingController(text: tenant['temp_name'] ?? '');
+    final editPhoneController = TextEditingController(text: tenant['temp_phone'] ?? '');
+    final editRentController = TextEditingController(text: (tenant['rent_amount'] ?? 0).toString());
+
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: EdgeInsets.fromLTRB(
+          24, 32, 24, 24 + MediaQuery.of(ctx).viewInsets.bottom),
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Kiracı Düzenle',
+              style: TextStyle(
+                color: AppColors.textHeader,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: editNameController,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Ad Soyad',
+                labelStyle: const TextStyle(color: AppColors.textBody),
+                filled: true,
+                fillColor: AppColors.background,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: editPhoneController,
+              style: const TextStyle(color: Colors.white),
+              keyboardType: TextInputType.phone,
+              decoration: InputDecoration(
+                labelText: 'Telefon',
+                labelStyle: const TextStyle(color: AppColors.textBody),
+                filled: true,
+                fillColor: AppColors.background,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: editRentController,
+              style: const TextStyle(color: Colors.white),
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Kira Bedeli (₺)',
+                labelStyle: const TextStyle(color: AppColors.textBody),
+                filled: true,
+                fillColor: AppColors.background,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textBody,
+                      side: const BorderSide(color: AppColors.textBody),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: const Text('İptal'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: const Text('Kaydet'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await ApiClient.dio.patch('/tenants/${tenant['id']}', data: {
+          'temp_name': editNameController.text,
+          'temp_phone': editPhoneController.text,
+          'rent_amount': int.tryParse(editRentController.text) ?? tenant['rent_amount'],
+        });
+        _showSuccess('Kiracı güncellendi');
+        await _fetchAll();
+      } catch (e) {
+        _showError('Güncelleme hatası: $e');
+      }
+    }
+  }
+
+  // ── §4.1.4: Kiracı Silme ───────────────────────────────
+  Future<void> _deleteTenant(String tenantId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.delete_outline, color: AppColors.error, size: 24),
+            SizedBox(width: 12),
+            Text(
+              'Kiracıyı Sil',
+              style: TextStyle(color: Colors.white, fontSize: 18),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Kiracı silinecek ve birim boş olarak işaretlenecek. Bu işlem geri alınamaz.',
+          style: TextStyle(color: AppColors.textBody, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('İptal', style: TextStyle(color: AppColors.textBody)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('Sil'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await ApiClient.dio.delete('/tenants/$tenantId');
+        _showSuccess('Kiracı silindi');
+        await _fetchAll();
+      } catch (e) {
+        _showError('Silme hatası: $e');
+      }
+    }
+  }
+
+  // ── §4.1.4: Ev Sahibi Düzenleme ───────────────────────────────
+  Future<void> _editLandlord(Map<String, dynamic> landlord) async {
+    final editNameController = TextEditingController(text: landlord['temp_name'] ?? '');
+    final editPhoneController = TextEditingController(text: landlord['temp_phone'] ?? '');
+    final editShareController = TextEditingController(text: (landlord['ownership_share'] ?? 100).toString());
+
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: EdgeInsets.fromLTRB(
+          24, 32, 24, 24 + MediaQuery.of(ctx).viewInsets.bottom),
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Ev Sahibini Düzenle',
+              style: TextStyle(
+                color: AppColors.textHeader,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: editNameController,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Ad Soyad',
+                labelStyle: const TextStyle(color: AppColors.textBody),
+                filled: true,
+                fillColor: AppColors.background,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: editPhoneController,
+              style: const TextStyle(color: Colors.white),
+              keyboardType: TextInputType.phone,
+              decoration: InputDecoration(
+                labelText: 'Telefon',
+                labelStyle: const TextStyle(color: AppColors.textBody),
+                filled: true,
+                fillColor: AppColors.background,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: editShareController,
+              style: const TextStyle(color: Colors.white),
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Mülkiyet Payı (%)',
+                labelStyle: const TextStyle(color: AppColors.textBody),
+                filled: true,
+                fillColor: AppColors.background,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textBody,
+                      side: const BorderSide(color: AppColors.textBody),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: const Text('İptal'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: const Text('Kaydet'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await ApiClient.dio.patch('/tenants/landlords/${landlord['id']}', data: {
+          'temp_name': editNameController.text,
+          'temp_phone': editPhoneController.text,
+          'ownership_share': int.tryParse(editShareController.text) ?? landlord['ownership_share'],
+        });
+        _showSuccess('Ev sahibi güncellendi');
+        await _fetchAll();
+      } catch (e) {
+        _showError('Güncelleme hatası: $e');
+      }
+    }
+  }
+
+  // ── §4.1.4: Ev Sahibi Silme ───────────────────────────────
+  Future<void> _deleteLandlord(String landlordId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.delete_outline, color: AppColors.error, size: 24),
+            SizedBox(width: 12),
+            Text(
+              'Ev Sahibini Sil',
+              style: TextStyle(color: Colors.white, fontSize: 18),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Ev sahibi silinecek. Bu işlem geri alınamaz.',
+          style: TextStyle(color: AppColors.textBody, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('İptal', style: TextStyle(color: AppColors.textBody)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('Sil'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await ApiClient.dio.delete('/tenants/landlords/$landlordId');
+        _showSuccess('Ev sahibi silindi');
+        await _fetchAll();
+      } catch (e) {
+        _showError('Silme hatası: $e');
+      }
+    }
+  }
+
   // ── §4.1.4-A: Sözleşme Yükle (PDF/Doc upload → Hetzner) ────────
   Future<void> _uploadContract(String tenantId) async {
-    // In a real app, this would use file_picker to pick PDF/image
-    // Then POST to /upload/media with category="document"
-    // Then PATCH /tenants/{id}/upload-contract with the returned URL
-    // For now, show a info snackbar — backend endpoint is ready
-    _showSuccess('Sözleşme yükleme: Backend endpoint hazır (POST /upload/media → /tenants/{id}/upload-contract)');
+    try {
+      // 1. PDF dosyasını seç
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+        allowMultiple: false,
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final file = result.files.single;
+      if (file.path == null) {
+        _showError('Dosya seçilemedi');
+        return;
+      }
+
+      // 2. Dosyayı Hetzner Object Storage'a yükle
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(
+          file.path!,
+          filename: file.name,
+        ),
+        'category': 'contracts',
+      });
+
+      final uploadResp = await ApiClient.dio.post(
+        '/media/upload',
+        data: formData,
+      );
+
+      if (uploadResp.statusCode != 200 || uploadResp.data == null) {
+        _showError('Dosya yüklenemedi');
+        return;
+      }
+
+      final fileUrl = uploadResp.data['url'] as String;
+
+      // 3. Backend'e URL'i bildir
+      final updateResp = await ApiClient.dio.patch(
+        '/tenants/$tenantId/upload-contract',
+        data: {'contract_url': fileUrl},
+      );
+
+      if (updateResp.statusCode == 200) {
+        _showSuccess('Sözleşme başarıyla yüklendi');
+      } else {
+        _showError('Sözleşme URL güncellenemedi');
+      }
+    } catch (e) {
+      _showError('Yükleme hatası: $e');
+    }
   }
 
   void _showError(String msg) {
@@ -937,6 +1368,43 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                   ),
                 ),
               ),
+              const SizedBox(width: 4),
+              // §4.1.4: Düzenle + Sil PopupMenu
+              PopupMenuButton<String>(
+                icon: Icon(Icons.more_vert, color: AppColors.textBody.withValues(alpha: 0.6), size: 20),
+                tooltip: 'İşlemler',
+                color: AppColors.surface,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                onSelected: (value) {
+                  if (value == 'edit') {
+                    _editTenant(tenant);
+                  } else if (value == 'delete') {
+                    _deleteTenant(tenant['id'].toString());
+                  }
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit, size: 18, color: AppColors.accent),
+                        const SizedBox(width: 8),
+                        const Text('Düzenle', style: TextStyle(color: AppColors.textHeader, fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete_outline, size: 18, color: AppColors.error),
+                        const SizedBox(width: 8),
+                        const Text('Sil', style: TextStyle(color: AppColors.error, fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
 
@@ -1183,6 +1651,43 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                     fontWeight: FontWeight.w800,
                   ),
                 ),
+              ),
+              const SizedBox(width: 4),
+              // §4.1.4: Düzenle + Sil PopupMenu
+              PopupMenuButton<String>(
+                icon: Icon(Icons.more_vert, color: AppColors.textBody.withValues(alpha: 0.6), size: 20),
+                tooltip: 'İşlemler',
+                color: AppColors.surface,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                onSelected: (value) {
+                  if (value == 'edit') {
+                    _editLandlord(landlord);
+                  } else if (value == 'delete') {
+                    _deleteLandlord(landlord['id'].toString());
+                  }
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit, size: 18, color: AppColors.accent),
+                        const SizedBox(width: 8),
+                        const Text('Düzenle', style: TextStyle(color: AppColors.textHeader, fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete_outline, size: 18, color: AppColors.error),
+                        const SizedBox(width: 8),
+                        const Text('Sil', style: TextStyle(color: AppColors.error, fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -1594,12 +2099,21 @@ class _CreatePersonBottomSheetState extends State<_CreatePersonBottomSheet>
             icon: Icons.person_outline,
           ),
           const SizedBox(height: 12),
-          _buildTextField(
-            controller: widget.tenantPhoneController,
-            label: 'Telefon Numarası',
-            hint: '05XX XXX XX XX',
-            icon: Icons.phone_outlined,
-            keyboardType: TextInputType.phone,
+          // Telefon + Firebase OTP doğrulama — §4.1.4-C
+          Row(
+            children: [
+              Expanded(
+                child: _buildTextField(
+                  controller: widget.tenantPhoneController,
+                  label: 'Telefon Numarası',
+                  hint: '05XX XXX XX XX',
+                  icon: Icons.phone_outlined,
+                  keyboardType: TextInputType.phone,
+                ),
+              ),
+              const SizedBox(width: 8),
+              _VerifyPhoneButton(phoneController: widget.tenantPhoneController),
+            ],
           ),
           const SizedBox(height: 12),
           _buildTextField(
@@ -1739,12 +2253,21 @@ class _CreatePersonBottomSheetState extends State<_CreatePersonBottomSheet>
             icon: Icons.person_outline,
           ),
           const SizedBox(height: 12),
-          _buildTextField(
-            controller: widget.landlordPhoneController,
-            label: 'Telefon Numarası',
-            hint: '05XX XXX XX XX',
-            icon: Icons.phone_outlined,
-            keyboardType: TextInputType.phone,
+          // Telefon + Firebase OTP doğrulama — §4.1.4-C
+          Row(
+            children: [
+              Expanded(
+                child: _buildTextField(
+                  controller: widget.landlordPhoneController,
+                  label: 'Telefon Numarası',
+                  hint: '05XX XXX XX XX',
+                  icon: Icons.phone_outlined,
+                  keyboardType: TextInputType.phone,
+                ),
+              ),
+              const SizedBox(width: 8),
+              _VerifyPhoneButton(phoneController: widget.landlordPhoneController),
+            ],
           ),
 
           const SizedBox(height: 24),
@@ -1944,6 +2467,349 @@ class _CreatePersonBottomSheetState extends State<_CreatePersonBottomSheet>
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: AppColors.accent, width: 1.5),
         ),
+      ),
+    );
+  }
+}
+
+// ─── Firebase OTP Phone Verification — §4.1.4-C ──────────────────────────────
+
+class _VerifyPhoneButton extends StatelessWidget {
+  final TextEditingController phoneController;
+
+  const _VerifyPhoneButton({required this.phoneController});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      child: OutlinedButton.icon(
+        onPressed: () => _showOtpSheet(context),
+        icon: const Icon(Icons.verified_outlined, size: 16),
+        label: const Text('Doğrula', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFF6B8E6B),
+          side: const BorderSide(color: Color(0xFF6B8E6B), width: 1.5),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      ),
+    );
+  }
+
+  void _showOtpSheet(BuildContext context) {
+    final phone = phoneController.text.trim();
+    if (phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Önce telefon numarasını girin')),
+      );
+      return;
+    }
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _PhoneVerificationSheet(phone: phone),
+    );
+  }
+}
+
+class _PhoneVerificationSheet extends StatefulWidget {
+  final String phone;
+
+  const _PhoneVerificationSheet({required this.phone});
+
+  @override
+  State<_PhoneVerificationSheet> createState() => _PhoneVerificationSheetState();
+}
+
+class _PhoneVerificationSheetState extends State<_PhoneVerificationSheet> {
+  final _otpController = TextEditingController();
+  final _auth = FirebaseAuth.instance;
+  String? _verificationId;
+  String? _statusMsg;
+  bool _isLoading = false;
+  bool _otpSent = false;
+  bool _isVerified = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _sendOtp();
+  }
+
+  @override
+  void dispose() {
+    _otpController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _sendOtp() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+      _statusMsg = null;
+    });
+
+    try {
+      await _auth.verifyPhoneNumber(
+        phoneNumber: widget.phone,
+        timeout: const Duration(seconds: 60),
+        verificationCompleted: (creds) async {
+          // Otomatik doğrulama başarılı
+          if (mounted) {
+            setState(() {
+              _isVerified = true;
+              _isLoading = false;
+              _statusMsg = 'Telefon doğrulandı!';
+            });
+          }
+        },
+        verificationFailed: (e) {
+          if (mounted) {
+            setState(() {
+              _error = _humanizeError(e.code);
+              _isLoading = false;
+            });
+          }
+        },
+        codeSent: (verId, _) {
+          if (mounted) {
+            setState(() {
+              _verificationId = verId;
+              _otpSent = true;
+              _isLoading = false;
+              _statusMsg = 'Doğrulama kodu gönderildi';
+            });
+          }
+        },
+        codeAutoRetrievalTimeout: (verId) {
+          if (mounted) {
+            setState(() => _verificationId = verId);
+          }
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _verifyOtp() async {
+    final otp = _otpController.text.trim();
+    if (otp.isEmpty || _verificationId == null) return;
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final creds = PhoneAuthProvider.credential(
+        verificationId: _verificationId!,
+        smsCode: otp,
+      );
+      await _auth.currentUser?.updatePhoneNumber(creds);
+      if (mounted) {
+        setState(() {
+          _isVerified = true;
+          _isLoading = false;
+          _statusMsg = 'Telefon numarası başarıyla doğrulandı!';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'Kod hatalı veya süresi dolmuş';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  String _humanizeError(String code) {
+    switch (code) {
+      case 'invalid-phone-number': return 'Geçersiz telefon numarası';
+      case 'too-many-requests':    return 'Çok fazla deneme. Lütfen bekleyin';
+      case 'user-disabled':         return 'Bu kullanıcı devre dışı bırakılmış';
+      default:                     return 'Doğrulama başarısız: $code';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(24, 12, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle
+          Center(
+            child: Container(width: 40, height: 4, decoration: BoxDecoration(
+              color: Colors.white24, borderRadius: BorderRadius.circular(4),
+            )),
+          ),
+          const SizedBox(height: 20),
+
+          // Header
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6B8E6B).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Icons.verified_user, color: Color(0xFF6B8E6B), size: 24),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Telefon Doğrulama', style: TextStyle(
+                      color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800,
+                    )),
+                    Text('Firebase OTP ile doğrulama', style: TextStyle(
+                      color: AppColors.textBody, fontSize: 12,
+                    )),
+                  ],
+                ),
+              ),
+              if (_isVerified)
+                const Icon(Icons.check_circle, color: Color(0xFF6B8E6B), size: 28),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Status / Error
+          if (_error != null)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: AppColors.error, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(_error!, style: const TextStyle(color: AppColors.error, fontSize: 12))),
+                ],
+              ),
+            ),
+          if (_statusMsg != null && !_isVerified)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF6B8E6B).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_outline, color: Color(0xFF6B8E6B), size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(_statusMsg!, style: const TextStyle(color: Color(0xFF6B8E6B), fontSize: 12))),
+                ],
+              ),
+            ),
+
+          const SizedBox(height: 16),
+
+          if (_isVerified) ...[
+            const Icon(Icons.check_circle, color: Color(0xFF6B8E6B), size: 56),
+            const SizedBox(height: 12),
+            const Text('Doğrulama başarılı!', style: TextStyle(color: Color(0xFF6B8E6B), fontSize: 16, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6B8E6B),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: const Text('Tamam', style: TextStyle(fontWeight: FontWeight.w800)),
+              ),
+            ),
+          ] else if (_otpSent) ...[
+            TextField(
+              controller: _otpController,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              style: const TextStyle(color: Colors.white, fontSize: 20, letterSpacing: 8),
+              textAlign: TextAlign.center,
+              decoration: InputDecoration(
+                counterText: '',
+                hintText: '------',
+                hintStyle: TextStyle(color: AppColors.textBody.withValues(alpha: 0.3), letterSpacing: 8),
+                filled: true,
+                fillColor: AppColors.background,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFF6B8E6B), width: 1.5)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _isLoading ? null : _verifyOtp,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF6B8E6B),
+                      side: const BorderSide(color: Color(0xFF6B8E6B)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF6B8E6B)))
+                        : const Text('Doğrula', style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                OutlinedButton(
+                  onPressed: _isLoading ? null : _sendOtp,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.textBody,
+                    side: BorderSide(color: AppColors.textBody.withValues(alpha: 0.3)),
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: const Text('Yeniden Gönder', style: TextStyle(fontSize: 12)),
+                ),
+              ],
+            ),
+          ] else ...[
+            if (_isLoading)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Column(
+                    children: [
+                      CircularProgressIndicator(color: Color(0xFF6B8E6B)),
+                      SizedBox(height: 16),
+                      Text('Doğrulama kodu gönderiliyor...', style: TextStyle(color: AppColors.textBody)),
+                    ],
+                  ),
+                ),
+              ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('İptal', style: TextStyle(color: AppColors.textBody)),
+            ),
+          ],
+        ],
       ),
     );
   }

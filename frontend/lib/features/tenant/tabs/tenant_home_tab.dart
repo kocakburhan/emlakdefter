@@ -253,17 +253,32 @@ class _TenantHomeTabState extends ConsumerState<TenantHomeTab>
         final nextDue = finance.nextDueDate;
         final hasDebt = totalDue > 0;
 
-        // Calculate days remaining
+        // Calculate days remaining — supports both ISO (YYYY-MM-DD) and DD.MM.YYYY formats
         int? daysLeft;
         if (nextDue != null) {
-          final parts = nextDue.split('.');
-          if (parts.length == 3) {
-            final dueDate = DateTime(
-              int.parse(parts[2]),
-              int.parse(parts[1]),
-              int.parse(parts[0]),
-            );
-            daysLeft = dueDate.difference(DateTime.now()).inDays;
+          try {
+            // ISO format: 2026-04-15
+            if (nextDue.contains('-') && nextDue.split('-').length == 3) {
+              final parts = nextDue.split('-');
+              final dueDate = DateTime(
+                int.parse(parts[0]),
+                int.parse(parts[1]),
+                int.parse(parts[2]),
+              );
+              daysLeft = dueDate.difference(DateTime.now()).inDays;
+            }
+            // Legacy DD.MM.YYYY format
+            else if (nextDue.contains('.') && nextDue.split('.').length == 3) {
+              final parts = nextDue.split('.');
+              final dueDate = DateTime(
+                int.parse(parts[2]),
+                int.parse(parts[1]),
+                int.parse(parts[0]),
+              );
+              daysLeft = dueDate.difference(DateTime.now()).inDays;
+            }
+          } catch (_) {
+            daysLeft = null;
           }
         }
 

@@ -260,111 +260,11 @@ class LandlordOperationsScreen extends ConsumerWidget {
     final priorityColor = _ticketPriorityColor(ticket.priority);
     final dateStr = _formatDate(ticket.createdAt);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: statusColor.withValues(alpha:0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: priorityColor.withValues(alpha:0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(Icons.headset_mic_outlined, color: priorityColor, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      ticket.title,
-                      style: const TextStyle(
-                        color: AppColors.textHeader,
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Text(ticket.propertyName, style: TextStyle(color: AppColors.textBody.withValues(alpha:0.6), fontSize: 11)),
-                        const SizedBox(width: 6),
-                        Text('• Kapı ${ticket.unitDoor}', style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 11)),
-                        const SizedBox(width: 6),
-                        Text(dateStr, style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 11)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha:0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      _ticketStatusLabel(ticket.status),
-                      style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(Icons.message_outlined, size: 12, color: AppColors.textBody.withValues(alpha:0.4)),
-                      const SizedBox(width: 3),
-                      Text('${ticket.messageCount}', style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 11)),
-                      if (ticket.agentReplyCount > 0) ...[
-                        const SizedBox(width: 6),
-                        Icon(Icons.verified_outlined, size: 12, color: AppColors.textBody.withValues(alpha:0.4)),
-                        const SizedBox(width: 3),
-                        Text('${ticket.agentReplyCount}', style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 11)),
-                      ],
-                    ],
-                  ),
-                ],
-              ),
-            ],
-          ),
-          if (ticket.lastMessage != null && ticket.lastMessage!.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppColors.background.withValues(alpha:0.5),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.format_quote, size: 14, color: AppColors.textBody.withValues(alpha:0.3)),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      ticket.lastMessage!,
-                      style: TextStyle(color: AppColors.textBody.withValues(alpha:0.7), fontSize: 12, fontStyle: FontStyle.italic),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
+    return _ExpandableTicketCard(
+      ticket: ticket,
+      statusColor: statusColor,
+      priorityColor: priorityColor,
+      dateStr: dateStr,
     );
   }
 
@@ -387,6 +287,214 @@ class LandlordOperationsScreen extends ConsumerWidget {
     }
   }
 
+  String _formatDate(DateTime dt) {
+    final aylar = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+    return '${dt.day.toString().padLeft(2, '0')} ${aylar[dt.month - 1]} ${dt.year}';
+  }
+
+  String _fmt(int value) {
+    if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
+    if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)}K';
+    return value.toStringAsFixed(0);
+  }
+}
+
+// ─── Expandable Ticket Card — §4.3.3-A Tam Kronolojik Thread ─────────────────
+
+class _ExpandableTicketCard extends StatefulWidget {
+  final LandlordTenantTicket ticket;
+  final Color statusColor;
+  final Color priorityColor;
+  final String dateStr;
+
+  const _ExpandableTicketCard({
+    required this.ticket,
+    required this.statusColor,
+    required this.priorityColor,
+    required this.dateStr,
+  });
+
+  @override
+  State<_ExpandableTicketCard> createState() => _ExpandableTicketCardState();
+}
+
+class _ExpandableTicketCardState extends State<_ExpandableTicketCard> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: widget.statusColor.withValues(alpha: 0.2)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          // Header — always visible
+          InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: widget.priorityColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(Icons.headset_mic_outlined, color: widget.priorityColor, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.ticket.title,
+                              style: const TextStyle(
+                                color: AppColors.textHeader,
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                Text(widget.ticket.propertyName, style: TextStyle(color: AppColors.textBody.withValues(alpha: 0.6), fontSize: 11)),
+                                const SizedBox(width: 6),
+                                Text('• Kapı ${widget.ticket.unitDoor}', style: TextStyle(color: AppColors.textBody.withValues(alpha: 0.5), fontSize: 11)),
+                                const SizedBox(width: 6),
+                                Text(widget.dateStr, style: TextStyle(color: AppColors.textBody.withValues(alpha: 0.5), fontSize: 11)),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        _expanded ? Icons.expand_less : Icons.expand_more,
+                        color: AppColors.textBody.withValues(alpha: 0.4),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: widget.statusColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _ticketStatusLabel(widget.ticket.status),
+                          style: TextStyle(color: widget.statusColor, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(Icons.message_outlined, size: 12, color: AppColors.textBody.withValues(alpha: 0.4)),
+                      const SizedBox(width: 3),
+                      Text('${widget.ticket.messageCount}', style: TextStyle(color: AppColors.textBody.withValues(alpha: 0.5), fontSize: 11)),
+                      if (widget.ticket.agentReplyCount > 0) ...[
+                        const SizedBox(width: 6),
+                        Icon(Icons.verified_outlined, size: 12, color: AppColors.textBody.withValues(alpha: 0.4)),
+                        const SizedBox(width: 3),
+                        Text('${widget.ticket.agentReplyCount}', style: TextStyle(color: AppColors.textBody.withValues(alpha: 0.5), fontSize: 11)),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Expanded Timeline — §4.3.3-A
+          if (_expanded && widget.ticket.messages.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Divider(color: AppColors.textBody.withValues(alpha: 0.08)),
+                  const SizedBox(height: 8),
+                  ...widget.ticket.messages.map((msg) => _buildTimelineMessage(msg)),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimelineMessage(TicketMessageItem msg) {
+    final isAgent = msg.isAgent;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: isAgent
+                  ? const Color(0xFF6B8E6B).withValues(alpha: 0.15)
+                  : const Color(0xFF7B8FAD).withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isAgent ? Icons.support_agent : Icons.person,
+              size: 12,
+              color: isAgent ? const Color(0xFF6B8E6B) : const Color(0xFF7B8FAD),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.background.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        msg.senderName,
+                        style: TextStyle(
+                          color: isAgent ? const Color(0xFF6B8E6B) : const Color(0xFF7B8FAD),
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        _formatTime(msg.createdAt),
+                        style: TextStyle(color: AppColors.textBody.withValues(alpha: 0.4), fontSize: 10),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    msg.content,
+                    style: TextStyle(color: AppColors.textBody.withValues(alpha: 0.8), fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _ticketStatusLabel(String status) {
     switch (status) {
       case 'open': return 'Açık';
@@ -397,14 +505,8 @@ class LandlordOperationsScreen extends ConsumerWidget {
     }
   }
 
-  String _formatDate(DateTime dt) {
+  String _formatTime(DateTime dt) {
     final aylar = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
     return '${dt.day.toString().padLeft(2, '0')} ${aylar[dt.month - 1]} ${dt.year}';
-  }
-
-  String _fmt(int value) {
-    if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
-    if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)}K';
-    return value.toStringAsFixed(0);
   }
 }
