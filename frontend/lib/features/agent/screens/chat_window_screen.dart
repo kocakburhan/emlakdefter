@@ -1,8 +1,12 @@
 import 'dart:async';
+import 'package:dio/dio.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/colors.dart';
+import '../../../core/network/api_client.dart';
 import '../providers/chat_provider.dart';
 
 /// Sohbet Penceresi — WhatsApp tarzı mesaj balonları, düzenle, sil, 30 sn geri al
@@ -25,9 +29,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
   ChatMessage? _editingMessage;
   ChatMessage? _pendingDelete;
   Timer? _deleteUndoTimer;
-  String? _deleteUndoMessageId;
   late AnimationController _inputAnimController;
-  late Animation<double> _inputHeightAnim;
 
   @override
   void initState() {
@@ -35,10 +37,6 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
     _inputAnimController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 250),
-    );
-    _inputHeightAnim = CurvedAnimation(
-      parent: _inputAnimController,
-      curve: Curves.easeOutCubic,
     );
   }
 
@@ -119,7 +117,6 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
     _deleteUndoTimer?.cancel();
     setState(() {
       _pendingDelete = msg;
-      _deleteUndoMessageId = msg.id;
     });
 
     // Start 30-second undo timer
@@ -168,14 +165,6 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
         duration: const Duration(seconds: 2),
       ),
     );
-  }
-
-  void _confirmDelete() {
-    if (_pendingDelete != null) {
-      ref.read(chatProvider.notifier).deleteMessage(_pendingDelete!.id);
-      setState(() => _pendingDelete = null);
-    }
-    ScaffoldMessenger.of(context).clearSnackBars();
   }
 
   void _setReplyTo(ChatMessage msg) {
@@ -240,7 +229,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
       decoration: BoxDecoration(
         color: AppColors.surface,
         border: Border(
-          bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
         ),
       ),
       child: Row(
@@ -266,7 +255,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
             height: 42,
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [AppColors.accent.withOpacity(0.7), AppColors.accent.withOpacity(0.4)],
+                colors: [AppColors.accent.withValues(alpha: 0.7), AppColors.accent.withValues(alpha: 0.4)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -300,7 +289,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                   Text(
                     widget.conversation.clientRole!,
                     style: TextStyle(
-                      color: AppColors.textBody.withOpacity(0.6),
+                      color: AppColors.textBody.withValues(alpha: 0.6),
                       fontSize: 12,
                     ),
                   ),
@@ -311,7 +300,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: AppColors.accent.withOpacity(0.1),
+                color: AppColors.accent.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -327,7 +316,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
   Widget _buildEditIndicator() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      color: AppColors.warning.withOpacity(0.1),
+      color: AppColors.warning.withValues(alpha: 0.1),
       child: Row(
         children: [
           const Icon(Icons.edit_outlined, color: AppColors.warning, size: 18),
@@ -335,7 +324,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
           Expanded(
             child: Text(
               'Mesajı düzenliyorsunuz',
-              style: TextStyle(color: AppColors.warning.withOpacity(0.8), fontSize: 13),
+              style: TextStyle(color: AppColors.warning.withValues(alpha: 0.8), fontSize: 13),
             ),
           ),
           TextButton(
@@ -380,7 +369,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                 const SizedBox(height: 2),
                 Text(
                   _replyTo!.message ?? '',
-                  style: TextStyle(color: AppColors.textBody.withOpacity(0.7), fontSize: 12),
+                  style: TextStyle(color: AppColors.textBody.withValues(alpha: 0.7), fontSize: 12),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -406,13 +395,13 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.08),
+              color: AppColors.accent.withValues(alpha: 0.08),
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.chat_bubble_outline,
               size: 48,
-              color: AppColors.accent.withOpacity(0.3),
+              color: AppColors.accent.withValues(alpha: 0.3),
             ),
           ),
           const SizedBox(height: 16),
@@ -423,7 +412,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
           const SizedBox(height: 8),
           Text(
             'İlk mesajı siz gönderin',
-            style: TextStyle(color: AppColors.textBody.withOpacity(0.6)),
+            style: TextStyle(color: AppColors.textBody.withValues(alpha: 0.6)),
           ),
         ],
       ),
@@ -454,7 +443,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
               child: Text(
                 msg.senderName ?? (isMine ? 'Siz' : 'Karşı taraf'),
                 style: TextStyle(
-                  color: AppColors.textBody.withOpacity(0.5),
+                  color: AppColors.textBody.withValues(alpha: 0.5),
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                 ),
@@ -489,7 +478,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: (isMine ? Colors.black : Colors.black).withOpacity(0.06),
+                          color: (isMine ? Colors.black : Colors.black).withValues(alpha: 0.06),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -510,7 +499,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                             child: Text(
                               _replyTo!.message ?? '',
                               style: TextStyle(
-                                color: AppColors.textBody.withOpacity(0.5),
+                                color: AppColors.textBody.withValues(alpha: 0.5),
                                 fontSize: 11,
                                 fontStyle: FontStyle.italic,
                               ),
@@ -534,16 +523,32 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                             Text(
                               _formatTime(msg.createdAt),
                               style: TextStyle(
-                                color: (isMine ? Colors.white : AppColors.textBody).withOpacity(0.5),
+                                color: (isMine ? Colors.white : AppColors.textBody).withValues(alpha: 0.5),
                                 fontSize: 10,
                               ),
                             ),
+                            // Okundu bilgisi (§4.1.8-B: ✓✓ okundu)
+                            if (isMine) ...[
+                              const SizedBox(width: 4),
+                              if (msg.isPending)
+                                const Icon(
+                                  Icons.access_time,          // §5.2 — Bekliyor saati
+                                  size: 14,
+                                  color: Color(0xFFD4A574),
+                                )
+                              else
+                                Icon(
+                                  Icons.done_all,
+                                  size: 14,
+                                  color: AppColors.accent.withValues(alpha: 0.7),
+                                ),
+                            ],
                             if (msg.isEdited) ...[
                               const SizedBox(width: 4),
                               Text(
                                 '(düzenlendi)',
                                 style: TextStyle(
-                                  color: (isMine ? Colors.white : AppColors.textBody).withOpacity(0.4),
+                                  color: (isMine ? Colors.white : AppColors.textBody).withValues(alpha: 0.4),
                                   fontSize: 10,
                                   fontStyle: FontStyle.italic,
                                 ),
@@ -582,7 +587,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
             Container(
               width: 40, height: 4,
               decoration: BoxDecoration(
-                color: AppColors.textBody.withOpacity(0.3),
+                color: AppColors.textBody.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -634,9 +639,9 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.08),
+            color: color.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withOpacity(0.15)),
+            border: Border.all(color: color.withValues(alpha: 0.15)),
           ),
           child: Row(
             children: [
@@ -668,21 +673,24 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
       decoration: BoxDecoration(
         color: AppColors.surface,
         border: Border(
-          top: BorderSide(color: Colors.white.withOpacity(0.06)),
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
         ),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4))],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          // Attachment button
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(14),
+          // Attachment button (§4.1.8-C)
+          GestureDetector(
+            onTap: () => _showAttachmentSheet(context),
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(Icons.attach_file, color: AppColors.textBody.withValues(alpha: 0.5), size: 22),
             ),
-            child: Icon(Icons.attach_file, color: AppColors.textBody.withOpacity(0.5), size: 22),
           ),
           const SizedBox(width: 10),
 
@@ -695,8 +703,8 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: _isComposing
-                      ? AppColors.accent.withOpacity(0.4)
-                      : Colors.white.withOpacity(0.05),
+                      ? AppColors.accent.withValues(alpha: 0.4)
+                      : Colors.white.withValues(alpha: 0.05),
                 ),
               ),
               child: Row(
@@ -715,7 +723,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                         hintText: _editingMessage != null
                             ? 'Mesajı düzenleyin...'
                             : 'Mesaj yazın...',
-                        hintStyle: TextStyle(color: AppColors.textBody.withOpacity(0.4)),
+                        hintStyle: TextStyle(color: AppColors.textBody.withValues(alpha: 0.4)),
                         border: InputBorder.none,
                         contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                       ),
@@ -725,7 +733,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                     padding: const EdgeInsets.only(right: 8, bottom: 8),
                     child: Icon(
                       Icons.emoji_emotions_outlined,
-                      color: AppColors.textBody.withOpacity(0.4),
+                      color: AppColors.textBody.withValues(alpha: 0.4),
                       size: 22,
                     ),
                   ),
@@ -743,7 +751,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
             decoration: BoxDecoration(
               gradient: _isComposing
                   ? LinearGradient(
-                      colors: [AppColors.accent, AppColors.accent.withOpacity(0.8)],
+                      colors: [AppColors.accent, AppColors.accent.withValues(alpha: 0.8)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     )
@@ -751,7 +759,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
               color: _isComposing ? null : AppColors.background,
               borderRadius: BorderRadius.circular(16),
               boxShadow: _isComposing
-                  ? [BoxShadow(color: AppColors.accent.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))]
+                  ? [BoxShadow(color: AppColors.accent.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))]
                   : null,
             ),
             child: Material(
@@ -765,7 +773,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                     child: Icon(
                       _isComposing ? Icons.send_rounded : Icons.mic_rounded,
                       key: ValueKey(_isComposing),
-                      color: _isComposing ? Colors.white : AppColors.textBody.withOpacity(0.3),
+                      color: _isComposing ? Colors.white : AppColors.textBody.withValues(alpha: 0.3),
                       size: 22,
                     ),
                   ),
@@ -780,5 +788,153 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
 
   String _formatTime(DateTime dt) {
     return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
+  // ─── Attachment Sheet (§4.1.8-C) ──────────────────────────────────────────
+  void _showAttachmentSheet(BuildContext ctx) {
+    showModalBottomSheet(
+      context: ctx,
+      backgroundColor: Colors.transparent,
+      builder: (ctx2) => Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF0F0F18),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(2),
+              )),
+            const SizedBox(height: 20),
+            const Text('Medya ve Belge',
+                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            Text('Fotoğraf veya PDF gönder',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 13)),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(child: _buildAttachmentTile(
+                  Icons.image_outlined, 'Fotoğraf',
+                  'Galeri veya kamera',
+                  AppColors.success,
+                  () => _pickAndSendImage(),
+                )),
+                const SizedBox(width: 12),
+                Expanded(child: _buildAttachmentTile(
+                  Icons.picture_as_pdf_outlined, 'Belge',
+                  'PDF dosyası gönder',
+                  AppColors.error,
+                  () => _pickAndSendFile(),
+                )),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAttachmentTile(IconData icon, String title, String subtitle, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 32),
+            const SizedBox(height: 10),
+            Text(title, style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 4),
+            Text(subtitle, style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickAndSendImage() async {
+    final picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1920,
+      maxHeight: 1920,
+      imageQuality: 85,
+    );
+    if (image == null) return;
+
+    Navigator.pop(context);
+
+    final uploadResp = await _uploadMedia(image.path, 'image');
+    if (uploadResp != null) {
+      await _sendMessageWithAttachment(uploadResp);
+    }
+  }
+
+  Future<void> _pickAndSendFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'doc', 'docx'],
+      allowMultiple: false,
+    );
+    if (result == null || result.files.isEmpty) return;
+
+    final file = result.files.first;
+    if (file.path == null) return;
+
+    Navigator.pop(context);
+
+    final uploadResp = await _uploadMedia(file.path!, 'document');
+    if (uploadResp != null) {
+      await _sendMessageWithAttachment(uploadResp);
+    }
+  }
+
+  Future<String?> _uploadMedia(String filePath, String category) async {
+    try {
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(filePath),
+        'category': category,
+      });
+      final resp = await ApiClient.dio.post(
+        '/media/upload',
+        data: formData,
+        options: Options(
+          headers: {'Content-Type': 'multipart/form-data'},
+          receiveTimeout: const Duration(seconds: 30),
+          sendTimeout: const Duration(seconds: 30),
+        ),
+      );
+      if (resp.statusCode == 200 && resp.data['url'] != null) {
+        return resp.data['url'] as String;
+      }
+    } catch (e) {
+      _showError('Yükleme hatası: $e');
+    }
+    return null;
+  }
+
+  Future<void> _sendMessageWithAttachment(String url) async {
+    // Gönder metadata URL'ini text olarak ilet — backend attachment_url'i okur
+    final msgData = '[Medya] $url';
+    await ref.read(chatProvider.notifier).sendMessage(msgData);
+  }
+
+  void _showError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: AppColors.error),
+      );
+    }
   }
 }

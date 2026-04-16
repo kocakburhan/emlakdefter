@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/colors.dart';
+import '../../../core/network/api_client.dart';
 import '../providers/chat_provider.dart';
 import '../screens/chat_window_screen.dart';
 
@@ -18,7 +19,6 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
   final _searchController = TextEditingController();
   String _searchQuery = '';
   bool _showArchived = false;
-  ChatConversation? _lastArchived;
 
   @override
   void initState() {
@@ -145,10 +145,10 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: _showArchived ? AppColors.accent.withOpacity(0.15) : AppColors.surface,
+          color: _showArchived ? AppColors.accent.withValues(alpha:0.15) : AppColors.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: _showArchived ? AppColors.accent : Colors.white.withOpacity(0.05),
+            color: _showArchived ? AppColors.accent : Colors.white.withValues(alpha:0.05),
           ),
         ),
         child: Row(
@@ -178,13 +178,13 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.accent, AppColors.accent.withOpacity(0.75)],
+          colors: [AppColors.accent, AppColors.accent.withValues(alpha:0.75)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
-          BoxShadow(color: AppColors.accent.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4)),
+          BoxShadow(color: AppColors.accent.withValues(alpha:0.3), blurRadius: 8, offset: const Offset(0, 4)),
         ],
       ),
       child: Material(
@@ -206,7 +206,7 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha:0.05)),
       ),
       child: TextField(
         controller: _searchController,
@@ -214,11 +214,11 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
         style: const TextStyle(color: AppColors.textHeader),
         decoration: InputDecoration(
           hintText: 'Sohbet ara...',
-          hintStyle: TextStyle(color: AppColors.textBody.withOpacity(0.5)),
-          prefixIcon: Icon(Icons.search, color: AppColors.textBody.withOpacity(0.4)),
+          hintStyle: TextStyle(color: AppColors.textBody.withValues(alpha:0.5)),
+          prefixIcon: Icon(Icons.search, color: AppColors.textBody.withValues(alpha:0.4)),
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
-                  icon: Icon(Icons.clear, color: AppColors.textBody.withOpacity(0.4)),
+                  icon: Icon(Icons.clear, color: AppColors.textBody.withValues(alpha:0.4)),
                   onPressed: () {
                     _searchController.clear();
                     setState(() => _searchQuery = '');
@@ -240,13 +240,13 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.08),
+              color: AppColors.accent.withValues(alpha:0.08),
               shape: BoxShape.circle,
             ),
             child: Icon(
               _showArchived ? Icons.archive_outlined : Icons.chat_bubble_outline,
               size: 56,
-              color: AppColors.accent.withOpacity(0.4),
+              color: AppColors.accent.withValues(alpha:0.4),
             ),
           ),
           const SizedBox(height: 20),
@@ -259,7 +259,7 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
             _showArchived
                 ? 'Arşivlenen sohbetler burada görünür'
                 : 'Kiracınız veya ev sahibinizle sohbet başlatın',
-            style: TextStyle(color: AppColors.textBody.withOpacity(0.6), fontSize: 14),
+            style: TextStyle(color: AppColors.textBody.withValues(alpha:0.6), fontSize: 14),
             textAlign: TextAlign.center,
           ),
         ],
@@ -280,7 +280,6 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
         key: Key(conv.id),
         direction: DismissDirection.endToStart,
         confirmDismiss: (_) async {
-          setState(() => _lastArchived = conv);
           final success = await ref.read(chatProvider.notifier).archiveConversation(conv.id);
           if (success && mounted) {
             _showUndoSnackbar(
@@ -296,7 +295,7 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
           padding: const EdgeInsets.only(right: 24),
           margin: const EdgeInsets.symmetric(vertical: 6),
           decoration: BoxDecoration(
-            color: AppColors.warning.withOpacity(0.15),
+            color: AppColors.warning.withValues(alpha:0.15),
             borderRadius: BorderRadius.circular(18),
           ),
           child: const Icon(Icons.archive_outlined, color: AppColors.warning),
@@ -313,7 +312,7 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: Colors.white.withOpacity(0.05)),
+                  border: Border.all(color: Colors.white.withValues(alpha:0.05)),
                 ),
                 child: Row(
                   children: [
@@ -346,7 +345,7 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
                                 Text(
                                   _formatTime(conv.lastMessageAt!),
                                   style: TextStyle(
-                                    color: AppColors.textBody.withOpacity(0.5),
+                                    color: AppColors.textBody.withValues(alpha:0.5),
                                     fontSize: 11,
                                   ),
                                 ),
@@ -361,8 +360,8 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
                                   margin: const EdgeInsets.only(right: 6),
                                   decoration: BoxDecoration(
                                     color: conv.clientRole == 'Kiracı'
-                                        ? AppColors.success.withOpacity(0.1)
-                                        : AppColors.warning.withOpacity(0.1),
+                                        ? AppColors.success.withValues(alpha:0.1)
+                                        : AppColors.warning.withValues(alpha:0.1),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text(
@@ -379,7 +378,7 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
                                   child: Text(
                                     conv.propertyName!,
                                     style: TextStyle(
-                                      color: AppColors.textBody.withOpacity(0.6),
+                                      color: AppColors.textBody.withValues(alpha:0.6),
                                       fontSize: 12,
                                     ),
                                     maxLines: 1,
@@ -393,7 +392,7 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
                             Text(
                               conv.lastMessage!,
                               style: TextStyle(
-                                color: AppColors.textBody.withOpacity(0.7),
+                                color: AppColors.textBody.withValues(alpha:0.7),
                                 fontSize: 13,
                               ),
                               maxLines: 1,
@@ -405,7 +404,29 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
                     ),
 
                     const SizedBox(width: 8),
-                    Icon(Icons.chevron_right, color: AppColors.textBody.withOpacity(0.3), size: 20),
+                    // Okunmamış rozeti (§4.1.8-A)
+                    if (conv.unreadCount > 0) ...[
+                      Container(
+                        constraints: const BoxConstraints(minWidth: 22),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.error,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [BoxShadow(color: AppColors.error.withValues(alpha:0.4), blurRadius: 4)],
+                        ),
+                        child: Text(
+                          conv.unreadCount > 99 ? '99+' : '${conv.unreadCount}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                    ],
+                    Icon(Icons.chevron_right, color: AppColors.textBody.withValues(alpha:0.3), size: 20),
                   ],
                 ),
               ),
@@ -433,12 +454,12 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
       height: 52,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [colors[colorIdx].withOpacity(0.8), colors[colorIdx].withOpacity(0.5)],
+          colors: [colors[colorIdx].withValues(alpha:0.8), colors[colorIdx].withValues(alpha:0.5)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         shape: BoxShape.circle,
-        boxShadow: [BoxShadow(color: colors[colorIdx].withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: colors[colorIdx].withValues(alpha:0.3), blurRadius: 8, offset: const Offset(0, 4))],
       ),
       child: Center(
         child: Text(
@@ -487,51 +508,257 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
   void _showNewChatDialog(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(width: 40, height: 4, decoration: BoxDecoration(
-              color: AppColors.textBody.withOpacity(0.3), borderRadius: BorderRadius.circular(2),
-            )),
-            const SizedBox(height: 20),
-            const Text(
-              'Yeni Sohbet',
-              style: TextStyle(color: AppColors.textHeader, fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Kiracı veya ev sahibi seçin',
-              style: TextStyle(color: AppColors.textBody.withOpacity(0.7)),
-            ),
-            const SizedBox(height: 24),
-            // Placeholder — gerçek kullanıcı listesi API'den çekilecek
-            Container(
-              padding: const EdgeInsets.all(20),
+      builder: (ctx) => _NewChatSheet(
+        onSelectConversation: (conv) {
+          Navigator.pop(ctx);
+          _openChatWindow(ctx, conv);
+        },
+      ),
+    );
+  }
+}
+
+// ─── Yeni Sohbet Sheet (§4.1.8-A: Yeni Sohbet Dialog) ───────────────────────
+class _NewChatSheet extends ConsumerStatefulWidget {
+  final void Function(ChatConversation) onSelectConversation;
+  const _NewChatSheet({required this.onSelectConversation});
+
+  @override
+  ConsumerState<_NewChatSheet> createState() => _NewChatSheetState();
+}
+
+class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
+  List<dynamic> _tenants = [];
+  List<dynamic> _landlords = [];
+  bool _isLoading = true;
+  String? _error;
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUsers();
+  }
+
+  Future<void> _loadUsers() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final responses = await Future.wait([
+        ApiClient.dio.get('/tenants/', queryParameters: {'limit': 100}),
+        ApiClient.dio.get('/tenants/landlords', queryParameters: {'limit': 100}),
+      ]);
+      if (mounted) {
+        setState(() {
+          _tenants = responses[0].data ?? [];
+          _landlords = responses[1].data ?? [];
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _startOrOpenChat(dynamic user, String role) async {
+    try {
+      final response = await ApiClient.dio.post('/chat/conversations', data: {
+        'client_user_id': user['user_id'] ?? user['id'],
+      });
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final conv = ChatConversation.fromJson(response.data);
+        widget.onSelectConversation(conv);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Sohbet başlatılamadı: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.85,
+      decoration: const BoxDecoration(
+        color: Color(0xFF0F0F18),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: Column(
+        children: [
+          // Handle
+          Padding(
+            padding: const EdgeInsets.only(top: 14),
+            child: Container(
+              width: 40, height: 4,
               decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
+                color: Colors.white.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(2),
               ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: AppColors.textBody.withOpacity(0.5)),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Kiracı/Ev Sahibi seçimi için kullanıcı listesi API\'si gerekli',
-                      style: TextStyle(color: AppColors.textBody.withOpacity(0.7)),
-                    ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Yeni Sohbet',
+                    style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                // Search
+                TextField(
+                  onChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'Kiracı veya daire ara...',
+                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.25)),
+                    prefixIcon: Icon(Icons.search, color: Colors.white.withValues(alpha: 0.3)),
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.05),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+                : _error != null
+                    ? Center(child: Text('Hata: $_error', style: const TextStyle(color: AppColors.error)))
+                    : _buildUserList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserList() {
+    final filteredTenants = _tenants.where((t) {
+      final name = (t['temp_name'] ?? '').toString().toLowerCase();
+      final unit = (t['unit_door'] ?? '').toString().toLowerCase();
+      return name.contains(_searchQuery) || unit.contains(_searchQuery);
+    }).toList();
+
+    final filteredLandlords = _landlords.where((l) {
+      final name = (l['temp_name'] ?? '').toString().toLowerCase();
+      return name.contains(_searchQuery);
+    }).toList();
+
+    if (filteredTenants.isEmpty && filteredLandlords.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 48, color: Colors.white.withValues(alpha: 0.15)),
+            const SizedBox(height: 12),
+            Text('Sonuç bulunamadı',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.3))),
+          ],
+        ),
+      );
+    }
+
+    return ListView(
+      physics: const BouncingScrollPhysics(),
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 20),
+      children: [
+        if (filteredTenants.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+            child: Text('KİRACILAR',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.4),
+                    fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
+          ),
+          ...filteredTenants.map((t) => _buildUserTile(
+                icon: Icons.person,
+                name: t['temp_name'] ?? 'Kiracı',
+                subtitle: t['unit_door'] != null ? 'Daire: ${t['unit_door']}' : 'Kiracı',
+                role: 'Kiracı',
+                onTap: () => _startOrOpenChat(t, 'Kiracı'),
+              )),
+        ],
+        if (filteredLandlords.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            child: Text('EV SAHİPLERİ',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.4),
+                    fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
+          ),
+          ...filteredLandlords.map((l) => _buildUserTile(
+                icon: Icons.account_balance_wallet,
+                name: l['temp_name'] ?? 'Ev Sahibi',
+                subtitle: l['unit_id'] != null ? 'Mülk ID: ${l['unit_id']}' : 'Ev Sahibi',
+                role: 'Ev Sahibi',
+                onTap: () => _startOrOpenChat(l, 'Ev Sahibi'),
+              )),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildUserTile({
+    required IconData icon,
+    required String name,
+    required String subtitle,
+    required String role,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.accent.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(icon, color: AppColors.accent, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(name, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text(subtitle, style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12)),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: role == 'Kiracı'
+                    ? AppColors.success.withValues(alpha: 0.12)
+                    : AppColors.warning.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                role,
+                style: TextStyle(
+                  color: role == 'Kiracı' ? AppColors.success : AppColors.warning,
+                  fontSize: 11, fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(Icons.chat_bubble_outline, color: AppColors.accent.withValues(alpha: 0.5), size: 20),
           ],
         ),
       ),

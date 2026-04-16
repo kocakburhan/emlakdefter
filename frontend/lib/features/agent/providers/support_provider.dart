@@ -30,6 +30,7 @@ class TicketModel {
   final String? description;
   final String? tenantName;
   final String? location;
+  final String? propertyId;
   final String priority;
   final TicketStatus status;
   final DateTime createdAt;
@@ -41,6 +42,7 @@ class TicketModel {
     this.description,
     this.tenantName,
     this.location,
+    this.propertyId,
     required this.priority,
     required this.status,
     required this.createdAt,
@@ -69,6 +71,7 @@ class TicketModel {
       description: json['description'],
       tenantName: json['reporter_name'],
       location: json['unit_door'] != null ? '${json['unit_property'] ?? ''} ${json['unit_door']}' : null,
+      propertyId: json['property_id']?.toString(),
       priority: json['priority'] ?? 'medium',
       status: parseStatus(json['status']),
       createdAt: json['created_at'] != null
@@ -118,7 +121,7 @@ class SupportNotifier extends StateNotifier<AsyncValue<List<TicketModel>>> {
         }
       }
     } catch (e) {
-      print('fetchTicketDetail error: $e');
+      // ignore error
     }
   }
 
@@ -130,7 +133,7 @@ class SupportNotifier extends StateNotifier<AsyncValue<List<TicketModel>>> {
       );
       await fetchTicketDetail(ticketId);
     } catch (e) {
-      print('replyToTicket error: $e');
+      // ignore error
     }
   }
 
@@ -142,7 +145,7 @@ class SupportNotifier extends StateNotifier<AsyncValue<List<TicketModel>>> {
       );
       await fetchTicketDetail(ticketId);
     } catch (e) {
-      print('closeTicket error: $e');
+      // ignore error
     }
   }
 

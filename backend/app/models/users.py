@@ -35,6 +35,7 @@ class Agency(BaseModel):
 class User(BaseModel):
     __tablename__ = "users"
 
+    firebase_uid = Column(String, unique=True, index=True, nullable=True)  # Firebase UID
     phone_number = Column(String, unique=True, index=True, nullable=True)
     email = Column(String, unique=True, index=True, nullable=True)
     password_hash = Column(String, nullable=True)  # For simple test auth
@@ -76,3 +77,12 @@ class UserDeviceToken(BaseModel):
     last_used_at = Column(DateTime, nullable=True)
     
     user = relationship("User", back_populates="device_tokens")
+
+
+class PasswordResetAttempt(BaseModel):
+    """OTP şifre sıfırlama talebi takibi — SMS Pumping koruması"""
+    __tablename__ = "password_reset_attempts"
+
+    phone_number = Column(String, nullable=False, index=True)
+    attempted_at = Column(DateTime, nullable=False)
+    ip_address = Column(String, nullable=True)

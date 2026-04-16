@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:dio/dio.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/offline/offline_storage.dart';
 
 /// Backend'deki Property tablosunun Flutter karşılığı (DTO/Model)
 class PropertyModel {
@@ -60,20 +62,45 @@ class PropertiesNotifier extends StateNotifier<AsyncValue<List<PropertyModel>>> 
     state = const AsyncValue.loading();
     try {
       final response = await ApiClient.dio.get('/properties');
-      
+
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data ?? [];
         final properties = data
             .map((json) => PropertyModel.fromJson(json))
             .toList();
+
+        // Offline cache'e yaz
+        try {
+          final storage = OfflineStorage();
+          await storage.cachePortfolio('properties_list', {'properties': data});
+        } catch (_) {}
+
         state = AsyncValue.data(properties);
         debugPrint("🏢 ${properties.length} mülk başarıyla yüklendi.");
       } else {
         throw Exception("API yanıt kodu: ${response.statusCode}");
       }
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.connectionTimeout) {
+        // Bağlantı yok — cache'den oku
+        try {
+          final storage = OfflineStorage();
+          final cached = storage.getPortfolio('properties_list');
+          if (cached != null && cached['properties'] != null) {
+            final properties = (cached['properties'] as List)
+                .map((json) => PropertyModel.fromJson(json as Map<String, dynamic>))
+                .toList();
+            state = AsyncValue.data(properties);
+            debugPrint("🏢 ${properties.length} mülk cache'den yüklendi (offline).");
+            return;
+          }
+        } catch (_) {}
+      }
+      debugPrint("⚠️ Mülk listesi yüklenemedi: $e");
+      state = AsyncValue.error(e, StackTrace.current);
     } catch (e, st) {
       debugPrint("⚠️ Mülk listesi yüklenemedi: $e");
-      // API hatası durumunda boş liste göster (uygulama çökmesin)
       state = AsyncValue.error(e, st);
     }
   }
@@ -113,7 +140,7 @@ class PropertiesNotifier extends StateNotifier<AsyncValue<List<PropertyModel>>> 
       } else {
         throw Exception("Mülk oluşturma başarısız: ${response.statusCode}");
       }
-    } catch (e, st) {
+    } catch (e) {
       debugPrint("⚠️ Mülk oluşturma hatası: $e");
       state = AsyncValue.data(currentList); // Listeyi geri yükle
       return false;

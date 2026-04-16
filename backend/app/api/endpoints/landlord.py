@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -8,13 +8,15 @@ from datetime import datetime, date
 import uuid
 
 from app.api import deps
-from app.models.users import User
+from app.models.users import User, AgencyStaff
 from app.models.tenants import Tenant, LandlordUnit, ContractStatus
 from app.models.properties import Property, PropertyUnit, UnitStatus
 from app.models.operations import BuildingOperationLog
+from app.models.chat import ChatConversation, ChatMessage
 from app.schemas.landlord import (
     LandlordDashboardKPIs, LandlordPropertySummary, LandlordUnitResponse,
-    LandlordTenantPerformance, LandlordOperationItem, LandlordVacantUnit
+    LandlordTenantPerformance, LandlordOperationItem, LandlordVacantUnit,
+    PaymentMonthItem, LandlordInterestRequest,
 )
 
 router = APIRouter()
@@ -183,13 +185,96 @@ async def landlord_tenants(
     unit_ids = [lu.unit_id for lu in landlord_units]
     tenants = await _get_tenants_for_units(unit_ids, db)
 
-    # Ödeme geçmişi ve performans puanı (basit: sözleşme süresi boyunca aktif = iyi)
+    from app.models.finance import FinancialTransaction, PaymentSchedule
+    from app.models.operations import TicketStatus
+
     responses = []
     for t in tenants:
         months = 0
         if t.start_date:
             delta = (date.today() - t.start_date).days
             months = max(1, delta // 30)
+
+        # Gerçek ödeme geçmişini çek
+        tx_stmt = select(FinancialTransaction).where(
+            FinancialTransaction.tenant_id == t.id,
+            FinancialTransaction.type == "income",
+        ).order_by(FinancialTransaction.transaction_date)
+        tx_res = await db.execute(tx_stmt)
+        transactions = tx_res.scalars().all()
+
+        # Son 12 ay için aylık durum oluştur
+        today = date.today()
+        payment_history = []
+        on_time = 0
+        late = 0
+        missed = 0
+
+        for i in range(min(12, months)):
+            target_month = today.month - i
+            target_year = today.year
+            while target_month <= 0:
+                target_month += 12
+                target_year -= 1
+
+            # O ay için ödeme takvimini bul
+            sched_stmt = select(PaymentSchedule).where(
+                PaymentSchedule.tenant_id == t.id,
+            )
+            sched_res = await db.execute(sched_stmt)
+            schedules = sched_res.scalars().all()
+
+            sched_for_month = None
+            for s in schedules:
+                if s.due_date.month == target_month and s.due_date.year == target_year:
+                    sched_for_month = s
+                    break
+
+            # İlgili işlem
+            tx_for_month = next(
+                (tx for tx in transactions
+                 if tx.transaction_date.month == target_month
+                 and tx.transaction_date.year == target_year),
+                None
+            )
+
+            paid = tx_for_month.amount if tx_for_month else 0.0
+            due = sched_for_month.amount if sched_for_month else float(t.rent_amount or 0)
+            due_date = sched_for_month.due_date if sched_for_month else date(target_year, target_month, t.payment_day or 1)
+            paid_date = tx_for_month.transaction_date if tx_for_month else None
+
+            if paid >= due:
+                if paid_date and paid_date <= due_date:
+                    status = "paid_on_time"
+                    on_time += 1
+                elif paid_date:
+                    days_late = (paid_date - due_date).days
+                    status = "paid_late"
+                    late += 1
+                else:
+                    status = "paid_on_time"
+                    on_time += 1
+            elif paid > 0:
+                status = "partial"
+                late += 1
+            else:
+                status = "pending"
+                missed += 1
+
+            ay_adi = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"]
+            payment_history.append(PaymentMonthItem(
+                month_label=f"{ay_adi[target_month - 1]} {target_year}",
+                year=target_year,
+                month=target_month,
+                amount=due,
+                paid_amount=paid,
+                status=status,
+                days_late=max(0, (paid_date - due_date).days) if paid_date and paid_date > due_date else 0,
+                paid_at=paid_date,
+            ))
+
+        payment_history.reverse()  # En eski aydan başla
+        score = ((on_time / months) * 100) if months > 0 else 100.0
 
         responses.append(LandlordTenantPerformance(
             tenant_id=t.id,
@@ -205,8 +290,88 @@ async def landlord_tenants(
             status=t.status.value,
             is_active=t.is_active,
             months_rented=months,
-            on_time_payments=months,  # Basit: tüm aylar tam ödenmiş varsay
+            on_time_payments=on_time,
+            late_payments=late,
+            missed_payments=missed,
+            payment_score=round(score, 1),
+            payment_history=payment_history,
         ))
+
+    return responses
+
+
+# ──────────────────────────────────────────────
+# §4.3.3 — Ev Sahibinin Kiracı Biletleri (Ticket Yansıması)
+# ──────────────────────────────────────────────
+
+@router.get("/tenant-tickets", response_model=List[dict])
+async def landlord_tenant_tickets(
+    current_user: User = Depends(deps.get_current_user),
+    limit: int = 20,
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """
+    Ev Sahibinin mülklerindeki kiracı destek biletlerini getirir — PRD §4.3.3 §A.
+    Kiracıların açtığı biletler (Açık / İşlemde / Çözüldü) zaman tünelinde görünür.
+    """
+    landlord_units = await _get_landlord_units(current_user.id, db)
+    unit_ids = [lu.unit_id for lu in landlord_units]
+    property_ids = list(set(lu.unit.property_id for lu in landlord_units))
+
+    if not unit_ids:
+        return []
+
+    # Tüm kiracıların birimlerini al
+    from app.models.operations import SupportTicket, TicketMessage
+    stmt = (
+        select(SupportTicket)
+        .where(
+            SupportTicket.unit_id.in_(unit_ids),
+        )
+        .options(selectinload(SupportTicket.messages))
+        .order_by(SupportTicket.created_at.desc())
+        .limit(limit)
+    )
+    result = await db.execute(stmt)
+    tickets = result.scalars().all()
+
+    # Mülk isimlerini çöz
+    prop_stmt = select(Property).where(Property.id.in_(property_ids))
+    prop_res = await db.execute(prop_stmt)
+    props = {p.id: p.name for p in prop_res.scalars().all()}
+
+    # Birim numaralarını çöz
+    unit_stmt = select(PropertyUnit).where(PropertyUnit.id.in_(unit_ids))
+    unit_res = await db.execute(unit_stmt)
+    units_map = {u.id: u.door_number for u in unit_res.scalars().all()}
+
+    responses = []
+    for t in tickets:
+        sorted_msgs = sorted(t.messages, key=lambda m: m.created_at) if t.messages else []
+        last_msg = sorted_msgs[-1] if sorted_msgs else None
+
+        # Agent yanıt sayısı
+        agent_msgs = [m for m in sorted_msgs if m.sender_user_id != t.reporter_user_id]
+
+        unit_obj = t.unit if hasattr(t, 'unit') and t.unit else None
+        prop_name = unit_obj.property.name if unit_obj and unit_obj.property else "Bilinmeyen"
+        door_num = units_map.get(t.unit_id, "?")
+
+        responses.append({
+            "id": str(t.id),
+            "title": t.title,
+            "description": t.description,
+            "priority": t.priority.value if hasattr(t.priority, 'value') else str(t.priority),
+            "status": t.status.value if hasattr(t.status, 'value') else str(t.status),
+            "created_at": t.created_at.isoformat(),
+            "updated_at": t.updated_at.isoformat(),
+            "unit_door": door_num,
+            "property_name": prop_name,
+            "message_count": len(sorted_msgs),
+            "agent_reply_count": len(agent_msgs),
+            "last_message": last_msg.content if last_msg else None,
+            "last_message_at": last_msg.created_at.isoformat() if last_msg else t.created_at.isoformat(),
+        })
 
     return responses
 
@@ -313,3 +478,57 @@ async def landlord_vacant_units(
         )
         for u in units
     ]
+
+
+# ──────────────────────────────────────────────
+# §4.3.4 — YATIRIM İLGİSİ / BİLGİ AL (Landlord → Agent Chat)
+# ──────────────────────────────────────────────
+
+@router.post("/conversations", status_code=201)
+async def landlord_send_interest(
+    body: LandlordInterestRequest,
+    current_user: User = Depends(deps.get_current_user),
+    agency_id: UUID = Depends(deps.get_current_user_agency_id),
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """
+    Ev Sahibinin yatırım ilgisi bildirmesi — §4.3.4.
+    Emlakçıyla sohbet başlatır ve ilk mesajı gönderir.
+    """
+    # agency's first agent user as recipient
+    agent_stmt = (
+        select(User)
+        .join(AgencyStaff, User.id == AgencyStaff.user_id)
+        .where(
+            AgencyStaff.agency_id == agency_id,
+        )
+        .limit(1)
+    )
+    agent_res = await db.execute(agent_stmt)
+    agent_user = agent_res.scalar_one_or_none()
+
+    if not agent_user:
+        raise HTTPException(status_code=404, detail="Bu emlak ofisinde aktif bir emlakçı bulunamadı.")
+
+    conv_id = uuid.uuid4()
+    conversation = ChatConversation(
+        id=conv_id,
+        agency_id=agency_id,
+        agent_user_id=agent_user.id,
+        client_user_id=current_user.id,
+        property_id=body.property_id,
+    )
+    db.add(conversation)
+
+    msg_id = uuid.uuid4()
+    message = ChatMessage(
+        id=msg_id,
+        conversation_id=conv_id,
+        sender_user_id=current_user.id,
+        message=body.initial_message,
+    )
+    db.add(message)
+    await db.commit()
+
+    return {"conversation_id": str(conv_id), "message": "İlginiz emlakçınıza iletildi. En kısa sürede dönüş yapacaktır."}
+

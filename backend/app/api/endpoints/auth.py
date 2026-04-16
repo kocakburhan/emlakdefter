@@ -1,14 +1,14 @@
 from datetime import timedelta, datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from passlib.context import CryptContext
 from pydantic import BaseModel
 
 from app.api import deps
 from app.database import get_db
 from app.schemas.users import UserLogin, LoginResponse, UserResponse, InviteCreate, InviteResponse, FCMTokenRegister, FCMTokenResponse
-from app.models.users import User, Invitation, AgencyStaff, GlobalUserRole, StaffRole, Agency, UserDeviceToken, DeviceType
+from app.models.users import User, Invitation, AgencyStaff, GlobalUserRole, StaffRole, Agency, UserDeviceToken, DeviceType, PasswordResetAttempt
 from app.models.tenants import Tenant, LandlordUnit
 from app.models.properties import PropertyUnit
 from app.core.firebase import verify_firebase_token
@@ -206,9 +206,19 @@ async def login_with_firebase(
          raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Firebase kimliğinde Telefon Numarası eksik.")
 
     # 2. Kullanıcının sistemde (Global User olarak) olup olmadığını tespit et
-    stmt = select(User).where(User.phone_number == phone_number)
+    stmt = select(User).where(User.firebase_uid == firebase_uid)
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
+
+    # Geriye uyumluluk: firebase_uid set edilmemis kullanıcılar icin phone_number ile kontrol et
+    if user is None:
+        stmt = select(User).where(User.phone_number == phone_number)
+        result = await db.execute(stmt)
+        user = result.scalar_one_or_none()
+        # Mevcut kullanıcıya firebase_uid ataması yap
+        if user and user.firebase_uid is None:
+            user.firebase_uid = firebase_uid
+            await db.commit()
 
     # 3. Eğer kullanıcı yoksa YENİ HESAP AÇ.
     is_new_user = False
@@ -217,6 +227,7 @@ async def login_with_firebase(
     if not user:
         is_new_user = True
         user = User(
+             firebase_uid=firebase_uid,
              phone_number=phone_number,
              full_name=login_in.full_name,
              role=GlobalUserRole.standard
@@ -383,3 +394,56 @@ async def register_fcm_token(
         db.add(new_token)
         await db.commit()
         return FCMTokenResponse(success=True, message="FCM token kaydedildi.")
+
+
+# ──────────────────────────────────────────────
+# PASSWORD RESET OTP — SMS PUMPING KORUMASI
+# PRD §4.1.4-D
+# ──────────────────────────────────────────────
+
+MONTHLY_OTP_LIMIT = 15
+
+
+class RequestPasswordResetRequest(BaseModel):
+    phone_number: str
+
+
+@router.post("/request-password-reset-otp")
+async def request_password_reset_otp(
+    data: RequestPasswordResetRequest,
+    current_user: User = Depends(deps.get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Şifre sıfırlama OTP'si talep eder.
+    PRD §4.1.4-D: Aylık 15 limit kontrolü.
+    """
+    # 1) Limit kontrolü — bu ay içinde kaç talep var?
+    first_of_month = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    stmt = select(func.count(PasswordResetAttempt.id)).where(
+        PasswordResetAttempt.phone_number == data.phone_number,
+        PasswordResetAttempt.attempted_at >= first_of_month,
+    )
+    result = await db.execute(stmt)
+    count = result.scalar() or 0
+
+    if count >= MONTHLY_OTP_LIMIT:
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                "Bu ay için şifre sıfırlama limitine ulaşıldı (15/ay). "
+                "Lütfen emlakçınızla iletişime geçin."
+            ),
+        )
+
+    # 2) Meşru talep — kaydı tut
+    attempt = PasswordResetAttempt(
+        phone_number=data.phone_number,
+        attempted_at=datetime.utcnow(),
+    )
+    db.add(attempt)
+    await db.commit()
+
+    # 3) Firebase OTP gönder (Firebase Admin SDK flow)
+    # Firebase verifyPhoneNumber otomatik olarak çalışır
+    return {"message": "Doğrulama kodu gönderildi."}

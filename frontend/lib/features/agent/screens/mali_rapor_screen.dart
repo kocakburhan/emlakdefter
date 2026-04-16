@@ -4,63 +4,161 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:excel/excel.dart' hide Border;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:uuid/uuid.dart';
 import 'dart:io';
 import '../../../core/theme/colors.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/offline/connectivity_service.dart';
+import '../../../core/offline/offline_storage.dart';
 
 /// Mali Rapor Ekranı — PRD §4.1.6
-/// Özet kartlar, pasta grafik, bar grafik, işlem listesi
+/// "Refined Ledger" — Premium dark muhasebe teması
+/// Staggered animations, mülk bağlama, kaynak etiketleri, kategori yönetimi
 class MaliRaporScreen extends ConsumerStatefulWidget {
-  const MaliRaporScreen({Key? key}) : super(key: key);
+  const MaliRaporScreen({super.key});
 
   @override
   ConsumerState<MaliRaporScreen> createState() => _MaliRaporScreenState();
 }
 
 class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
+  // ─── Data ───────────────────────────────────────────────────────────────────
   Map<String, dynamic>? _report;
   List<dynamic> _transactions = [];
+  List<dynamic> _properties = [];
   bool _isLoading = true;
   String? _error;
+
+  // ─── Filters ────────────────────────────────────────────────────────────────
   String _selectedPeriod = 'this_month';
-  int _touchedPieIndex = -1;
+  String? _selectedCategory;
 
-  late AnimationController _fadeController;
-  late Animation<double> _fadeAnimation;
+  // ─── Chart ─────────────────────────────────────────────────────────────────
+  List<dynamic> _monthlyData = [];
+  List<dynamic> _categoryBreakdown = [];
+  int _touchedCategoryIndex = -1;
 
-  // Yeni işlem formu
+  // ─── Animations ────────────────────────────────────────────────────────────
+  late AnimationController _staggerController;
+
+  // ─── Form ─────────────────────────────────────────────────────────────────
   final _formAmountController = TextEditingController();
   final _formDescController = TextEditingController();
+  final _formCustomCategoryController = TextEditingController();
   String _formType = 'income';
   String _formCategory = 'rent';
+  bool _isCustomCategory = false;
+  String? _formPropertyId;
+
+  // ─── Categories (PRD §4.1.6-B — esnek kategori yönetimi) ───────────────────
+  static const _incomeCategories = [
+    {'value': 'rent', 'label': 'Kira', 'icon': Icons.home},
+    {'value': 'dues', 'label': 'Aidat', 'icon': Icons.water_drop},
+    {'value': 'commission', 'label': 'Komisyon', 'icon': Icons.percent},
+    {'value': 'utility', 'label': 'Fatura', 'icon': Icons.bolt},
+    {'value': 'other_income', 'label': 'Diğer Gelir', 'icon': Icons.attach_money},
+  ];
+
+  static const _expenseCategories = [
+    {'value': 'office', 'label': 'Ofis Gideri', 'icon': Icons.business},
+    {'value': 'maintenance', 'label': 'Bakım/Onarım', 'icon': Icons.build},
+    {'value': 'utility', 'label': 'Fatura', 'icon': Icons.bolt},
+    {'value': 'landlord', 'label': 'Ev Sahibi Ödemesi', 'icon': Icons.person},
+    {'value': 'building_op', 'label': 'Bina Gideri', 'icon': Icons.apartment},
+    {'value': 'other_expense', 'label': 'Diğer Gider', 'icon': Icons.money_off},
+  ];
+
+  // ─── Color palette (refined ledger) ────────────────────────────────────────
+  static const _incomeColor = Color(0xFF4ADE80);
+  static const _expenseColor = Color(0xFFF87171);
+
+  static const _categoryColors = [
+    Color(0xFF4ADE80),
+    Color(0xFF60A5FA),
+    Color(0xFFFBBF24),
+    Color(0xFFA78BFA),
+    Color(0xFF34D399),
+    Color(0xFFF472B6),
+    Color(0xFF38BDF8),
+    Color(0xFFFB923C),
+  ];
+
+  // ─── Transaction source labels ──────────────────────────────────────────────
+  String _txSource(dynamic tx) {
+    final src = tx['source'] as String?;
+    if (src == 'finance_tab') return 'Finans Ekranı';
+    if (src == 'building_ops') return 'Bina Operasyonu';
+    return 'Manuel';
+  }
+
+  Color _txSourceColor(dynamic tx) {
+    final src = tx['source'] as String?;
+    if (src == 'finance_tab') return const Color(0xFF60A5FA);
+    if (src == 'building_ops') return const Color(0xFFA78BFA);
+    return AppColors.textBody.withValues(alpha: 0.5);
+  }
 
   @override
   void initState() {
     super.initState();
-    _fadeController = AnimationController(
+    _staggerController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 1200),
     );
-    _fadeAnimation = CurvedAnimation(parent: _fadeController, curve: Curves.easeOutCubic);
-    _fetchReport();
+    _fetchAllData();
   }
 
-  Future<void> _fetchReport() async {
+  Future<void> _fetchAllData() async {
     setState(() {
       _isLoading = true;
       _error = null;
     });
+
     try {
-      final response = await ApiClient.dio.get('/finance/transactions');
-      if (response.statusCode == 200 && response.data != null) {
-        setState(() {
-          _report = response.data;
-          _transactions = response.data['transactions'] ?? [];
-          _isLoading = false;
-        });
-        _fadeController.forward();
+      final dateRange = _getDateRange(_selectedPeriod);
+
+      final responses = await Future.wait([
+        ApiClient.dio.get('/finance/transactions', queryParameters: {
+          if (dateRange['start'] != null) 'start_date': dateRange['start'],
+          if (dateRange['end'] != null) 'end_date': dateRange['end'],
+          if (_selectedCategory != null) 'category': _selectedCategory,
+          'limit': 200,
+        }),
+        ApiClient.dio.get('/finance/monthly-stats', queryParameters: {
+          'year': DateTime.now().year,
+        }),
+        ApiClient.dio.get('/finance/category-breakdown', queryParameters: {
+          if (dateRange['start'] != null) 'start_date': dateRange['start'],
+          if (dateRange['end'] != null) 'end_date': dateRange['end'],
+        }),
+        ApiClient.dio.get('/properties', queryParameters: {'limit': 100}),
+      ]);
+
+      final txResponse = responses[0];
+      final monthlyResponse = responses[1];
+      final categoryResponse = responses[2];
+      final propsResponse = responses[3];
+
+      if (txResponse.statusCode == 200) {
+        _report = txResponse.data;
+        _transactions = txResponse.data['transactions'] ?? [];
       }
+
+      if (monthlyResponse.statusCode == 200) {
+        _monthlyData = monthlyResponse.data['months'] ?? [];
+      }
+
+      if (categoryResponse.statusCode == 200) {
+        _categoryBreakdown = categoryResponse.data['breakdown'] ?? [];
+      }
+
+      if (propsResponse.statusCode == 200) {
+        _properties = propsResponse.data['properties'] ?? [];
+      }
+
+      _isLoading = false;
+      _staggerController.forward();
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -69,30 +167,60 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
     }
   }
 
+  Map<String, String?> _getDateRange(String period) {
+    final now = DateTime.now();
+    switch (period) {
+      case 'this_week':
+        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+        return {
+          'start': _formatDate(startOfWeek),
+          'end': _formatDate(now),
+        };
+      case 'this_month':
+        return {
+          'start': _formatDate(DateTime(now.year, now.month, 1)),
+          'end': _formatDate(now),
+        };
+      case 'last_month':
+        return {
+          'start': _formatDate(DateTime(now.year, now.month - 1, 1)),
+          'end': _formatDate(DateTime(now.year, now.month, 0)),
+        };
+      case 'this_year':
+        return {
+          'start': _formatDate(DateTime(now.year, 1, 1)),
+          'end': _formatDate(now),
+        };
+      default:
+        return {'start': null, 'end': null};
+    }
+  }
+
+  String _formatDate(DateTime date) =>
+      '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+  // ─── Excel export ───────────────────────────────────────────────────────────
   Future<void> _exportToExcel() async {
     try {
       final excel = Excel.createExcel();
       final sheet = excel['Mali Rapor'];
 
-      // Title row
       final periodLabel = _getPeriodLabel();
-      final titleCell = sheet.cell(CellIndex.indexByString('A1'));
-      titleCell.value = TextCellValue('Emlakdefter Mali Rapor — $periodLabel');
+      sheet.cell(CellIndex.indexByString('A1')).value =
+          TextCellValue('Emlakdefter Mali Rapor — $periodLabel');
 
-      // Summary row
-      final summaryCell = sheet.cell(CellIndex.indexByString('A2'));
-      summaryCell.value = TextCellValue(
-        'Toplam Gelir: ₺${_totalIncome.toStringAsFixed(2)}  |  Toplam Gider: ₺${_totalExpense.toStringAsFixed(2)}  |  Net Bakiye: ₺${_netBalance.toStringAsFixed(2)}',
+      sheet.cell(CellIndex.indexByString('A2')).value = TextCellValue(
+        'Toplam Gelir: ₺${_totalIncome.toStringAsFixed(2)}  |  '
+        'Toplam Gider: ₺${_totalExpense.toStringAsFixed(2)}  |  '
+        'Net Bakiye: ₺${_netBalance.toStringAsFixed(2)}',
       );
 
-      // Header row
-      final headers = ['Tarih', 'Tür', 'Kategori', 'Açıklama', 'Tutar'];
+      final headers = ['Tarih', 'Tür', 'Kategori', 'Mülk', 'Açıklama', 'Tutar'];
       for (var i = 0; i < headers.length; i++) {
-        final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 3));
-        cell.value = TextCellValue(headers[i]);
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 3)).value =
+            TextCellValue(headers[i]);
       }
 
-      // Data rows
       for (var i = 0; i < _transactions.length; i++) {
         final tx = _transactions[i];
         final rowIndex = i + 4;
@@ -101,36 +229,32 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
         final date = tx['transaction_date'] ?? '';
         final desc = tx['description'] ?? '';
         final category = tx['category'] ?? 'other';
+        final propertyName = tx['property_name'] ?? '-';
 
-        final formattedDate = _formatDate(date);
-        final typeLabel = isIncome ? 'Gelir' : 'Gider';
-        final categoryLabel = _capitalize(category);
-        final amountStr = '${isIncome ? '+' : '-'}₺${amount.toStringAsFixed(2)}';
-
-        final rowData = [formattedDate, typeLabel, categoryLabel, desc, amountStr];
+        final rowData = [
+          _formatDateDisplay(date),
+          isIncome ? 'Gelir' : 'Gider',
+          _capitalize(category),
+          propertyName,
+          desc,
+          '${isIncome ? '+' : '-'}₺${amount.toStringAsFixed(2)}',
+        ];
         for (var j = 0; j < rowData.length; j++) {
-          final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: j, rowIndex: rowIndex));
-          cell.value = TextCellValue(rowData[j]);
+          sheet.cell(CellIndex.indexByColumnRow(columnIndex: j, rowIndex: rowIndex))
+              .value = TextCellValue(rowData[j]);
         }
       }
 
-
       final directory = await getTemporaryDirectory();
       final fileName = 'emlakdefter_mali_rapor_${DateTime.now().millisecondsSinceEpoch}.xlsx';
-      final filePath = '${directory.path}/$fileName';
-      final file = File(filePath);
+      final file = File('${directory.path}/$fileName');
       await file.writeAsBytes(excel.encode()!);
-
-      await Share.shareXFiles(
-        [XFile(filePath)],
-        subject: 'Emlakdefter Mali Rapor — $periodLabel',
-        text: 'Mali Raporunuz: $periodLabel dönemine aittir.',
-      );
+      await Share.shareXFiles([XFile(file.path)], subject: 'Emlakdefter Mali Rapor');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Excel raporu hazırlandı!'),
+            content: Text('Excel raporu hazırlandı'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -138,15 +262,14 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Excel export hatası: $e'),
-            backgroundColor: AppColors.error,
-          ),
+          SnackBar(content: Text('Excel export hatası: $e'), backgroundColor: AppColors.error),
         );
       }
     }
   }
 
+  // ─── Yeni işlem ekle ───────────────────────────────────────────────────────
+  // §5.3 — Offline: queues to outbox if no connectivity
   Future<void> _submitNewTransaction() async {
     final amountText = _formAmountController.text.trim();
     final amount = double.tryParse(amountText);
@@ -157,265 +280,508 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
       return;
     }
 
-    try {
-      final today = DateTime.now().toIso8601String().split('T')[0];
-      final resp = await ApiClient.dio.post('/finance/transactions', data: {
-        'type': _formType,
-        'category': _formCategory,
-        'amount': amount,
-        'transaction_date': today,
-        'description': _formDescController.text.trim(),
-      });
+    final category = _isCustomCategory
+        ? 'other'
+        : _formCategory;
+    final customCategoryName = _isCustomCategory
+        ? _formCustomCategoryController.text.trim()
+        : null;
 
-      if (resp.statusCode == 201) {
+    final payload = <String, dynamic>{
+      'type': _formType,
+      'category': category,
+      'amount': amount,
+      'transaction_date': DateTime.now().toIso8601String().split('T')[0],
+      'description': _formDescController.text.trim(),
+      'source': 'manual',
+    };
+
+    if (customCategoryName != null && customCategoryName.isNotEmpty) {
+      payload['custom_category'] = customCategoryName;
+    }
+
+    if (_formPropertyId != null) {
+      payload['property_id'] = _formPropertyId;
+    }
+
+    final conn = ConnectivityService();
+    final storage = OfflineStorage();
+
+    // §5.3 — Offline: queue to local box
+    if (!conn.isOnline) {
+      final localId = const Uuid().v4();
+      await storage.addToTxQueue(localId, {'local_id': localId, ...payload});
+      if (mounted) {
         Navigator.pop(context);
         _formAmountController.clear();
         _formDescController.clear();
-        await _fetchReport();
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('İşlem eklendi!'), backgroundColor: AppColors.success),
+        _formCustomCategoryController.clear();
+        setState(() {
+          _isCustomCategory = false;
+          _formPropertyId = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('İşlem kuyruğa eklendi — bağlantı gelince senkronize edilecek'),
+            backgroundColor: Color(0xFFD4A574),
+          ),
         );
       }
+      return;
+    }
+
+    try {
+      await ApiClient.dio.post('/finance/transactions', data: payload);
+
+      if (mounted) {
+        Navigator.pop(context);
+        _formAmountController.clear();
+        _formDescController.clear();
+        _formCustomCategoryController.clear();
+        setState(() {
+          _isCustomCategory = false;
+          _formPropertyId = null;
+        });
+        await _fetchAllData();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('İşlem eklendi'), backgroundColor: AppColors.success),
+          );
+        }
+      }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Hata: $e'), backgroundColor: AppColors.error),
-      );
+      // §5.3 fallback — queue on network error
+      final localId = const Uuid().v4();
+      await storage.addToTxQueue(localId, {'local_id': localId, ...payload});
+      if (mounted) {
+        Navigator.pop(context);
+        _formAmountController.clear();
+        _formDescController.clear();
+        _formCustomCategoryController.clear();
+        setState(() {
+          _isCustomCategory = false;
+          _formPropertyId = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('İşlem kuyruğa eklendi — bağlantı gelince senkronize edilecek'),
+            backgroundColor: Color(0xFFD4A574),
+          ),
+        );
+      }
     }
   }
 
   void _showAddTransactionSheet(BuildContext ctx) {
+    setState(() {
+      _formType = 'income';
+      _formCategory = 'rent';
+      _isCustomCategory = false;
+      _formPropertyId = null;
+    });
+
     showModalBottomSheet(
       context: ctx,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx2) => Container(
-        padding: EdgeInsets.only(
-          left: 24, right: 24, top: 24,
-          bottom: MediaQuery.of(ctx2).viewInsets.bottom + 24,
-        ),
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      builder: (ctx2) => StatefulBuilder(
+        builder: (ctx2, setSheetState) => Container(
+          padding: EdgeInsets.only(
+            left: 28, right: 28, top: 28,
+            bottom: MediaQuery.of(ctx2).viewInsets.bottom + 32,
+          ),
+          decoration: BoxDecoration(
+            color: const Color(0xFF111118),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.4),
+                blurRadius: 32,
+                offset: const Offset(0, -8),
+              ),
+            ],
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('Yeni İşlem Ekle', style: TextStyle(
-                  color: AppColors.textHeader, fontSize: 20, fontWeight: FontWeight.bold,
+                // Handle bar
+                Center(
+                  child: Container(
+                    width: 40, height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Yeni İşlem',
+                        style: TextStyle(
+                          color: Colors.white, fontSize: 22,
+                          fontWeight: FontWeight.bold, letterSpacing: -0.5,
+                        )),
+                    IconButton(
+                      onPressed: () => Navigator.pop(ctx2),
+                      icon: Icon(Icons.close, color: Colors.white.withValues(alpha: 0.5)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // Gelir / Gider toggle
+                _buildTypeSelector(setSheetState),
+                const SizedBox(height: 20),
+
+                // Kategori seçimi
+                const Text('Kategori', style: TextStyle(
+                  color: Colors.white, fontSize: 12,
+                  fontWeight: FontWeight.w600, letterSpacing: 1,
                 )),
-                IconButton(
-                  onPressed: () => Navigator.pop(ctx2),
-                  icon: const Icon(Icons.close, color: AppColors.textBody),
+                const SizedBox(height: 10),
+                _buildCategorySelector(setSheetState),
+                const SizedBox(height: 16),
+
+                // Özel kategori input
+                if (_isCustomCategory) ...[
+                  TextField(
+                    controller: _formCustomCategoryController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'ör: nakliye, sigorta, temsilci ücreti',
+                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.25)),
+                      filled: true,
+                      fillColor: Colors.white.withValues(alpha: 0.05),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                ],
+
+                // Mülk bağlama (PRD §4.1.6-B — Bağlı Kayıt)
+                const Text('Mülk Bağla (opsiyonel)', style: TextStyle(
+                  color: Colors.white, fontSize: 12,
+                  fontWeight: FontWeight.w600, letterSpacing: 1,
+                )),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                  ),
+                  child: DropdownButton<String?>(
+                    value: _formPropertyId,
+                    isExpanded: true,
+                    dropdownColor: const Color(0xFF1E1E28),
+                    underline: const SizedBox(),
+                    hint: Text('Mülk seçin...',
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.3))),
+                    icon: Icon(Icons.keyboard_arrow_down,
+                        color: Colors.white.withValues(alpha: 0.4)),
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text('Mülk bağlama', style: TextStyle(color: Colors.white))),
+                      ..._properties.map((p) => DropdownMenuItem(
+                            value: p['id'] as String,
+                            child: Text(p['name'] ?? '—', style: const TextStyle(color: Colors.white)),
+                          )),
+                    ],
+                    onChanged: (v) => setSheetState(() => _formPropertyId = v),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Tutar
+                TextField(
+                  controller: _formAmountController,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                  decoration: InputDecoration(
+                    hintText: '0',
+                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.2)),
+                    prefixText: '₺ ',
+                    prefixStyle: const TextStyle(color: Colors.white, fontSize: 20),
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.05),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // Açıklama
+                TextField(
+                  controller: _formDescController,
+                  style: const TextStyle(color: Colors.white),
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    hintText: 'Açıklama (opsiyonel)',
+                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.25)),
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.05),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  ),
+                ),
+                const SizedBox(height: 28),
+
+                // Kaydet butonu
+                GestureDetector(
+                  onTap: _submitNewTransaction,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.accent.withValues(alpha: 0.9),
+                          AppColors.accent,
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.accent.withValues(alpha: 0.35),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: const Center(
+                      child: Text('Kaydet',
+                          style: TextStyle(
+                            color: Colors.white, fontSize: 16,
+                            fontWeight: FontWeight.bold, letterSpacing: 0.5,
+                          )),
+                    ),
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+          ),
+        ),
+      ),
+    );
+  }
 
-            // Gelir / Gider seçimi
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _formType = 'income'),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: _formType == 'income' ? AppColors.success.withValues(alpha: 0.15) : Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Center(
-                          child: Text('Gelir', style: TextStyle(
-                            color: _formType == 'income' ? AppColors.success : AppColors.textBody,
-                            fontWeight: FontWeight.bold,
-                          )),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _formType = 'expense'),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: _formType == 'expense' ? AppColors.error.withValues(alpha: 0.15) : Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Center(
-                          child: Text('Gider', style: TextStyle(
-                            color: _formType == 'expense' ? AppColors.error : AppColors.textBody,
-                            fontWeight: FontWeight.bold,
-                          )),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
+  Widget _buildTypeSelector(void Function(void Function()) setSheetState) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+      ),
+      child: Row(
+        children: [
+          Expanded(child: _typeButton('income', 'Gelir', _incomeColor, setSheetState)),
+          Expanded(child: _typeButton('expense', 'Gider', _expenseColor, setSheetState)),
+        ],
+      ),
+    );
+  }
 
-            // Kategori seçimi
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _catChip('rent', 'Kira', Icons.home),
-                _catChip('dues', 'Aidat', Icons.water_drop),
-                _catChip('commission', 'Komisyon', Icons.percent),
-                _catChip('maintenance', 'Bakım', Icons.build),
-                _catChip('utility', 'Fatura', Icons.electrical_services),
-                _catChip('other', 'Diğer', Icons.more_horiz),
-              ].map((chip) {
-                final isSelected = _formCategory == chip[1];
-                return GestureDetector(
-                  onTap: () => setState(() => _formCategory = chip[1]),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isSelected ? AppColors.accent.withValues(alpha: 0.15) : AppColors.background,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: isSelected ? AppColors.accent : Colors.transparent),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(chip[2], size: 16, color: isSelected ? AppColors.accent : AppColors.textBody),
-                        const SizedBox(width: 6),
-                        Text(chip[0], style: TextStyle(color: isSelected ? AppColors.accent : AppColors.textBody, fontSize: 13)),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 16),
+  Widget _typeButton(String type, String label, Color color,
+      void Function(void Function()) setSheetState) {
+    final isSelected = _formType == type;
+    return GestureDetector(
+      onTap: () => setSheetState(() {
+        _formType = type;
+        _formCategory = type == 'income' ? 'rent' : 'office';
+        _isCustomCategory = false;
+      }),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withValues(alpha: 0.18) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Center(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (isSelected) ...[
+                Icon(isSelected ? Icons.arrow_upward : Icons.arrow_downward,
+                    color: color, size: 16),
+                const SizedBox(width: 6),
+              ],
+              Text(label,
+                  style: TextStyle(
+                    color: isSelected ? color : Colors.white.withValues(alpha: 0.4),
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontSize: 15,
+                  )),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
-            // Tutar
-            TextField(
-              controller: _formAmountController,
-              keyboardType: TextInputType.number,
-              style: const TextStyle(color: AppColors.textHeader, fontSize: 18, fontWeight: FontWeight.bold),
-              decoration: InputDecoration(
-                labelText: 'Tutar (₺)',
-                labelStyle: TextStyle(color: AppColors.textBody.withValues(alpha: 0.6)),
-                prefixText: '₺ ',
-                prefixStyle: const TextStyle(color: AppColors.textHeader, fontSize: 18),
-                filled: true,
-                fillColor: AppColors.background,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              ),
-            ),
-            const SizedBox(height: 12),
+  Widget _buildCategorySelector(void Function(void Function()) setSheetState) {
+    final categories =
+        _formType == 'income' ? _incomeCategories : _expenseCategories;
+    return Wrap(
+      spacing: 8, runSpacing: 8,
+      children: [
+        ...categories.map((cat) => _categoryChip(cat, setSheetState)),
+        _customCategoryChip(setSheetState),
+      ],
+    );
+  }
 
-            // Açıklama
-            TextField(
-              controller: _formDescController,
-              style: const TextStyle(color: AppColors.textHeader),
-              decoration: InputDecoration(
-                labelText: 'Açıklama (opsiyonel)',
-                labelStyle: TextStyle(color: AppColors.textBody.withValues(alpha: 0.6)),
-                filled: true,
-                fillColor: AppColors.background,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Gönder
-            ElevatedButton(
-              onPressed: _submitNewTransaction,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accent,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-              child: const Text('Kaydet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            ),
+  Widget _categoryChip(Map<String, dynamic> cat,
+      void Function(void Function()) setSheetState) {
+    final isSelected = !_isCustomCategory && _formCategory == cat['value'];
+    final color = _formType == 'income' ? _incomeColor : _expenseColor;
+    return GestureDetector(
+      onTap: () => setSheetState(() {
+        _formCategory = cat['value'];
+        _isCustomCategory = false;
+      }),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: isSelected ? color.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.07),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(cat['icon'], size: 15,
+                color: isSelected ? color : Colors.white.withValues(alpha: 0.4)),
+            const SizedBox(width: 7),
+            Text(cat['label'],
+                style: TextStyle(
+                  color: isSelected ? color : Colors.white.withValues(alpha: 0.5),
+                  fontSize: 12, fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                )),
           ],
         ),
       ),
     );
   }
 
-  dynamic _catChip(String val, String lbl, IconData ic) => [lbl, val, ic];
-
-  double get _totalIncome => (_report?['total_income'] ?? 0).toDouble();
-  double get _totalExpense => (_report?['total_expense'] ?? 0).toDouble();
-  double get _netBalance => (_report?['net_balance'] ?? 0).toDouble();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          _buildAppBar(),
-          if (_isLoading)
-            const SliverFillRemaining(
-              child: Center(
-                child: CircularProgressIndicator(color: AppColors.accent),
-              ),
-            )
-          else if (_error != null)
-            SliverFillRemaining(
-              child: _buildErrorState(),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  const SizedBox(height: 8),
-                  _buildPeriodSelector(),
-                  const SizedBox(height: 20),
-                  FadeTransition(opacity: _fadeAnimation, child: _buildSummaryCards()),
-                  const SizedBox(height: 24),
-                  FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: _buildChartSection(),
-                  ),
-                  const SizedBox(height: 24),
-                  FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: _buildTransactionList(),
-                  ),
-                  const SizedBox(height: 120),
-                ]),
-              ),
-            ),
-        ],
+  Widget _customCategoryChip(void Function(void Function()) setSheetState) {
+    final color = _formType == 'income' ? _incomeColor : _expenseColor;
+    return GestureDetector(
+      onTap: () => setSheetState(() => _isCustomCategory = true),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          color: _isCustomCategory
+              ? color.withValues(alpha: 0.15)
+              : Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: _isCustomCategory
+                ? color.withValues(alpha: 0.5)
+                : Colors.white.withValues(alpha: 0.07),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.add, size: 15,
+                color: _isCustomCategory ? color : Colors.white.withValues(alpha: 0.4)),
+            const SizedBox(width: 7),
+            Text('Yeni Kategori',
+                style: TextStyle(
+                  color: _isCustomCategory ? color : Colors.white.withValues(alpha: 0.5),
+                  fontSize: 12,
+                  fontWeight: _isCustomCategory ? FontWeight.w600 : FontWeight.normal,
+                )),
+          ],
+        ),
       ),
     );
   }
 
+  // ─── Computed ──────────────────────────────────────────────────────────────
+  double get _totalIncome => (_report?['total_income'] ?? 0).toDouble();
+  double get _totalExpense => (_report?['total_expense'] ?? 0).toDouble();
+  double get _netBalance => _totalIncome - _totalExpense;
+  int get _incomeCount =>
+      _transactions.where((t) => t['type'] == 'income').length;
+  int get _expenseCount =>
+      _transactions.where((t) => t['type'] == 'expense').length;
+
+  // ─── Build ─────────────────────────────────────────────────────────────────
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0D0D14),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+          : _error != null
+              ? _buildErrorState()
+              : CustomScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  slivers: [
+                    _buildAppBar(),
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      sliver: SliverList(
+                        delegate: SliverChildListDelegate([
+                          const SizedBox(height: 8),
+                          _buildPeriodSelector(),
+                          const SizedBox(height: 16),
+                          _buildSummaryCards(),
+                          const SizedBox(height: 24),
+                          _buildChartSection(),
+                          const SizedBox(height: 24),
+                          _buildCategoryFilter(),
+                          const SizedBox(height: 24),
+                          _buildTransactionList(),
+                          const SizedBox(height: 120),
+                        ]),
+                      ),
+                    ),
+                  ],
+                ),
+    );
+  }
+
+  // ─── AppBar ────────────────────────────────────────────────────────────────
   Widget _buildAppBar() {
     return SliverAppBar(
-      backgroundColor: AppColors.background,
-      foregroundColor: AppColors.textHeader,
+      backgroundColor: const Color(0xFF0D0D14),
+      foregroundColor: Colors.white,
       pinned: true,
-      expandedHeight: 100,
+      expandedHeight: 96,
       leading: IconButton(
+        onPressed: () => Navigator.pop(context),
         icon: Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
+            color: Colors.white.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(14),
           ),
           child: const Icon(Icons.arrow_back, size: 20),
         ),
-        onPressed: () => Navigator.pop(context),
       ),
       flexibleSpace: FlexibleSpaceBar(
         titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
@@ -424,87 +790,88 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              'Mali Rapor',
-              style: TextStyle(
-                color: AppColors.textHeader,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              _getPeriodLabel(),
-              style: TextStyle(
-                color: AppColors.textBody,
-                fontSize: 11,
-              ),
-            ),
+            const Text('Mali Rapor',
+                style: TextStyle(
+                  color: Colors.white, fontSize: 18,
+                  fontWeight: FontWeight.bold, letterSpacing: -0.3,
+                )),
+            Text(_getPeriodLabel(),
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.45), fontSize: 11,
+                )),
           ],
         ),
       ),
       actions: [
         IconButton(
+          onPressed: _fetchAllData,
           icon: Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(12),
+              color: Colors.white.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: const Icon(Icons.refresh, size: 20),
           ),
-          onPressed: _fetchReport,
         ),
         IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.download_rounded, size: 20, color: AppColors.success),
-          ),
           onPressed: _transactions.isEmpty ? null : _exportToExcel,
+          icon: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(Icons.download_rounded, size: 20, color: _incomeColor),
+          ),
         ),
         const SizedBox(width: 4),
         GestureDetector(
           onTap: () => _showAddTransactionSheet(context),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [AppColors.accent.withValues(alpha: 0.8), AppColors.accent]),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [BoxShadow(color: AppColors.accent.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))],
+              gradient: LinearGradient(
+                colors: [AppColors.accent.withValues(alpha: 0.85), AppColors.accent],
+              ),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.accent.withValues(alpha: 0.3),
+                  blurRadius: 12, offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.add, color: Colors.white, size: 18),
-                SizedBox(width: 4),
-                Text('Yeni İşlem', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                SizedBox(width: 6),
+                Text('İşlem',
+                    style: TextStyle(
+                      color: Colors.white, fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    )),
               ],
             ),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 12),
       ],
     );
   }
 
   String _getPeriodLabel() {
     switch (_selectedPeriod) {
-      case 'this_week':
-        return 'Bu Hafta';
-      case 'this_month':
-        return 'Bu Ay';
-      case 'last_month':
-        return 'Geçen Ay';
-      case 'this_year':
-        return 'Bu Yıl';
-      default:
-        return 'Bu Ay';
+      case 'this_week': return 'Bu Hafta';
+      case 'this_month': return 'Bu Ay';
+      case 'last_month': return 'Geçen Ay';
+      case 'this_year': return 'Bu Yıl';
+      default: return 'Bu Ay';
     }
   }
 
+  // ─── Period Selector ───────────────────────────────────────────────────────
   Widget _buildPeriodSelector() {
     final periods = [
       ('this_week', 'Hafta'),
@@ -512,84 +879,94 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
       ('last_month', 'Geçen Ay'),
       ('this_year', 'Yıl'),
     ];
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeOutCubic,
+      builder: (context, anim, child) => Opacity(
+        opacity: anim,
+        child: Transform.translate(offset: Offset(0, 12 * (1 - anim)), child: child),
       ),
-      child: Row(
-        children: periods.map((p) {
-          final isSelected = _selectedPeriod == p.$1;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() => _selectedPeriod = p.$1),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.accent : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  p.$2,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : AppColors.textBody,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    fontSize: 12,
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        ),
+        child: Row(
+          children: periods.map((p) {
+            final isSelected = _selectedPeriod == p.$1;
+            return Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _selectedPeriod = p.$1),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.accent : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  child: Text(p.$2, textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.4),
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        fontSize: 12,
+                      )),
                 ),
               ),
-            ),
-          );
-        }).toList(),
+            );
+          }).toList(),
+        ),
       ),
     );
   }
 
+  // ─── Özet Kartları (Staggered) ────────────────────────────────────────────
   Widget _buildSummaryCards() {
     return Column(
       children: [
         Row(
           children: [
-            Expanded(child: _buildMetricCard(
-              'Toplam Gelir',
-              '₺${_formatNumber(_totalIncome)}',
-              Icons.trending_up_rounded,
-              AppColors.success,
-              'arrow_upward',
-            )),
+            Expanded(child: _staggerCard(0, _buildIncomeCard())),
             const SizedBox(width: 12),
-            Expanded(child: _buildMetricCard(
-              'Toplam Gider',
-              '₺${_formatNumber(_totalExpense)}',
-              Icons.trending_down_rounded,
-              AppColors.error,
-              'arrow_downward',
-            )),
+            Expanded(child: _staggerCard(1, _buildExpenseCard())),
           ],
         ),
         const SizedBox(height: 12),
-        _buildNetBalanceCard(),
+        _staggerCard(2, _buildNetBalanceCard()),
       ],
     );
   }
 
-  Widget _buildMetricCard(String label, String value, IconData icon, Color color, String arrow) {
+  Widget _staggerCard(int index, Widget child) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: 600 + index * 100),
+      curve: Curves.easeOutCubic,
+      builder: (context, anim, _) => Opacity(
+        opacity: anim,
+        child: Transform.translate(
+          offset: Offset(0, 24 * (1 - anim)),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIncomeCard() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            color.withOpacity(0.25),
-            color.withOpacity(0.08),
+            _incomeColor.withValues(alpha: 0.15),
+            _incomeColor.withValues(alpha: 0.04),
           ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+          begin: Alignment.topLeft, end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.3)),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _incomeColor.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -600,31 +977,89 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
+                  color: _incomeColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: color, size: 22),
+                child: const Icon(Icons.trending_up_rounded, color: _incomeColor, size: 22),
               ),
-              Icon(Icons.arrow_forward_ios, color: color.withOpacity(0.5), size: 14),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _incomeColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text('$_incomeCount işlem',
+                    style: const TextStyle(color: _incomeColor, fontSize: 10, fontWeight: FontWeight.w600)),
+              ),
             ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            label,
-            style: TextStyle(color: AppColors.textBody, fontSize: 12),
-          ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 18),
+          Text('Toplam Gelir',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 11, letterSpacing: 0.5)),
+          const SizedBox(height: 6),
           FittedBox(
             fit: BoxFit.scaleDown,
-            child: Text(
-              value,
-              style: TextStyle(
-                color: color,
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                letterSpacing: -0.5,
+            child: Text('₺${_formatNumber(_totalIncome)}',
+                style: const TextStyle(
+                  color: _incomeColor, fontSize: 24,
+                  fontWeight: FontWeight.bold, letterSpacing: -0.8,
+                )),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExpenseCard() {
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            _expenseColor.withValues(alpha: 0.15),
+            _expenseColor.withValues(alpha: 0.04),
+          ],
+          begin: Alignment.topLeft, end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _expenseColor.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: _expenseColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.trending_down_rounded, color: _expenseColor, size: 22),
               ),
-            ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _expenseColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text('$_expenseCount işlem',
+                    style: const TextStyle(color: _expenseColor, fontSize: 10, fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Text('Toplam Gider',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 11, letterSpacing: 0.5)),
+          const SizedBox(height: 6),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text('₺${_formatNumber(_totalExpense)}',
+                style: const TextStyle(
+                  color: _expenseColor, fontSize: 24,
+                  fontWeight: FontWeight.bold, letterSpacing: -0.8,
+                )),
           ),
         ],
       ),
@@ -633,39 +1068,38 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
 
   Widget _buildNetBalanceCard() {
     final isPositive = _netBalance >= 0;
-    final color = isPositive ? AppColors.success : AppColors.error;
+    final color = isPositive ? _incomeColor : _expenseColor;
+    final ratio = _totalExpense > 0 ? (_totalIncome / _totalExpense) : 0.0;
+
     return Container(
-      width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppColors.accent.withOpacity(0.2),
-            color.withOpacity(0.12),
+            AppColors.accent.withValues(alpha: 0.12),
+            color.withValues(alpha: 0.08),
           ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+          begin: Alignment.topLeft, end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.accent.withOpacity(0.25)),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.15)),
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  AppColors.accent.withOpacity(0.3),
-                  color.withOpacity(0.2),
+                  AppColors.accent.withValues(alpha: 0.2),
+                  color.withValues(alpha: 0.12),
                 ],
               ),
               shape: BoxShape.circle,
             ),
             child: Icon(
               isPositive ? Icons.account_balance_wallet : Icons.warning_amber_rounded,
-              color: AppColors.textHeader,
-              size: 28,
+              color: Colors.white, size: 28,
             ),
           ),
           const SizedBox(width: 20),
@@ -673,18 +1107,23 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Net Bakiye',
-                  style: TextStyle(color: AppColors.textBody, fontSize: 13),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${isPositive ? '+' : ''}₺${_formatNumber(_netBalance)}',
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: -1,
+                Text('NET BAKİYE',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.4),
+                      fontSize: 10, fontWeight: FontWeight.w700,
+                      letterSpacing: 1.5,
+                    )),
+                const SizedBox(height: 6),
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: _netBalance),
+                  duration: const Duration(milliseconds: 900),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, val, _) => Text(
+                    '${isPositive ? '+' : ''}₺${_formatNumber(val)}',
+                    style: TextStyle(
+                      color: color, fontSize: 30,
+                      fontWeight: FontWeight.bold, letterSpacing: -1,
+                    ),
                   ),
                 ),
               ],
@@ -693,25 +1132,19 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
           Column(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
+                  color: color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  '${((_totalIncome / (_totalExpense == 0 ? 1 : _totalExpense)) * 100).toStringAsFixed(0)}%',
-                  style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
+                  ratio > 0 ? '${ratio.toStringAsFixed(1)}x' : '—',
+                  style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 15),
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                'Gelir/Oran',
-                style: TextStyle(color: AppColors.textBody, fontSize: 10),
-              ),
+              const SizedBox(height: 5),
+              Text('Gel/Gid Oranı',
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 10)),
             ],
           ),
         ],
@@ -719,55 +1152,64 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
     );
   }
 
+  // ─── Grafikler ─────────────────────────────────────────────────────────────
   Widget _buildChartSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('Gelir-Gider Dağılımı'),
-        const SizedBox(height: 16),
+        _staggerLabel(3, 'KATEGORİ DAĞILIMI'),
+        const SizedBox(height: 14),
         Container(
-          height: 260,
-          padding: const EdgeInsets.all(20),
+          height: 270,
+          padding: const EdgeInsets.all(22),
           decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.05)),
+            color: Colors.white.withValues(alpha: 0.03),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
           ),
-          child: _totalIncome == 0 && _totalExpense == 0
+          child: _categoryBreakdown.isEmpty
               ? _buildEmptyChart()
               : Row(
                   children: [
-                    Expanded(child: _buildPieChart()),
+                    Expanded(child: _buildCategoryPieChart()),
                     const SizedBox(width: 20),
-                    Expanded(child: _buildPieLegend()),
+                    Expanded(child: _buildCategoryLegend()),
                   ],
                 ),
         ),
-        const SizedBox(height: 24),
-        _buildSectionTitle('Aylık Trend'),
-        const SizedBox(height: 16),
+        const SizedBox(height: 28),
+        _staggerLabel(4, 'AYLIK TREND'),
+        const SizedBox(height: 14),
         Container(
-          height: 200,
-          padding: const EdgeInsets.all(20),
+          height: 220,
+          padding: const EdgeInsets.all(22),
           decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.05)),
+            color: Colors.white.withValues(alpha: 0.03),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
           ),
-          child: _buildBarChart(),
+          child: _monthlyData.isEmpty ? _buildEmptyChart() : _buildBarChart(),
         ),
       ],
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: TextStyle(
-        color: AppColors.textHeader,
-        fontSize: 16,
-        fontWeight: FontWeight.bold,
-        letterSpacing: 0.5,
+  Widget _staggerLabel(int index, String text) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: 500 + index * 80),
+      curve: Curves.easeOutCubic,
+      builder: (context, anim, _) => Opacity(
+        opacity: anim,
+        child: Transform.translate(
+          offset: Offset(-12 * (1 - anim), 0),
+          child: Text(text,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.6),
+                fontSize: 11, fontWeight: FontWeight.w700,
+                letterSpacing: 1.8,
+              )),
+        ),
       ),
     );
   }
@@ -777,18 +1219,21 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.pie_chart_outline, size: 48, color: AppColors.textBody.withOpacity(0.3)),
-          const SizedBox(height: 12),
-          Text(
-            'Henüz veri yok',
-            style: TextStyle(color: AppColors.textBody, fontSize: 14),
-          ),
+          Icon(Icons.pie_chart_outline,
+              size: 52, color: Colors.white.withValues(alpha: 0.1)),
+          const SizedBox(height: 14),
+          Text('Henüz veri yok',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.25), fontSize: 14)),
         ],
       ),
     );
   }
 
-  Widget _buildPieChart() {
+  Widget _buildCategoryPieChart() {
+    final total = _categoryBreakdown.fold<double>(
+        0, (sum, b) => sum + (b['total'] ?? 0).toDouble());
+    if (total == 0) return _buildEmptyChart();
+
     return PieChart(
       PieChartData(
         pieTouchData: PieTouchData(
@@ -797,137 +1242,104 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
               if (!event.isInterestedForInteractions ||
                   response == null ||
                   response.touchedSection == null) {
-                _touchedPieIndex = -1;
+                _touchedCategoryIndex = -1;
                 return;
               }
-              _touchedPieIndex = response.touchedSection!.touchedSectionIndex;
+              _touchedCategoryIndex =
+                  response.touchedSection!.touchedSectionIndex;
             });
           },
         ),
         borderData: FlBorderData(show: false),
-        sectionsSpace: 3,
-        centerSpaceRadius: 45,
-        sections: [
-          PieChartSectionData(
-            value: _totalIncome,
-            color: AppColors.success,
-            radius: _touchedPieIndex == 0 ? 60 : 50,
-            title: _touchedPieIndex == 0
-                ? '${((_totalIncome / (_totalIncome + _totalExpense == 0 ? 1 : _totalIncome + _totalExpense)) * 100).toStringAsFixed(0)}%'
-                : '',
+        sectionsSpace: 2,
+        centerSpaceRadius: 48,
+        sections: List.generate(_categoryBreakdown.length, (i) {
+          final item = _categoryBreakdown[i];
+          final value = (item['total'] ?? 0).toDouble();
+          final pct = value / total * 100;
+          final isTouched = _touchedCategoryIndex == i;
+          return PieChartSectionData(
+            value: value,
+            color: _categoryColors[i % _categoryColors.length],
+            radius: isTouched ? 68 : 58,
+            title: pct > 5 ? '${pct.toStringAsFixed(0)}%' : '',
             titleStyle: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
+              color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12,
             ),
-          ),
-          PieChartSectionData(
-            value: _totalExpense,
-            color: AppColors.error,
-            radius: _touchedPieIndex == 1 ? 60 : 50,
-            title: _touchedPieIndex == 1
-                ? '${((_totalExpense / (_totalIncome + _totalExpense == 0 ? 1 : _totalIncome + _totalExpense)) * 100).toStringAsFixed(0)}%'
-                : '',
-            titleStyle: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-          ),
-        ],
+          );
+        }),
       ),
     );
   }
 
-  Widget _buildPieLegend() {
+  Widget _buildCategoryLegend() {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildLegendItem('Gelir', _totalIncome, AppColors.success),
-        const SizedBox(height: 20),
-        _buildLegendItem('Gider', _totalExpense, AppColors.error),
-        const SizedBox(height: 20),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.accent.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: AppColors.accent,
-                  borderRadius: BorderRadius.circular(3),
+      children: List.generate(
+        _categoryBreakdown.length.clamp(0, 6),
+        (i) {
+          final item = _categoryBreakdown[i];
+          final color = _categoryColors[i % _categoryColors.length];
+          final total = _categoryBreakdown.fold<double>(
+              0, (sum, b) => sum + (b['total'] ?? 0).toDouble());
+          final pct = total > 0
+              ? ((item['total'] ?? 0).toDouble() / total * 100).toStringAsFixed(1)
+              : '0';
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 10, height: 10,
+                  decoration: BoxDecoration(
+                    color: color, borderRadius: BorderRadius.circular(3),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Net Marj',
-                  style: TextStyle(color: AppColors.textBody, fontSize: 12),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(_capitalize(item['category'] ?? ''),
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.65), fontSize: 12,
+                      ),
+                      overflow: TextOverflow.ellipsis),
                 ),
-              ),
-              Text(
-                '${(_netBalance >= 0 ? '+' : '')}${(_netBalance / (_totalIncome == 0 ? 1 : _totalIncome) * 100).toStringAsFixed(1)}%',
-                style: TextStyle(
-                  color: _netBalance >= 0 ? AppColors.success : AppColors.error,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
+                Text(
+                  '₺${_formatNumber((item['total'] ?? 0).toDouble())}',
+                  style: const TextStyle(
+                    color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLegendItem(String label, double value, Color color) {
-    return Row(
-      children: [
-        Container(
-          width: 14,
-          height: 14,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(label, style: TextStyle(color: AppColors.textBody, fontSize: 13)),
-        ),
-        Text(
-          '₺${_formatNumber(value)}',
-          style: TextStyle(
-            color: color,
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
-          ),
-        ),
-      ],
+                const SizedBox(width: 6),
+                Text('($pct%)',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.35), fontSize: 10,
+                    )),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
   Widget _buildBarChart() {
-    final months = ['O', 'Ş', 'M', 'N', 'M', 'H', 'T', 'A', 'E', 'E', 'K', 'A'];
-    // Simulated monthly data — in production, this would come from the API
-    final incomeData = [45, 52, 38, 60, 55, 48, 65, 70, 58, 72, 68, 80];
-    final expenseData = [20, 25, 30, 22, 35, 28, 30, 32, 40, 35, 38, 30];
+    if (_monthlyData.isEmpty) return _buildEmptyChart();
+
+    final maxVal = _monthlyData.fold<double>(0, (max, m) {
+      final income = (m['income'] ?? 0).toDouble();
+      final expense = (m['expense'] ?? 0).toDouble();
+      return [max, income, expense].reduce((a, b) => a > b ? a : b);
+    });
 
     return BarChart(
       BarChartData(
         borderData: FlBorderData(show: false),
         gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          horizontalInterval: 20,
+          show: true, drawVerticalLine: false,
+          horizontalInterval: maxVal > 0 ? maxVal / 4 : 20,
           getDrawingHorizontalLine: (value) => FlLine(
-            color: Colors.white.withOpacity(0.05),
+            color: Colors.white.withValues(alpha: 0.04),
             strokeWidth: 1,
           ),
         ),
@@ -936,46 +1348,43 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
           rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 30,
-              interval: 20,
-              getTitlesWidget: (value, meta) => Text(
-                '₺${value.toInt()}K',
-                style: TextStyle(color: AppColors.textBody, fontSize: 10),
+              showTitles: true, reservedSize: 44, interval: maxVal > 0 ? maxVal / 4 : 20,
+              getTitlesWidget: (value, _) => Text(
+                '₺${_formatNumber(value)}',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 9),
               ),
             ),
           ),
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              getTitlesWidget: (value, meta) {
+              getTitlesWidget: (value, _) {
                 final idx = value.toInt();
-                if (idx < 0 || idx >= months.length) return const SizedBox();
+                if (idx < 0 || idx >= _monthlyData.length) return const SizedBox();
+                final monthName = (_monthlyData[idx]['month_name'] ?? '') as String;
                 return Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
-                    months[idx],
-                    style: TextStyle(color: AppColors.textBody, fontSize: 10),
+                    monthName.length > 3 ? monthName.substring(0, 3) : monthName,
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 10),
                   ),
                 );
               },
             ),
           ),
         ),
-        barGroups: List.generate(12, (i) {
+        barGroups: List.generate(_monthlyData.length, (i) {
+          final income = (_monthlyData[i]['income'] ?? 0).toDouble();
+          final expense = (_monthlyData[i]['expense'] ?? 0).toDouble();
           return BarChartGroupData(
             x: i,
             barRods: [
               BarChartRodData(
-                toY: incomeData[i].toDouble(),
-                color: AppColors.success,
-                width: 6,
+                toY: income, color: _incomeColor, width: 7,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
               ),
               BarChartRodData(
-                toY: expenseData[i].toDouble(),
-                color: AppColors.error.withOpacity(0.7),
-                width: 6,
+                toY: expense, color: _expenseColor.withValues(alpha: 0.75), width: 7,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
               ),
             ],
@@ -985,6 +1394,75 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
     );
   }
 
+  // ─── Kategori Filtresi ────────────────────────────────────────────────────
+  Widget _buildCategoryFilter() {
+    final categories = [
+      {'value': '', 'label': 'Tümü', 'icon': Icons.layers},
+      {'value': 'rent', 'label': 'Kira', 'icon': Icons.home},
+      {'value': 'dues', 'label': 'Aidat', 'icon': Icons.water_drop},
+      {'value': 'commission', 'label': 'Komisyon', 'icon': Icons.percent},
+      {'value': 'office', 'label': 'Ofis', 'icon': Icons.business},
+      {'value': 'landlord', 'label': 'Ev Sahibi', 'icon': Icons.person},
+      {'value': 'building_op', 'label': 'Bina', 'icon': Icons.apartment},
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _staggerLabel(5, 'KATEGORİ FİLTRELE'),
+        const SizedBox(height: 12),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: categories.map((cat) {
+              final isSelected = _selectedCategory == cat['value'];
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: GestureDetector(
+                  onTap: () => setState(() => _selectedCategory = cat['value'] as String?),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.accent.withValues(alpha: 0.2)
+                          : Colors.white.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(
+                        color: isSelected
+                            ? AppColors.accent.withValues(alpha: 0.4)
+                            : Colors.white.withValues(alpha: 0.06),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(cat['icon'] as IconData, size: 14,
+                            color: isSelected
+                                ? AppColors.accent
+                                : Colors.white.withValues(alpha: 0.35)),
+                        const SizedBox(width: 7),
+                        Text((cat['label'] ?? '').toString(),
+                            style: TextStyle(
+                              color: isSelected
+                                  ? AppColors.accent
+                                  : Colors.white.withValues(alpha: 0.45),
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                              fontSize: 12,
+                            )),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ─── İşlem Listesi ─────────────────────────────────────────────────────────
   Widget _buildTransactionList() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -992,123 +1470,194 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _buildSectionTitle('Son İşlemler'),
+            _staggerLabel(6, 'İŞLEMLER'),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
               decoration: BoxDecoration(
-                color: AppColors.accent.withOpacity(0.1),
+                color: AppColors.accent.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                '${_transactions.length} işlem',
-                style: TextStyle(color: AppColors.accent, fontSize: 11, fontWeight: FontWeight.bold),
+                '${_transactions.length} kayıt',
+                style: const TextStyle(
+                  color: AppColors.accent, fontSize: 11, fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         if (_transactions.isEmpty)
           Container(
-            padding: const EdgeInsets.all(32),
+            padding: const EdgeInsets.all(40),
             decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withOpacity(0.05)),
+              color: Colors.white.withValues(alpha: 0.03),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
             ),
             child: Center(
               child: Column(
                 children: [
-                  Icon(Icons.receipt_long_outlined, size: 48, color: AppColors.textBody.withOpacity(0.3)),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Henüz işlem kaydı yok',
-                    style: TextStyle(color: AppColors.textBody),
+                  Icon(Icons.receipt_long_outlined,
+                      size: 52, color: Colors.white.withValues(alpha: 0.08)),
+                  const SizedBox(height: 16),
+                  Text('Henüz işlem kaydı yok',
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.25))),
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: () => _showAddTransactionSheet(context),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('İlk işlemi ekle'),
                   ),
                 ],
               ),
             ),
           )
         else
-          ...List.generate(_transactions.length, (i) {
-            final tx = _transactions[i];
-            return _buildTransactionItem(tx, i);
-          }),
+          ...List.generate(
+            _transactions.length,
+            (i) => _staggerTransactionItem(i, _transactions[i]),
+          ),
       ],
     );
   }
 
-  Widget _buildTransactionItem(Map<String, dynamic> tx, int index) {
+  Widget _staggerTransactionItem(int index, dynamic tx) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: 400 + (index * 40).clamp(0, 300)),
+      curve: Curves.easeOutCubic,
+      builder: (context, anim, child) => Opacity(
+        opacity: anim,
+        child: Transform.translate(
+          offset: Offset(0, 16 * (1 - anim)),
+          child: child,
+        ),
+      ),
+      child: _buildTransactionItem(tx),
+    );
+  }
+
+  Widget _buildTransactionItem(dynamic tx) {
     final isIncome = tx['type'] == 'income';
-    final color = isIncome ? AppColors.success : AppColors.error;
+    final color = isIncome ? _incomeColor : _expenseColor;
     final amount = (tx['amount'] ?? 0).toDouble();
-    final date = tx['transaction_date'] ?? '';
     final desc = tx['description'] ?? '';
-    final category = tx['category'] ?? 'other';
+    final category = (tx['category'] ?? 'other').toString();
+    final propertyName = tx['property_name'] as String?;
+    final source = _txSource(tx);
+    final sourceColor = _txSourceColor(tx);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.04)),
+        color: Colors.white.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
-      child: Row(
+      child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              _getCategoryIcon(category),
-              color: color,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _capitalize(category),
-                  style: TextStyle(
-                    color: AppColors.textHeader,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  desc.length > 40 ? '${desc.substring(0, 40)}...' : desc,
-                  style: TextStyle(color: AppColors.textBody, fontSize: 11),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          Row(
             children: [
-              Text(
-                '${isIncome ? '+' : '-'}₺${_formatNumber(amount)}',
-                style: TextStyle(
-                  color: color,
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(_getCategoryIcon(category), color: color, size: 20),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(_capitalize(category),
+                        style: const TextStyle(
+                          color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500,
+                        )),
+                    const SizedBox(height: 3),
+                    Text(
+                      desc.isNotEmpty
+                          ? (desc.length > 48 ? '${desc.substring(0, 48)}...' : desc)
+                          : '—',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.35), fontSize: 11,
+                      ),
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 3),
-              Text(
-                _formatDate(date),
-                style: TextStyle(color: AppColors.textBody, fontSize: 10),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '${isIncome ? '+' : '-'}₺${_formatNumber(amount)}',
+                    style: TextStyle(
+                      color: color, fontSize: 16, fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(_formatDateDisplay(tx['transaction_date'] ?? ''),
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.3), fontSize: 10,
+                      )),
+                ],
               ),
             ],
           ),
+          // Kaynak + Mülk etiketleri (PRD §4.1.6-C)
+          if (propertyName != null || source != 'Manuel') ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                if (source != 'Manuel') ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: sourceColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(source,
+                        style: TextStyle(
+                          color: sourceColor, fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                        )),
+                  ),
+                  const SizedBox(width: 6),
+                ],
+                if (propertyName != null)
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.apartment,
+                              size: 10, color: Colors.white.withValues(alpha: 0.4)),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(propertyName,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.45),
+                                  fontSize: 9,
+                                ),
+                                overflow: TextOverflow.ellipsis),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -1116,43 +1665,35 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
 
   IconData _getCategoryIcon(String category) {
     switch (category) {
-      case 'rent':
-        return Icons.home_outlined;
-      case 'dues':
-        return Icons.receipt_outlined;
-      case 'commission':
-        return Icons.percent;
-      case 'maintenance':
-        return Icons.build_outlined;
-      case 'utility':
-        return Icons.bolt_outlined;
-      default:
-        return Icons.attach_money_rounded;
+      case 'rent': return Icons.home_outlined;
+      case 'dues': return Icons.water_drop;
+      case 'commission': return Icons.percent;
+      case 'maintenance': return Icons.build_outlined;
+      case 'utility': return Icons.bolt_outlined;
+      case 'office': return Icons.business;
+      case 'landlord': return Icons.person;
+      case 'building_op': return Icons.apartment;
+      default: return Icons.attach_money_rounded;
     }
   }
 
   String _capitalize(String s) {
     if (s.isEmpty) return s;
-    return s[0].toUpperCase() + s.substring(1);
+    return s[0].toUpperCase() + s.substring(1).replaceAll('_', ' ');
   }
 
-  String _formatDate(String date) {
+  String _formatDateDisplay(String date) {
     if (date.isEmpty) return '-';
     try {
       final parts = date.split('T')[0].split('-');
-      if (parts.length == 3) {
-        return '${parts[2]}/${parts[1]}/${parts[0]}';
-      }
+      if (parts.length == 3) return '${parts[2]}/${parts[1]}/${parts[0]}';
     } catch (_) {}
     return date;
   }
 
   String _formatNumber(double value) {
-    if (value >= 1000000) {
-      return '${(value / 1000000).toStringAsFixed(1)}M';
-    } else if (value >= 1000) {
-      return '${(value / 1000).toStringAsFixed(1)}K';
-    }
+    if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
+    if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)}K';
     return value.toStringAsFixed(0);
   }
 
@@ -1161,17 +1702,12 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.error_outline, size: 64, color: AppColors.error),
+          Icon(Icons.error_outline, size: 64, color: _expenseColor.withValues(alpha: 0.6)),
           const SizedBox(height: 16),
-          Text(
-            'Veri yüklenemedi',
-            style: TextStyle(color: AppColors.textHeader, fontSize: 18),
-          ),
+          const Text('Veri yüklenemedi',
+              style: TextStyle(color: Colors.white, fontSize: 18)),
           const SizedBox(height: 8),
-          TextButton(
-            onPressed: _fetchReport,
-            child: const Text('Tekrar dene'),
-          ),
+          TextButton(onPressed: _fetchAllData, child: const Text('Tekrar dene')),
         ],
       ),
     );
@@ -1179,7 +1715,10 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
 
   @override
   void dispose() {
-    _fadeController.dispose();
+    _staggerController.dispose();
+    _formAmountController.dispose();
+    _formDescController.dispose();
+    _formCustomCategoryController.dispose();
     super.dispose();
   }
 }
