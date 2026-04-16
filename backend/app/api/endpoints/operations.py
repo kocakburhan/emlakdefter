@@ -19,6 +19,7 @@ from app.schemas.operations import (
 )
 from pydantic import BaseModel
 from typing import Optional
+from app.models.users import AgencyStaff
 
 router = APIRouter()
 
@@ -39,9 +40,31 @@ class AgentDashboardKPIs(BaseModel):
     monthly_collected: int
     monthly_expense: int
     collection_rate: float
+    active_tenants: int
+    staff_count: int
 
     class Config:
         from_attributes = True
+
+
+class ActivityFeedItem(BaseModel):
+    id: str
+    type: str  # "payment", "ticket", "property", "tenant", "building_log"
+    title: str
+    subtitle: str
+    icon: str
+    color: str
+    timestamp: str
+    link: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ActivityFeedResponse(BaseModel):
+    items: List[ActivityFeedItem]
+    total: int
+    has_more: bool
 
 
 @router.get("/dashboard-kpi", response_model=AgentDashboardKPIs)
@@ -70,7 +93,7 @@ async def get_agent_dashboard_kpi(
 
     # Dolu/Boş birimler
     occ_stmt = select(func.count(PropertyUnit.id)).where(
-        PropertyUnit.agency_id == agency_id, PropertyUnit.status == "occupied"
+        PropertyUnit.agency_id == agency_id, PropertyUnit.status == "rented"
     )
     occ_result = await db.execute(occ_stmt)
     occupied_units = occ_result.scalar() or 0
@@ -78,7 +101,7 @@ async def get_agent_dashboard_kpi(
 
     # Toplam kira + aidat (aylık)
     rent_stmt = select(func.coalesce(func.sum(PropertyUnit.rent_price), 0)).where(
-        PropertyUnit.agency_id == agency_id, PropertyUnit.status == "occupied"
+        PropertyUnit.agency_id == agency_id, PropertyUnit.status == "rented"
     )
     rent_result = await db.execute(rent_stmt)
     total_monthly_rent = rent_result.scalar() or 0
@@ -103,6 +126,19 @@ async def get_agent_dashboard_kpi(
     open_result = await db.execute(open_stmt)
     open_tickets = open_result.scalar() or 0
 
+    # Aktif kiracı sayısı
+    tenant_stmt = select(func.count(Tenant.id)).where(
+        Tenant.agency_id == agency_id,
+        Tenant.status == "active"
+    )
+    tenant_result = await db.execute(tenant_stmt)
+    active_tenants = tenant_result.scalar() or 0
+
+    # Personel (çalışan) sayısı
+    staff_stmt = select(func.count(AgencyStaff.id)).where(AgencyStaff.agency_id == agency_id)
+    staff_result = await db.execute(staff_stmt)
+    staff_count = staff_result.scalar() or 0
+
     # Basit tahsilat oranı (bu basit hesap backend'e bağlıyken gerçek tablo için finans modülü gerekir)
     collection_rate = round((occupied_units / total_units * 100), 1) if total_units > 0 else 0.0
 
@@ -118,6 +154,8 @@ async def get_agent_dashboard_kpi(
         monthly_collected=total_monthly_rent,
         monthly_expense=0,
         collection_rate=collection_rate,
+        active_tenants=active_tenants,
+        staff_count=staff_count,
     )
 
 @router.post("/tickets", response_model=TicketResponse, status_code=status.HTTP_201_CREATED)
@@ -391,3 +429,132 @@ async def delete_building_log(
     log.is_deleted = True
     await db.commit()
     return None
+
+
+# ──────────────────────────────────────────────
+# ACTIVITY FEED (PRD §4.1.1-B) — Son İşlemler
+# ──────────────────────────────────────────────
+
+@router.get("/activity-feed", response_model=ActivityFeedResponse)
+async def get_activity_feed(
+    limit: int = 10,
+    offset: int = 0,
+    current_user: User = Depends(deps.get_current_user),
+    agency_id: UUID = Depends(deps.get_current_user_agency_id),
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """
+    PRD §4.1.1-B: Son işlemler kronolojik zaman tüneli.
+    Ödeme alındı, destek talebi açıldı, ev sahibi eklendi, yeni daire oluşturuldu vb.
+    10'ar paketler halinde pagination ile döner.
+    """
+    items: List[ActivityFeedItem] = []
+    now = datetime.utcnow()
+
+    # 1) Son ödemeler (FinancialTransaction — son 30 gün)
+    tx_stmt = (
+        select(FinancialTransaction)
+        .where(
+            FinancialTransaction.agency_id == agency_id,
+            FinancialTransaction.is_deleted == False,
+        )
+        .order_by(desc(FinancialTransaction.transaction_date))
+        .limit(20)
+    )
+    tx_result = await db.execute(tx_stmt)
+    transactions = tx_result.scalars().all()
+    for tx in transactions:
+        cat_label = {
+            "rent": "Kira Ödemesi",
+            "dues": "Aidat Ödemesi",
+            "utility": "Fatura",
+            "commission": "Komisyon",
+            "maintenance": "Bakım/Gider",
+            "other": "Diğer",
+        }.get(tx.category.value if hasattr(tx.category, 'value') else str(tx.category), "İşlem")
+        items.append(ActivityFeedItem(
+            id=str(tx.id),
+            type="payment",
+            title=cat_label,
+            subtitle=f"{tx.amount:,.0f} ₺ — {tx.transaction_date.strftime('%d.%m.%Y')}",
+            icon="payments",
+            color="success",
+            timestamp=tx.transaction_date.isoformat(),
+        ))
+
+    # 2) Son açılan biletler
+    ticket_stmt = (
+        select(SupportTicket)
+        .where(SupportTicket.agency_id == agency_id)
+        .order_by(desc(SupportTicket.created_at))
+        .limit(10)
+    )
+    ticket_result = await db.execute(ticket_stmt)
+    tickets = ticket_result.scalars().all()
+    for t in tickets:
+        priority_colors = {"high": "error", "medium": "warning", "low": "textBody"}
+        items.append(ActivityFeedItem(
+            id=str(t.id),
+            type="ticket",
+            title=f"Bilet: {t.title[:40]}",
+            subtitle=t.created_at.strftime('%d.%m.%Y %H:%M'),
+            icon="confirmation_number",
+            color=priority_colors.get(t.priority.value if hasattr(t.priority, 'value') else "medium", "textBody"),
+            timestamp=t.created_at.isoformat(),
+        ))
+
+    # 3) Son bina operasyonları
+    log_stmt = (
+        select(BuildingOperationLog)
+        .where(
+            BuildingOperationLog.agency_id == agency_id,
+            BuildingOperationLog.is_deleted == False,
+        )
+        .order_by(desc(BuildingOperationLog.created_at))
+        .limit(10)
+    )
+    log_result = await db.execute(log_stmt)
+    logs = log_result.scalars().all()
+    for log in logs:
+        items.append(ActivityFeedItem(
+            id=str(log.id),
+            type="building_log",
+            title=log.title[:40],
+            subtitle=f"Maliyet: {log.cost:,.0f} ₺" if log.cost else "Kayıt oluşturuldu",
+            icon="engineering",
+            color="accent",
+            timestamp=log.created_at.isoformat(),
+        ))
+
+    # 4) Yeni kiracılar (son eklenen aktif kiracılar)
+    tenant_stmt = (
+        select(Tenant)
+        .where(Tenant.agency_id == agency_id, Tenant.status == "active")
+        .order_by(desc(Tenant.created_at))
+        .limit(10)
+    )
+    tenant_result = await db.execute(tenant_stmt)
+    tenants = tenant_result.scalars().all()
+    for t in tenants:
+        items.append(ActivityFeedItem(
+            id=str(t.id),
+            type="tenant",
+            title=f"Yeni Kiracı: {t.full_name or t.temp_name or 'İsimsiz'}",
+            subtitle=t.created_at.strftime('%d.%m.%Y') if hasattr(t, 'created_at') and t.created_at else "",
+            icon="person_add",
+            color="success",
+            timestamp=t.created_at.isoformat() if hasattr(t, 'created_at') and t.created_at else now.isoformat(),
+        ))
+
+    # Zamanına göre sırala (en yen üstte)
+    items.sort(key=lambda x: x.timestamp, reverse=True)
+
+    # Pagination
+    total = len(items)
+    paginated = items[offset:offset + limit]
+
+    return ActivityFeedResponse(
+        items=paginated,
+        total=total,
+        has_more=(offset + limit) < total,
+    )

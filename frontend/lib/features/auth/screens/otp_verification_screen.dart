@@ -118,9 +118,11 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
       const SnackBar(backgroundColor: AppColors.success, content: Text("Sisteme Başarıyla Girildi!")),
     );
     if (widget.role == 'agent') {
-      context.go('/agent-dashboard');
+      context.go('/agent');
+    } else if (widget.role == 'tenant') {
+      context.go('/tenant');
     } else {
-      context.go('/tenant-dashboard');
+      context.go('/landlord');
     }
   }
 
@@ -139,7 +141,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
       body: Stack(
         children: [
           // Onay Sayfası olduğu için ışıkları (Glow) Zümrüt Yeşili tonuna alıyoruz:
-          Positioned(top: -100, right: -50, child: Container(width: 200, height: 200, decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.success.withOpacity(0.15)))),
+          Positioned(top: -100, right: -50, child: Container(width: 200, height: 200, decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.success.withValues(alpha:0.15)))),
           Positioned.fill(child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 70, sigmaY: 70), child: const SizedBox())),
           
           SafeArea(
@@ -157,9 +159,9 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                   // Klasik telefon girdi kutusunu Pin Kutularına benzettik!
                   Container(
                     decoration: BoxDecoration(
-                      color: AppColors.surface.withOpacity(0.4),
+                      color: AppColors.surface.withValues(alpha:0.4),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.accent.withOpacity(0.5), width: 1.5),
+                      border: Border.all(color: AppColors.accent.withValues(alpha:0.5), width: 1.5),
                     ),
                     child: TextField(
                       controller: _otpController,

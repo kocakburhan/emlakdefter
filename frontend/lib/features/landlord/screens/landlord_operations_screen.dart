@@ -11,11 +11,11 @@ class LandlordOperationsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(landlordProvider);
 
-    if (state.isLoading && state.operations.isEmpty) {
+    if (state.isLoading && state.operations.isEmpty && state.tickets.isEmpty) {
       return const Center(child: CircularProgressIndicator(color: Color(0xFFD4A574)));
     }
 
-    if (state.operations.isEmpty) {
+    if (state.operations.isEmpty && state.tickets.isEmpty) {
       return _buildEmpty();
     }
 
@@ -23,7 +23,10 @@ class LandlordOperationsScreen extends ConsumerWidget {
     final reflected = state.operations.where((op) => op.isReflectedToFinance).fold(0, (sum, op) => sum + op.cost);
 
     return RefreshIndicator(
-      onRefresh: () => ref.read(landlordProvider.notifier).fetchOperations(),
+      onRefresh: () async {
+        await ref.read(landlordProvider.notifier).fetchOperations();
+        await ref.read(landlordProvider.notifier).fetchTenantTickets();
+      },
       color: const Color(0xFFD4A574),
       child: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
@@ -47,9 +50,9 @@ class LandlordOperationsScreen extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFF8B7355).withOpacity(0.08),
+                color: const Color(0xFF8B7355).withValues(alpha:0.08),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFF8B7355).withOpacity(0.15)),
+                border: Border.all(color: const Color(0xFF8B7355).withValues(alpha:0.15)),
               ),
               child: Row(
                 children: [
@@ -58,7 +61,7 @@ class LandlordOperationsScreen extends ConsumerWidget {
                   Expanded(
                     child: Text(
                       'Emlakçınızın yaptığı tüm harcamalar şeffaflık ilkesiyle burada görünür.',
-                      style: TextStyle(color: const Color(0xFF8B7355).withOpacity(0.8), fontSize: 12, height: 1.4),
+                      style: TextStyle(color: const Color(0xFF8B7355).withValues(alpha:0.8), fontSize: 12, height: 1.4),
                     ),
                   ),
                 ],
@@ -67,10 +70,40 @@ class LandlordOperationsScreen extends ConsumerWidget {
             const SizedBox(height: 20),
 
             // Operations List
-            ...state.operations.map((op) => _buildOperationCard(op)),
+            if (state.operations.isNotEmpty) ...[
+              _buildSectionHeader('Bina Harcamaları', Icons.engineering_outlined, const Color(0xFFAD7B7B)),
+              const SizedBox(height: 12),
+              ...state.operations.map((op) => _buildOperationCard(op)),
+            ],
+
+            // §4.3.3 — Tenant Tickets Section
+            if (state.tickets.isNotEmpty) ...[
+              const SizedBox(height: 28),
+              _buildSectionHeader('Kiracı Biletleri', Icons.support_agent_outlined, const Color(0xFF7B8FAD)),
+              const SizedBox(height: 12),
+              ...state.tickets.map((ticket) => _buildTicketCard(ticket)),
+            ],
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, IconData icon, Color color) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 18),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: TextStyle(
+            color: color,
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ],
     );
   }
 
@@ -79,11 +112,11 @@ class LandlordOperationsScreen extends ConsumerWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.engineering_outlined, size: 56, color: AppColors.textBody.withOpacity(0.2)),
+          Icon(Icons.engineering_outlined, size: 56, color: AppColors.textBody.withValues(alpha:0.2)),
           const SizedBox(height: 16),
           const Text('Operasyon kaydı yok', style: TextStyle(color: AppColors.textBody, fontSize: 16)),
           const SizedBox(height: 8),
-          Text('Bina harcamaları burada şeffaf görünür', style: TextStyle(color: AppColors.textBody.withOpacity(0.5), fontSize: 13)),
+          Text('Bina harcamaları burada şeffaf görünür', style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 13)),
         ],
       ),
     );
@@ -93,9 +126,9 @@ class LandlordOperationsScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha:0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.15)),
+        border: Border.all(color: color.withValues(alpha:0.15)),
       ),
       child: Column(
         children: [
@@ -111,7 +144,7 @@ class LandlordOperationsScreen extends ConsumerWidget {
           const SizedBox(height: 4),
           Text(
             label,
-            style: TextStyle(color: color.withOpacity(0.6), fontSize: 10),
+            style: TextStyle(color: color.withValues(alpha:0.6), fontSize: 10),
           ),
         ],
       ),
@@ -130,8 +163,8 @@ class LandlordOperationsScreen extends ConsumerWidget {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: isReflected
-              ? const Color(0xFF6B8E6B).withOpacity(0.15)
-              : const Color(0xFFD4A574).withOpacity(0.15),
+              ? const Color(0xFF6B8E6B).withValues(alpha:0.15)
+              : const Color(0xFFD4A574).withValues(alpha:0.15),
         ),
       ),
       child: Column(
@@ -143,8 +176,8 @@ class LandlordOperationsScreen extends ConsumerWidget {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: isReflected
-                      ? const Color(0xFF6B8E6B).withOpacity(0.1)
-                      : const Color(0xFFD4A574).withOpacity(0.1),
+                      ? const Color(0xFF6B8E6B).withValues(alpha:0.1)
+                      : const Color(0xFFD4A574).withValues(alpha:0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
@@ -169,9 +202,9 @@ class LandlordOperationsScreen extends ConsumerWidget {
                     const SizedBox(height: 2),
                     Row(
                       children: [
-                        Text(op.propertyName, style: TextStyle(color: AppColors.textBody.withOpacity(0.6), fontSize: 11)),
+                        Text(op.propertyName, style: TextStyle(color: AppColors.textBody.withValues(alpha:0.6), fontSize: 11)),
                         const SizedBox(width: 8),
-                        Text(dateStr, style: TextStyle(color: AppColors.textBody.withOpacity(0.5), fontSize: 11)),
+                        Text(dateStr, style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 11)),
                       ],
                     ),
                   ],
@@ -193,8 +226,8 @@ class LandlordOperationsScreen extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: isReflected
-                          ? const Color(0xFF6B8E6B).withOpacity(0.1)
-                          : const Color(0xFFD4A574).withOpacity(0.1),
+                          ? const Color(0xFF6B8E6B).withValues(alpha:0.1)
+                          : const Color(0xFFD4A574).withValues(alpha:0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -214,12 +247,154 @@ class LandlordOperationsScreen extends ConsumerWidget {
             const SizedBox(height: 12),
             Text(
               op.description!,
-              style: TextStyle(color: AppColors.textBody.withOpacity(0.7), fontSize: 13, height: 1.4),
+              style: TextStyle(color: AppColors.textBody.withValues(alpha:0.7), fontSize: 13, height: 1.4),
             ),
           ],
         ],
       ),
     );
+  }
+
+  Widget _buildTicketCard(LandlordTenantTicket ticket) {
+    final statusColor = _ticketStatusColor(ticket.status);
+    final priorityColor = _ticketPriorityColor(ticket.priority);
+    final dateStr = _formatDate(ticket.createdAt);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: statusColor.withValues(alpha:0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: priorityColor.withValues(alpha:0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.headset_mic_outlined, color: priorityColor, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      ticket.title,
+                      style: const TextStyle(
+                        color: AppColors.textHeader,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Text(ticket.propertyName, style: TextStyle(color: AppColors.textBody.withValues(alpha:0.6), fontSize: 11)),
+                        const SizedBox(width: 6),
+                        Text('• Kapı ${ticket.unitDoor}', style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 11)),
+                        const SizedBox(width: 6),
+                        Text(dateStr, style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 11)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha:0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _ticketStatusLabel(ticket.status),
+                      style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.message_outlined, size: 12, color: AppColors.textBody.withValues(alpha:0.4)),
+                      const SizedBox(width: 3),
+                      Text('${ticket.messageCount}', style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 11)),
+                      if (ticket.agentReplyCount > 0) ...[
+                        const SizedBox(width: 6),
+                        Icon(Icons.verified_outlined, size: 12, color: AppColors.textBody.withValues(alpha:0.4)),
+                        const SizedBox(width: 3),
+                        Text('${ticket.agentReplyCount}', style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 11)),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+          if (ticket.lastMessage != null && ticket.lastMessage!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.background.withValues(alpha:0.5),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.format_quote, size: 14, color: AppColors.textBody.withValues(alpha:0.3)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      ticket.lastMessage!,
+                      style: TextStyle(color: AppColors.textBody.withValues(alpha:0.7), fontSize: 12, fontStyle: FontStyle.italic),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Color _ticketStatusColor(String status) {
+    switch (status) {
+      case 'open': return const Color(0xFFAD7B7B);
+      case 'in_progress': return const Color(0xFF7B8FAD);
+      case 'resolved': return const Color(0xFF6B8E6B);
+      case 'closed': return const Color(0xFF8B7355);
+      default: return const Color(0xFFD4A574);
+    }
+  }
+
+  Color _ticketPriorityColor(String priority) {
+    switch (priority) {
+      case 'high': return const Color(0xFFAD7B7B);
+      case 'medium': return const Color(0xFFD4A574);
+      case 'low': return const Color(0xFF6B8E6B);
+      default: return const Color(0xFF8B7355);
+    }
+  }
+
+  String _ticketStatusLabel(String status) {
+    switch (status) {
+      case 'open': return 'Açık';
+      case 'in_progress': return 'İşlemde';
+      case 'resolved': return 'Çözüldü';
+      case 'closed': return 'Kapandı';
+      default: return status;
+    }
   }
 
   String _formatDate(DateTime dt) {

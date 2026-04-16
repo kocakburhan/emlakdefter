@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/network/api_client.dart';
 import '../../../core/theme/colors.dart';
 import '../providers/landlord_provider.dart';
 
@@ -65,15 +66,15 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.white.withOpacity(0.05)),
+                    border: Border.all(color: Colors.white.withValues(alpha:0.05)),
                   ),
                   child: TextField(
                     controller: _searchController,
                     style: const TextStyle(color: AppColors.textHeader, fontSize: 14),
                     decoration: InputDecoration(
                       hintText: 'Lokasyon, mülk adı...',
-                      hintStyle: TextStyle(color: AppColors.textBody.withOpacity(0.4), fontSize: 13),
-                      prefixIcon: Icon(Icons.search, color: AppColors.textBody.withOpacity(0.4), size: 20),
+                      hintStyle: TextStyle(color: AppColors.textBody.withValues(alpha:0.4), fontSize: 13),
+                      prefixIcon: Icon(Icons.search, color: AppColors.textBody.withValues(alpha:0.4), size: 20),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     ),
@@ -90,12 +91,12 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
                     color: _showFilters ? const Color(0xFFD4A574) : AppColors.surface,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: _showFilters
-                        ? const Color(0xFFD4A574).withOpacity(0.3)
-                        : Colors.white.withOpacity(0.05)),
+                        ? const Color(0xFFD4A574).withValues(alpha:0.3)
+                        : Colors.white.withValues(alpha:0.05)),
                   ),
                   child: Icon(
                     Icons.tune_rounded,
-                    color: _showFilters ? Colors.white : AppColors.textBody.withOpacity(0.5),
+                    color: _showFilters ? Colors.white : AppColors.textBody.withValues(alpha:0.5),
                     size: 20,
                   ),
                 ),
@@ -125,7 +126,7 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
                   onPressed: _clearFilters,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.textBody,
-                    side: BorderSide(color: AppColors.textBody.withOpacity(0.2)),
+                    side: BorderSide(color: AppColors.textBody.withValues(alpha:0.2)),
                     padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -145,7 +146,7 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha:0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -153,7 +154,7 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Kira Aralığı', style: TextStyle(color: AppColors.textBody.withOpacity(0.7), fontSize: 12)),
+              Text('Kira Aralığı', style: TextStyle(color: AppColors.textBody.withValues(alpha:0.7), fontSize: 12)),
               Text(
                 '₺${_priceRange.start.round()} — ₺${_priceRange.end.round()}',
                 style: const TextStyle(color: Color(0xFFD4A574), fontSize: 12, fontWeight: FontWeight.bold),
@@ -167,7 +168,7 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
             max: 50000,
             divisions: 100,
             activeColor: const Color(0xFFD4A574),
-            inactiveColor: const Color(0xFFD4A574).withOpacity(0.15),
+            inactiveColor: const Color(0xFFD4A574).withValues(alpha:0.15),
             onChanged: (v) => setState(() => _priceRange = v),
           ),
         ],
@@ -195,7 +196,7 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
   }
 
   Widget _buildUnitCard(LandlordVacantUnit unit, int index) {
-    final features = unit.features as Map<String, dynamic>?;
+    final features = unit.features;
     final featureTags = <String>[];
     if (features != null) {
       if (features['elevator'] == true) featureTags.add('Asansör');
@@ -216,9 +217,9 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFD4A574).withOpacity(0.1)),
+          border: Border.all(color: const Color(0xFFD4A574).withValues(alpha:0.1)),
           boxShadow: [
-            BoxShadow(color: const Color(0xFFD4A574).withOpacity(0.06), blurRadius: 14, offset: const Offset(0, 4)),
+            BoxShadow(color: const Color(0xFFD4A574).withValues(alpha:0.06), blurRadius: 14, offset: const Offset(0, 4)),
           ],
         ),
         child: Material(
@@ -237,7 +238,7 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
                     height: 44,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [const Color(0xFFD4A574).withOpacity(0.2), const Color(0xFF8B7355).withOpacity(0.1)],
+                        colors: [const Color(0xFFD4A574).withValues(alpha:0.2), const Color(0xFF8B7355).withValues(alpha:0.1)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -262,7 +263,7 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
                   if (unit.address != null)
                     Text(
                       unit.address!,
-                      style: TextStyle(color: AppColors.textBody.withOpacity(0.5), fontSize: 11),
+                      style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 11),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -294,7 +295,7 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
                       const SizedBox(height: 2),
                       Text(
                         '₺${_fmt(unit.duesAmount)} aidat',
-                        style: TextStyle(color: AppColors.textBody.withOpacity(0.5), fontSize: 10),
+                        style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 10),
                       ),
                     ],
                   ),
@@ -311,7 +312,7 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha:0.08),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(label, style: TextStyle(color: color, fontSize: 10)),
@@ -327,7 +328,7 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: const Color(0xFFD4A574).withOpacity(0.08),
+              color: const Color(0xFFD4A574).withValues(alpha:0.08),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.real_estate_agent_outlined, size: 36, color: Color(0xFFD4A574)),
@@ -342,7 +343,7 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
             padding: const EdgeInsets.symmetric(horizontal: 48),
             child: Text(
               'Emlak ofisinin uygun mülkleri burada görünür',
-              style: TextStyle(color: AppColors.textBody.withOpacity(0.5), fontSize: 13),
+              style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 13),
               textAlign: TextAlign.center,
             ),
           ),
@@ -368,7 +369,7 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
           children: [
             Center(
               child: Container(width: 40, height: 4, decoration: BoxDecoration(
-                color: AppColors.textBody.withOpacity(0.3), borderRadius: BorderRadius.circular(2),
+                color: AppColors.textBody.withValues(alpha:0.3), borderRadius: BorderRadius.circular(2),
               )),
             ),
             const SizedBox(height: 20),
@@ -380,7 +381,7 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
                   height: 56,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [const Color(0xFFD4A574).withOpacity(0.2), const Color(0xFF8B7355).withOpacity(0.1)],
+                      colors: [const Color(0xFFD4A574).withValues(alpha:0.2), const Color(0xFF8B7355).withValues(alpha:0.1)],
                     ),
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -393,7 +394,7 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
                     children: [
                       Text(unit.propertyName, style: const TextStyle(color: AppColors.textHeader, fontSize: 20, fontWeight: FontWeight.bold)),
                       if (unit.address != null)
-                        Text(unit.address!, style: TextStyle(color: AppColors.textBody.withOpacity(0.6), fontSize: 12)),
+                        Text(unit.address!, style: TextStyle(color: AppColors.textBody.withValues(alpha:0.6), fontSize: 12)),
                     ],
                   ),
                 ),
@@ -441,31 +442,51 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha:0.08),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.12)),
+        border: Border.all(color: color.withValues(alpha:0.12)),
       ),
       child: Column(
         children: [
           Text(value, style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.bold)),
           const SizedBox(height: 2),
-          Text(label, style: TextStyle(color: color.withOpacity(0.6), fontSize: 10)),
+          Text(label, style: TextStyle(color: color.withValues(alpha:0.6), fontSize: 10)),
         ],
       ),
     );
   }
 
-  void _sendInterestMessage(LandlordVacantUnit unit) {
+  void _sendInterestMessage(LandlordVacantUnit unit) async {
     Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${unit.propertyName} — ${unit.doorNumber} için emlakçınıza istek gönderildi.'),
-        backgroundColor: const Color(0xFF6B8E6B),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
+    try {
+      final resp = await ApiClient.dio.post('/landlord/conversations', data: {
+        'property_id': unit.propertyId,
+        'initial_message': '${unit.propertyName} • Kapı ${unit.doorNumber} hakkında bilgi almak istiyorum.',
+      });
+      if (!mounted) return;
+      if (resp.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(resp.data['message'] ?? 'İlginiz emlakçınıza iletildi.'),
+            backgroundColor: const Color(0xFF6B8E6B),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Bir hata oluştu: $e'),
+          backgroundColor: const Color(0xFFAD7B7B),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+    }
   }
 
   void _applyFilters() {

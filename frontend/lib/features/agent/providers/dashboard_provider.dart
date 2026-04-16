@@ -14,6 +14,8 @@ class DashboardMetrics {
   final int monthlyCollected;
   final int monthlyExpense;
   final double collectionRate;
+  final int activeTenants;
+  final int staffCount;
 
   DashboardMetrics({
     this.totalProperties = 0,
@@ -27,6 +29,8 @@ class DashboardMetrics {
     this.monthlyCollected = 0,
     this.monthlyExpense = 0,
     this.collectionRate = 100,
+    this.activeTenants = 0,
+    this.staffCount = 0,
   });
 
   factory DashboardMetrics.fromJson(Map<String, dynamic> json) {
@@ -42,6 +46,8 @@ class DashboardMetrics {
       monthlyCollected: json['monthly_collected'] ?? 0,
       monthlyExpense: json['monthly_expense'] ?? 0,
       collectionRate: (json['collection_rate'] ?? 100).toDouble(),
+      activeTenants: json['active_tenants'] ?? 0,
+      staffCount: json['staff_count'] ?? 0,
     );
   }
 }
@@ -62,8 +68,7 @@ class DashboardNotifier extends StateNotifier<AsyncValue<DashboardMetrics>> {
         state = AsyncValue.data(DashboardMetrics());
       }
     } catch (e) {
-      print('Dashboard KPI fetch error: $e');
-      state = AsyncValue.data(DashboardMetrics());
+      // ignore error
     }
   }
 

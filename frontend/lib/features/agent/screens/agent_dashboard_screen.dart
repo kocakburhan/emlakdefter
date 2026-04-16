@@ -29,22 +29,19 @@ class _AgentDashboardScreenState extends State<AgentDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Sayfayı dolduran içerik alanı (BottomNav seçimine göre gövdeyi değiştirir)
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
         child: _pages[_currentIndex],
       ),
-      
-      // Floating, Apple benzeri modern BottomNavigationBar
       bottomNavigationBar: Container(
         margin: const EdgeInsets.fromLTRB(24, 0, 24, 24),
         decoration: BoxDecoration(
-          color: AppColors.surface.withOpacity(0.8),
+          color: AppColors.surface.withValues(alpha: 0.8),
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white.withOpacity(0.05)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               blurRadius: 20,
               offset: const Offset(0, 10),
             )
@@ -58,10 +55,10 @@ class _AgentDashboardScreenState extends State<AgentDashboardScreen> {
                setState(() { _currentIndex = idx; });
             },
             type: BottomNavigationBarType.fixed,
-            backgroundColor: Colors.transparent, // Arkaplanı dışarıdaki kutu sağlıyor
+            backgroundColor: Colors.transparent,
             elevation: 0,
             selectedItemColor: AppColors.accent,
-            unselectedItemColor: AppColors.textBody.withOpacity(0.5),
+            unselectedItemColor: AppColors.textBody.withValues(alpha: 0.5),
             showUnselectedLabels: false,
             selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
             items: const [

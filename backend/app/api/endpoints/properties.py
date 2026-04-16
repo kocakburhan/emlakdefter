@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -167,3 +167,113 @@ async def update_unit(
     await db.refresh(unit)
 
     return unit
+
+
+@router.post("/{property_id}/units", status_code=status.HTTP_201_CREATED)
+async def add_single_unit(
+    property_id: str,
+    current_user: User = Depends(deps.get_current_user),
+    agency_id: UUID = Depends(deps.get_current_user_agency_id),
+    db: AsyncSession = Depends(get_db),
+    door_number: str = Body(...),
+    floor: str = Body("0"),
+    dues_amount: int = Body(0),
+):
+    """
+    PRD §4.1.2-C: Tekil Daire Ekle — Otomatik üretim dışında kalan
+    ekstra bölümlerin manuel eklenmesini sağlar.
+    """
+    # Property kontrolü
+    prop_stmt = select(Property).where(
+        Property.id == UUID(property_id),
+        Property.agency_id == agency_id,
+        Property.is_deleted == False
+    )
+    prop_result = await db.execute(prop_stmt)
+    prop = prop_result.scalar_one_or_none()
+    if not prop:
+        raise HTTPException(status_code=404, detail="Mülk bulunamadı.")
+
+    new_unit = PropertyUnit(
+        agency_id=agency_id,
+        property_id=UUID(property_id),
+        door_number=door_number,
+        floor=floor,
+        status=UnitStatus.vacant,
+        dues_amount=dues_amount,
+    )
+    db.add(new_unit)
+    await db.commit()
+    await db.refresh(new_unit)
+
+    return {
+        "id": str(new_unit.id),
+        "door_number": new_unit.door_number,
+        "floor": new_unit.floor,
+        "status": new_unit.status.value,
+        "dues_amount": new_unit.dues_amount,
+    }
+
+
+@router.post("/{property_id}/broadcast-notification")
+async def send_property_notification(
+    property_id: str,
+    title: str,
+    body: str,
+    current_user: User = Depends(deps.get_current_user),
+    agency_id: UUID = Depends(deps.get_current_user_agency_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    PRD §4.1.2-C: Toplu Bildirim Gönder.
+    Apartmandaki tüm aktif kiracıların FCM token'larına
+    Push Notification gönderir.
+    """
+    from app.models.tenants import Tenant, ContractStatus
+    from app.models.users import UserDeviceToken
+    from app.core.firebase import send_fcm_notification_to_tokens
+
+    # Property kontrolü
+    prop_stmt = select(Property).where(
+        Property.id == UUID(property_id),
+        Property.agency_id == agency_id,
+        Property.is_deleted == False
+    )
+    prop_result = await db.execute(prop_stmt)
+    prop = prop_result.scalar_one_or_none()
+    if not prop:
+        raise HTTPException(status_code=404, detail="Mülk bulunamadı.")
+
+    # Bu mülke bağlı tüm aktif kiracıları bul
+    tenant_stmt = (
+        select(Tenant)
+        .join(PropertyUnit, Tenant.unit_id == PropertyUnit.id)
+        .where(
+            PropertyUnit.property_id == UUID(property_id),
+            Tenant.status == ContractStatus.active,
+        )
+    )
+    tenant_result = await db.execute(tenant_stmt)
+    tenants = tenant_result.scalars().all()
+
+    sent = 0
+    for tenant in tenants:
+        token_stmt = select(UserDeviceToken.fcm_token).where(
+            UserDeviceToken.user_id == tenant.user_id
+        )
+        token_result = await db.execute(token_stmt)
+        tokens = [row[0] for row in token_result.fetchall()]
+        if tokens:
+            await send_fcm_notification_to_tokens(
+                tokens,
+                title,
+                body,
+                data={"type": "property_announcement", "property_id": property_id},
+            )
+            sent += 1
+
+    return {
+        "success": True,
+        "message": f"Bildirim {sent} kiracıya gönderildi.",
+        "sent_count": sent,
+    }

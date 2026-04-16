@@ -28,9 +28,9 @@ async def create_property_with_autonomous_units(db: AsyncSession, agency_id: str
     units_to_create = []
     
     # 2. Otonom Generative Loop (Apartmanlar İçin)
-    if prop_in.type == PropertyType.building:
+    if prop_in.type == PropertyType.apartment_complex:
         if prop_in.start_floor is None or prop_in.end_floor is None or not prop_in.units_per_floor:
-            raise HTTPException(status_code=400, detail="Bir 'building' eklerken start_floor, end_floor ve units_per_floor zorunludur.")
+            raise HTTPException(status_code=400, detail="Bir 'apartment_complex' eklerken start_floor, end_floor ve units_per_floor zorunludur.")
             
         if prop_in.start_floor > prop_in.end_floor:
             raise HTTPException(status_code=400, detail="Başlangıç katı, bitiş katından büyük fiziksel bir mantıksızlık içeriyor.")
@@ -56,7 +56,7 @@ async def create_property_with_autonomous_units(db: AsyncSession, agency_id: str
         db.add_all(units_to_create) # Toplu enjekte (Hiçbir bekletme olmaksızın)
         
     # 3. Tekil Varlık Ataması (Müstakil / Arsalar)
-    elif prop_in.type == PropertyType.single:
+    elif prop_in.type == PropertyType.standalone_house:
         # Arsa vb. mantıksal olarak içinde 1 adet görünmez bağımsız bölüme sahiptir
         unit = PropertyUnit(
             agency_id=new_property.agency_id,

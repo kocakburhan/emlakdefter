@@ -91,7 +91,7 @@ class _SimpleLoginScreenState extends ConsumerState<SimpleLoginScreen> {
         }
       }
     } catch (e) {
-      setState(() => _error = 'Hata: ${e.toString()}');
+      setState(() => _error = 'Hata: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -143,7 +143,7 @@ class _SimpleLoginScreenState extends ConsumerState<SimpleLoginScreen> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: AppColors.accent.withOpacity(0.1),
+                  color: AppColors.accent.withValues(alpha:0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -176,9 +176,9 @@ class _SimpleLoginScreenState extends ConsumerState<SimpleLoginScreen> {
                   padding: const EdgeInsets.all(12),
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: AppColors.error.withOpacity(0.1),
+                    color: AppColors.error.withValues(alpha:0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                    border: Border.all(color: AppColors.error.withValues(alpha:0.3)),
                   ),
                   child: Text(
                     _error!,
@@ -230,6 +230,16 @@ class _SimpleLoginScreenState extends ConsumerState<SimpleLoginScreen> {
                   style: TextStyle(color: AppColors.accent),
                 ),
               ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () {
+                  context.push('/phone?role=${widget.role}');
+                },
+                child: Text(
+                  'Telefon ile giriş yap',
+                  style: TextStyle(color: AppColors.textBody),
+                ),
+              ),
             ],
           ),
         ),
@@ -248,7 +258,7 @@ class _SimpleLoginScreenState extends ConsumerState<SimpleLoginScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha:0.05)),
       ),
       child: TextField(
         controller: controller,

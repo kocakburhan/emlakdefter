@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.endpoints import auth, properties, finance, operations, chat, tenants, landlord, analytics, media_upload
+from app.api.endpoints import auth, properties, finance, operations, chat, tenants, landlord, analytics, media_upload, scheduler
 
 api_router = APIRouter()
 
@@ -13,3 +13,4 @@ api_router.include_router(chat.router, prefix="/chat", tags=["F. WebSocket Canl�
 api_router.include_router(landlord.router, prefix="/landlord", tags=["G. Ev Sahibi Paneli"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["H. BI/Analytics Dashboard"])
 api_router.include_router(media_upload.router, prefix="/upload", tags=["I. Medya Yükleme (Hetzner Object Storage)"])
+api_router.include_router(scheduler.router, prefix="/scheduler", tags=["J. Arka Plan İşleri ve Otomasyon"])

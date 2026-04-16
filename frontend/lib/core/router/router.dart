@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 import '../../features/auth/screens/role_selection_screen.dart';
 import '../../features/auth/screens/simple_login_screen.dart';
+import '../../features/auth/screens/phone_login_screen.dart';
 import '../../features/auth/screens/otp_verification_screen.dart';
 import '../../features/agent/screens/agent_dashboard_screen.dart';
 import '../../features/tenant/screens/tenant_dashboard_screen.dart';
@@ -19,6 +20,13 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final role = state.uri.queryParameters['role'] ?? 'agent';
         return SimpleLoginScreen(role: role);
+      },
+    ),
+    GoRoute(
+      path: '/phone',
+      builder: (context, state) {
+        final role = state.uri.queryParameters['role'] ?? 'agent';
+        return PhoneLoginScreen(role: role);
       },
     ),
     GoRoute(

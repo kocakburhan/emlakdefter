@@ -1,85 +1,208 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/theme/colors.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/tenant_provider.dart';
 
-/// Belgelerim — Salt-okunur dijital arşiv (PRD §4.2.3)
-class TenantDocumentsTab extends ConsumerWidget {
-  const TenantDocumentsTab({Key? key}) : super(key: key);
+// ──────────────────────────────────────────────
+// "Archival Navy" — Tenant Documents
+// Blueprint, architectural, clean premium
+// PRD §4.2.3
+// ──────────────────────────────────────────────
+
+const _bg = Color(0xFF0C1426);
+const _surface = Color(0xFF12192E);
+const _surface2 = Color(0xFF1A2238);
+const _border = Color(0xFF243050);
+const _cyan = Color(0xFF00B4D8);
+const _white = Color(0xFFF8FAFC);
+const _muted = Color(0xFF8899AA);
+
+Color _docColor(String docType) {
+  switch (docType) {
+    case 'contract': return const Color(0xFF3B82F6);
+    case 'handover': return const Color(0xFF10B981);
+    case 'aidat_plan': return const Color(0xFFF59E0B);
+    case 'eviction': return const Color(0xFF8B5CF6);
+    default: return const Color(0xFF6B7280);
+  }
+}
+
+IconData _docIcon(String docType) {
+  switch (docType) {
+    case 'contract': return Icons.article_outlined;
+    case 'handover': return Icons.inventory_2_outlined;
+    case 'aidat_plan': return Icons.table_chart_outlined;
+    case 'eviction': return Icons.assignment_turned_in_outlined;
+    default: return Icons.description_outlined;
+  }
+}
+
+String _docLabel(String docType) {
+  switch (docType) {
+    case 'contract': return 'Kira Sözleşmesi';
+    case 'handover': return 'Demirbaş Teslim Tutanağı';
+    case 'aidat_plan': return 'Aidat Ödeme Planı';
+    case 'eviction': return 'Tahliye Taahhütnamesi';
+    default: return 'Diğer Belge';
+  }
+}
+
+class TenantDocumentsTab extends ConsumerStatefulWidget {
+  const TenantDocumentsTab({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(tenantProvider);
-    final tenantName = state.value?.name ?? 'Kiracı';
+  ConsumerState<TenantDocumentsTab> createState() => _TenantDocumentsTabState();
+}
 
-    final documents = [
-      _DocItem('Kira Sözleşmesi', 'Kira Sözleşmesi.pdf', Icons.description_outlined, const Color(0xFF3B82F6), DateTime(2025, 6, 1)),
-      _DocItem('Demirbaş Teslim Tutanağı', 'Demirbas_Tutanagi.pdf', Icons.inventory_2_outlined, const Color(0xFF10B981), DateTime(2025, 6, 1)),
-      _DocItem('Aidat Ödeme Planı', 'Aidat_Plani.pdf', Icons.table_chart_outlined, const Color(0xFFF59E0B), DateTime(2025, 9, 15)),
-      _DocItem('Tahliye Taahhütnamesi', 'Tahliye_Taahhut.pdf', Icons.assignment_turned_in_outlined, const Color(0xFF8B5CF6), null),
-    ];
+class _TenantDocumentsTabState extends ConsumerState<TenantDocumentsTab> {
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(tenantDocumentsProvider);
 
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
+    return Scaffold(
+      backgroundColor: _bg,
+      body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF3B82F6).withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.folder_special_outlined, color: Color(0xFF3B82F6), size: 22),
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Belgelerim', style: TextStyle(color: AppColors.textHeader, fontSize: 22, fontWeight: FontWeight.bold)),
-                      SizedBox(height: 2),
-                      Text('Salt okunur dijital arşiv', style: TextStyle(color: AppColors.textBody, fontSize: 12)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // Info banner
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFF3B82F6).withOpacity(0.06),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.12)),
-              ),
-              child: Row(
+            // ── Header ──────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.info_outline, color: Color(0xFF3B82F6), size: 18),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Bu belgeleri yalnızca görüntüleyebilir veya indirebilirsiniz. Belge ekleme veya değiştirme yetkiniz yoktur.',
-                      style: TextStyle(color: AppColors.textBody.withOpacity(0.7), fontSize: 12, height: 1.4),
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: _cyan.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _cyan.withValues(alpha: 0.2),
+                            width: 1,
+                          ),
+                        ),
+                        child: const Icon(Icons.folder_special_outlined,
+                            color: _cyan, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Belgelerim',
+                              style: TextStyle(
+                                color: _white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'Salt okunur dijital arşiv',
+                              style: TextStyle(
+                                  color: _muted, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: _surface2,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: _border, width: 1),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.lock_outline,
+                                color: _muted, size: 12),
+                            const SizedBox(width: 4),
+                            Text('Salt Okunur',
+                                style:
+                                    TextStyle(color: _muted, fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
+
+            const SizedBox(height: 16),
+
+            // ── Info banner ─────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      _cyan.withValues(alpha: 0.08),
+                      _cyan.withValues(alpha: 0.03),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: _cyan.withValues(alpha: 0.15),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: _cyan, size: 18),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Belgeleri görüntüleyebilir veya cihazınıza indirebilirsiniz. Değiştirme veya silme yetkiniz yoktur.',
+                        style: TextStyle(
+                            color: _muted, fontSize: 12, height: 1.4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
             const SizedBox(height: 20),
 
-            // Document list
+            // ── Document list ────────────────────────────────────────
             Expanded(
-              child: ListView.builder(
-                physics: const BouncingScrollPhysics(),
-                itemCount: documents.length,
-                itemBuilder: (ctx, i) => _buildDocCard(documents[i]),
+              child: state.when(
+                loading: () => _buildShimmerList(),
+                error: (_, __) => _buildError(),
+                data: (payload) {
+                  final allDocs = payload?.documents ?? [];
+                  final contractUrl = payload?.contractDocumentUrl;
+
+                  // Add contract as a special document if present
+                  final docs = <_DocumentEntry>[];
+                  if (contractUrl != null && contractUrl.isNotEmpty) {
+                    docs.add(_DocumentEntry(
+                      name: 'Kira Sözleşmesi',
+                      docType: 'contract',
+                      url: contractUrl,
+                    ));
+                  }
+                  for (final d in allDocs) {
+                    docs.add(_DocumentEntry(
+                      name: d.name,
+                      docType: d.docType,
+                      url: d.url,
+                    ));
+                  }
+
+                  if (docs.isEmpty) {
+                    return _buildEmptyState();
+                  }
+                  return _buildDocList(docs);
+                },
               ),
             ),
           ],
@@ -88,55 +211,278 @@ class TenantDocumentsTab extends ConsumerWidget {
     );
   }
 
-  Widget _buildDocCard(_DocItem doc) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.04)),
+  Widget _buildShimmerList() {
+    return ListView.builder(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      itemCount: 4,
+      itemBuilder: (_, __) => _ShimmerDocCard(),
+    );
+  }
+
+  Widget _buildDocList(List<_DocumentEntry> docs) {
+    return ListView.builder(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
+      itemCount: docs.length,
+      itemBuilder: (context, index) {
+        return _DocCard(
+          entry: docs[index],
+          index: index,
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: _surface,
+              shape: BoxShape.circle,
+              border: Border.all(color: _border, width: 1),
+            ),
+            child: Icon(Icons.folder_open_outlined,
+                color: _muted, size: 48),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Henüz belgeniz yok',
+            style: TextStyle(
+                color: _white, fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Ofis belgelerinizi sisteme eklediğinde\nburada görünecek.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: _muted, fontSize: 13, height: 1.5),
+          ),
+        ],
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () {},
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: doc.color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(doc.icon, color: doc.color, size: 24),
+    );
+  }
+
+  Widget _buildError() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.error_outline, color: _muted, size: 48),
+          const SizedBox(height: 12),
+          Text('Belger yüklenemedi',
+              style: TextStyle(color: _muted)),
+        ],
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────
+// _DocumentEntry (local model for display)
+// ──────────────────────────────────────────────
+class _DocumentEntry {
+  final String name;
+  final String docType;
+  final String url;
+
+  _DocumentEntry({
+    required this.name,
+    required this.docType,
+    required this.url,
+  });
+}
+
+// ──────────────────────────────────────────────
+// _DocCard
+// ──────────────────────────────────────────────
+class _DocCard extends StatefulWidget {
+  final _DocumentEntry entry;
+  final int index;
+
+  const _DocCard({required this.entry, required this.index});
+
+  @override
+  State<_DocCard> createState() => _DocCardState();
+}
+
+class _DocCardState extends State<_DocCard> {
+  bool _isPressed = false;
+
+  Future<void> _openDoc() async {
+    final uri = Uri.parse(widget.entry.url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _docColor(widget.entry.docType);
+    final icon = _docIcon(widget.entry.docType);
+    final label = _docLabel(widget.entry.docType);
+    final isPdf = widget.entry.url.toLowerCase().contains('.pdf');
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: 350 + (widget.index * 70)),
+      curve: Curves.easeOutCubic,
+      builder: (context, anim, child) {
+        return Opacity(
+          opacity: anim,
+          child: Transform.translate(
+            offset: Offset(0, 16 * (1 - anim)),
+            child: child,
+          ),
+        );
+      },
+      child: GestureDetector(
+        onTapDown: (_) => setState(() => _isPressed = true),
+        onTapUp: (_) => setState(() => _isPressed = false),
+        onTapCancel: () => setState(() => _isPressed = false),
+        onTap: _openDoc,
+        child: AnimatedScale(
+          scale: _isPressed ? 0.97 : 1.0,
+          duration: const Duration(milliseconds: 100),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: _surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: _border.withValues(alpha: 0.6),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.06),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              ],
+            ),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
                     children: [
-                      Text(doc.title, style: const TextStyle(color: AppColors.textHeader, fontSize: 14, fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 2),
-                      Text(doc.filename, style: TextStyle(color: AppColors.textBody.withOpacity(0.5), fontSize: 11)),
+                      // Document type icon with colored bg
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: color.withValues(alpha: 0.2),
+                            width: 1,
+                          ),
+                        ),
+                        child: Icon(icon, color: color, size: 26),
+                      ),
+                      const SizedBox(width: 14),
+
+                      // Name + type
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.entry.name,
+                              style: const TextStyle(
+                                color: _white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: color.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    label,
+                                    style: TextStyle(
+                                      color: color,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                if (isPdf) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text(
+                                      'PDF',
+                                      style: TextStyle(
+                                        color: Colors.red,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Action buttons
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // View button
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: _cyan.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              Icons.open_in_new_rounded,
+                              color: _cyan,
+                              size: 18,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Download button
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: _surface2,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              Icons.download_rounded,
+                              color: _muted,
+                              size: 18,
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                if (doc.date != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: doc.color.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(_formatDate(doc.date!), style: TextStyle(color: doc.color, fontSize: 10, fontWeight: FontWeight.w600)),
-                  ),
-                const SizedBox(width: 8),
-                Icon(Icons.chevron_right, color: AppColors.textBody.withOpacity(0.3)),
               ],
             ),
           ),
@@ -144,18 +490,86 @@ class TenantDocumentsTab extends ConsumerWidget {
       ),
     );
   }
-
-  String _formatDate(DateTime dt) {
-    return '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year}';
-  }
 }
 
-class _DocItem {
-  final String title;
-  final String filename;
-  final IconData icon;
-  final Color color;
-  final DateTime? date;
+// ──────────────────────────────────────────────
+// _ShimmerDocCard
+// ──────────────────────────────────────────────
+class _ShimmerDocCard extends StatefulWidget {
+  @override
+  State<_ShimmerDocCard> createState() => _ShimmerDocCardState();
+}
 
-  _DocItem(this.title, this.filename, this.icon, this.color, this.date);
+class _ShimmerDocCardState extends State<_ShimmerDocCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    )..repeat();
+    _anim = Tween<double>(begin: -1.0, end: 2.0).animate(_ctrl);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (context, _) {
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _border, width: 1),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 52, height: 52,
+                decoration: BoxDecoration(
+                  color: _surface2,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 120, height: 14,
+                      decoration: BoxDecoration(
+                        color: _surface2,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: 80, height: 10,
+                      decoration: BoxDecoration(
+                        color: _surface2,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }

@@ -102,7 +102,7 @@ async def list_conversations(
         client_res = await db.execute(client_stmt)
         client_user = client_res.scalar_one_or_none()
 
-        prop_stmt = select(Property).limit(1)
+        prop_stmt = select(Property).where(Property.id == conv.property_id)
         prop_res = await db.execute(prop_stmt)
         prop = prop_res.scalar_one_or_none()
 
@@ -111,10 +111,11 @@ async def list_conversations(
             agency_id=conv.agency_id,
             agent_user_id=conv.agent_user_id,
             client_user_id=conv.client_user_id,
+            property_id=conv.property_id,
             client_name=client_user.full_name if client_user else "Bilinmeyen",
             client_role="Kiracı" if client_user and "tenant" in str(client_user.role) else "Ev Sahibi",
             property_name=prop.name if prop else None,
-            last_message=last_msg.message if last_msg else None,
+            last_message=last_msg.content if last_msg else None,
             last_message_at=last_msg.created_at if last_msg else conv.created_at,
             unread_count=0,
             is_archived=conv.is_archived,
@@ -140,9 +141,14 @@ async def create_conversation(
     existing_res = await db.execute(existing_stmt)
     existing = existing_res.scalar_one_or_none()
     if existing:
+        # Mülk değiştiyse güncelle
+        if data.property_id and not existing.property_id:
+            existing.property_id = data.property_id
+            await db.commit()
         return ChatConversationResponse(
             id=existing.id, agency_id=existing.agency_id,
             agent_user_id=existing.agent_user_id, client_user_id=existing.client_user_id,
+            property_id=existing.property_id,
             created_at=existing.created_at, is_archived=existing.is_archived,
         )
 
@@ -150,6 +156,7 @@ async def create_conversation(
         agency_id=agency_id,
         agent_user_id=current_user.id,
         client_user_id=data.client_user_id,
+        property_id=data.property_id,
     )
     db.add(conv)
     await db.commit()
@@ -157,6 +164,7 @@ async def create_conversation(
     return ChatConversationResponse(
         id=conv.id, agency_id=conv.agency_id,
         agent_user_id=conv.agent_user_id, client_user_id=conv.client_user_id,
+        property_id=conv.property_id,
         created_at=conv.created_at, is_archived=conv.is_archived,
     )
 
@@ -230,8 +238,8 @@ async def send_message(
     db_msg = ChatMessage(
         conversation_id=message_in.conversation_id,
         sender_user_id=current_user.id,
-        message=message_in.message or "",
-        media_url=message_in.media_url,
+        content=message_in.content or "",
+        attachment_url=message_in.attachment_url,
     )
     db.add(db_msg)
 
@@ -246,8 +254,8 @@ async def send_message(
         "id": str(db_msg.id),
         "conversation_id": str(db_msg.conversation_id),
         "sender_user_id": str(db_msg.sender_user_id),
-        "message": db_msg.message,
-        "media_url": db_msg.media_url,
+        "content": db_msg.content,
+        "attachment_url": db_msg.attachment_url,
         "created_at": db_msg.created_at.isoformat(),
     }, str(conv.id))
 
@@ -273,7 +281,7 @@ async def edit_message(
     if elapsed > 15 * 60:
         raise HTTPException(status_code=400, detail="Mesaj düzenleme süresi dolmuş (15 dk)")
 
-    msg.message = edit_in.message
+    msg.content = edit_in.content
     msg.is_edited = True
     msg.edited_at = datetime.utcnow().isoformat()
     await db.commit()
@@ -283,7 +291,7 @@ async def edit_message(
         "type": "message_edited",
         "id": str(msg.id),
         "conversation_id": str(msg.conversation_id),
-        "message": msg.message,
+        "content": msg.content,
         "is_edited": True,
         "edited_at": msg.edited_at,
     }, str(msg.conversation_id))
@@ -351,8 +359,8 @@ async def websocket_chat_endpoint(websocket: WebSocket, conversation_id: str, to
                     db_msg = ChatMessage(
                          conversation_id=uuid.UUID(conversation_id),
                          sender_user_id=user.id,
-                         message=data.get("message"),
-                         media_url=data.get("media_url")
+                         content=data.get("content"),
+                         attachment_url=data.get("attachment_url")
                     )
                     db.add(db_msg)
                     await db.commit()
@@ -363,8 +371,8 @@ async def websocket_chat_endpoint(websocket: WebSocket, conversation_id: str, to
                         "conversation_id": conversation_id,
                         "sender_user_id": str(user.id),
                         "sender_name": user.full_name,
-                        "message": db_msg.message,
-                        "media_url": db_msg.media_url,
+                        "content": db_msg.content,
+                        "attachment_url": db_msg.attachment_url,
                         "created_at": str(db_msg.created_at),
                         "is_edited": False,
                     }

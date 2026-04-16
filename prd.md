@@ -91,6 +91,7 @@ Seçilen dairenin tüm dijital ve fiziksel verilerinin yönetildiği kontrol pan
 **B. Özellikler ve Etiketler:** Daireye ait teknik olanaklar (Otopark, Balkon, Asansör vb.) emlakçı tarafından eklenebilir ve düzenlenebilir.
 
 **C. Dijital Varlıklar (Medya):** Emlakçının eklediği fotoğraflar eklenme tarihine göre (kronolojik) listelenir. Ayrıca girilen YouTube "Liste Dışı" video linki ile görseller (image) doğrudan uygulama içerisinden (dahili oynatıcı/görüntüleyici ile) açılır.
+
 #### 4.1.4. Kiracı ve Ev Sahibi Yönetimi Ekranı
 Bu ekran üzerinden aktif profillerin listelenmesi ve atama yönetimi gerçekleştirilir. Emlakçı; kiracı ve ev sahibi ekleme, silme ve düzenleme işlemlerini bu panelden yönetir.
 

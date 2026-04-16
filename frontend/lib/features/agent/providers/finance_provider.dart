@@ -6,7 +6,7 @@ import 'package:dio/dio.dart';
 import '../../../core/network/api_client.dart';
 import 'dart:math';
 
-enum MatchStatus { pending, matched, rejected }
+enum MatchStatus { pending, matched, rejected, overdue, partial }
 
 class TransactionModel {
   final String id;
@@ -16,6 +16,9 @@ class TransactionModel {
   final String description;
   final MatchStatus status; // AI'nin bulup çıkardığı eşleşme (Güven) durumu
   final double aiConfidence; // %0-100 arası AI güven skoru (Ne kadar iyi bulduysak o kadar yüksek)
+  final int? daysUntilDue; // Ödemeye X gün var (pending için)
+  final int? overdueDays; // X gün gecikti (overdue için)
+  final double? expectedAmount; // Beklenen tutar (partial için)
 
   TransactionModel({
     required this.id,
@@ -25,9 +28,17 @@ class TransactionModel {
     required this.description,
     required this.status,
     this.aiConfidence = 100,
+    this.daysUntilDue,
+    this.overdueDays,
+    this.expectedAmount,
   });
 
-  TransactionModel copyWith({MatchStatus? status}) {
+  TransactionModel copyWith({
+    MatchStatus? status,
+    int? daysUntilDue,
+    int? overdueDays,
+    double? expectedAmount,
+  }) {
     return TransactionModel(
       id: id,
       date: date,
@@ -36,6 +47,9 @@ class TransactionModel {
       description: description,
       status: status ?? this.status,
       aiConfidence: aiConfidence,
+      daysUntilDue: daysUntilDue ?? this.daysUntilDue,
+      overdueDays: overdueDays ?? this.overdueDays,
+      expectedAmount: expectedAmount ?? this.expectedAmount,
     );
   }
 }
@@ -114,6 +128,38 @@ class FinanceNotifier extends StateNotifier<AsyncValue<List<TransactionModel>>> 
         }).toList();
         state = AsyncValue.data(updatedList);
      }
+  }
+
+  Future<void> sendReminder(String transactionId) async {
+    try {
+      await ApiClient.dio.post('/finance/reminder/$transactionId');
+    } catch (e) {
+      debugPrint("Hatırlat gönderme hatası: $e");
+    }
+  }
+
+  Future<void> sendWarning(String transactionId) async {
+    try {
+      await ApiClient.dio.post('/finance/warning/$transactionId');
+    } catch (e) {
+      debugPrint("İhtar gönderme hatası: $e");
+    }
+  }
+
+  Future<void> markAsReceived(String transactionId) async {
+    try {
+      await ApiClient.dio.post('/finance/mark-received/$transactionId');
+      if (state.value != null) {
+        final list = state.value!;
+        final updatedList = list.map((e) {
+          if (e.id == transactionId) return e.copyWith(status: MatchStatus.matched);
+          return e;
+        }).toList();
+        state = AsyncValue.data(updatedList);
+      }
+    } catch (e) {
+      debugPrint("Elden alındı işaretleme hatası: $e");
+    }
   }
 }
 

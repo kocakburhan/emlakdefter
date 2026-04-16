@@ -123,6 +123,41 @@ class LandlordUnit {
   }
 }
 
+class PaymentMonthItem {
+  final String monthLabel;
+  final int year;
+  final int month;
+  final double amount;
+  final double paidAmount;
+  final String status; // "paid_on_time" | "paid_late" | "partial" | "pending"
+  final int daysLate;
+  final DateTime? paidAt;
+
+  PaymentMonthItem({
+    required this.monthLabel,
+    required this.year,
+    required this.month,
+    required this.amount,
+    required this.paidAmount,
+    required this.status,
+    this.daysLate = 0,
+    this.paidAt,
+  });
+
+  factory PaymentMonthItem.fromJson(Map<String, dynamic> json) {
+    return PaymentMonthItem(
+      monthLabel: json['month_label'] ?? '',
+      year: json['year'] ?? 0,
+      month: json['month'] ?? 0,
+      amount: (json['amount'] ?? 0).toDouble(),
+      paidAmount: (json['paid_amount'] ?? 0).toDouble(),
+      status: json['status'] ?? 'pending',
+      daysLate: json['days_late'] ?? 0,
+      paidAt: json['paid_at'] != null ? DateTime.tryParse(json['paid_at']) : null,
+    );
+  }
+}
+
 class TenantPerformance {
   final String tenantId;
   final String unitId;
@@ -138,6 +173,10 @@ class TenantPerformance {
   final bool isActive;
   final int monthsRented;
   final int onTimePayments;
+  final int latePayments;
+  final int missedPayments;
+  final double paymentScore;
+  final List<PaymentMonthItem> paymentHistory;
 
   TenantPerformance({
     required this.tenantId,
@@ -154,6 +193,10 @@ class TenantPerformance {
     required this.isActive,
     required this.monthsRented,
     required this.onTimePayments,
+    this.latePayments = 0,
+    this.missedPayments = 0,
+    this.paymentScore = 100.0,
+    this.paymentHistory = const [],
   });
 
   factory TenantPerformance.fromJson(Map<String, dynamic> json) {
@@ -176,12 +219,69 @@ class TenantPerformance {
       isActive: json['is_active'] ?? false,
       monthsRented: json['months_rented'] ?? 0,
       onTimePayments: json['on_time_payments'] ?? 0,
+      latePayments: json['late_payments'] ?? 0,
+      missedPayments: json['missed_payments'] ?? 0,
+      paymentScore: (json['payment_score'] ?? 100.0).toDouble(),
+      paymentHistory: (json['payment_history'] as List<dynamic>?)
+              ?.map((e) => PaymentMonthItem.fromJson(e))
+              .toList() ?? [],
     );
   }
+}
 
-  double get paymentScore {
-    if (monthsRented == 0) return 100;
-    return (onTimePayments / monthsRented * 100).clamp(0, 100);
+class LandlordTenantTicket {
+  final String id;
+  final String title;
+  final String? description;
+  final String priority;
+  final String status; // open, in_progress, resolved, closed
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final String unitDoor;
+  final String propertyName;
+  final int messageCount;
+  final int agentReplyCount;
+  final String? lastMessage;
+  final DateTime? lastMessageAt;
+
+  LandlordTenantTicket({
+    required this.id,
+    required this.title,
+    this.description,
+    required this.priority,
+    required this.status,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.unitDoor,
+    required this.propertyName,
+    required this.messageCount,
+    required this.agentReplyCount,
+    this.lastMessage,
+    this.lastMessageAt,
+  });
+
+  factory LandlordTenantTicket.fromJson(Map<String, dynamic> json) {
+    return LandlordTenantTicket(
+      id: json['id'] ?? '',
+      title: json['title'] ?? '',
+      description: json['description'],
+      priority: json['priority'] ?? 'medium',
+      status: json['status'] ?? 'open',
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at']) ?? DateTime.now()
+          : DateTime.now(),
+      updatedAt: json['updated_at'] != null
+          ? DateTime.tryParse(json['updated_at']) ?? DateTime.now()
+          : DateTime.now(),
+      unitDoor: json['unit_door'] ?? '?',
+      propertyName: json['property_name'] ?? '',
+      messageCount: json['message_count'] ?? 0,
+      agentReplyCount: json['agent_reply_count'] ?? 0,
+      lastMessage: json['last_message'],
+      lastMessageAt: json['last_message_at'] != null
+          ? DateTime.tryParse(json['last_message_at'])
+          : null,
+    );
   }
 }
 
@@ -271,6 +371,7 @@ class LandlordState {
   final List<TenantPerformance> tenants;
   final List<LandlordOperation> operations;
   final List<LandlordVacantUnit> vacantUnits;
+  final List<LandlordTenantTicket> tickets;
   final bool isLoading;
   final String? error;
 
@@ -281,6 +382,7 @@ class LandlordState {
     this.tenants = const [],
     this.operations = const [],
     this.vacantUnits = const [],
+    this.tickets = const [],
     this.isLoading = false,
     this.error,
   });
@@ -292,6 +394,7 @@ class LandlordState {
     List<TenantPerformance>? tenants,
     List<LandlordOperation>? operations,
     List<LandlordVacantUnit>? vacantUnits,
+    List<LandlordTenantTicket>? tickets,
     bool? isLoading,
     String? error,
     bool clearError = false,
@@ -303,6 +406,7 @@ class LandlordState {
       tenants: tenants ?? this.tenants,
       operations: operations ?? this.operations,
       vacantUnits: vacantUnits ?? this.vacantUnits,
+      tickets: tickets ?? this.tickets,
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : (error ?? this.error),
     );
@@ -385,6 +489,10 @@ class LandlordNotifier extends StateNotifier<LandlordState> {
     }
   }
 
+  Future<void> fetchTenantTickets() async {
+    await _fetchTenantTickets();
+  }
+
   Future<void> fetchVacantUnits({String? propertyName, int? minPrice, int? maxPrice}) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
@@ -409,8 +517,21 @@ class LandlordNotifier extends StateNotifier<LandlordState> {
       _fetchKPIs(),
       _fetchProperties(),
       _fetchUnits(),
+      _fetchTenantTickets(),
     ]);
     state = state.copyWith(isLoading: false);
+  }
+
+  Future<void> _fetchTenantTickets() async {
+    try {
+      final resp = await ApiClient.dio.get('/landlord/tenant-tickets');
+      if (resp.statusCode == 200) {
+        final data = resp.data as List<dynamic>;
+        state = state.copyWith(tickets: data.map((j) => LandlordTenantTicket.fromJson(j)).toList());
+      }
+    } catch (e) {
+      debugPrint('Tenant tickets fetch error: $e');
+    }
   }
 
   Future<void> _fetchKPIs() async {

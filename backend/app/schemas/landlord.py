@@ -46,6 +46,18 @@ class LandlordDashboardKPIs(BaseModel):
     occupancy_rate: float
 
 
+class PaymentMonthItem(BaseModel):
+    """Tek bir aydaki ödeme durumu"""
+    month_label: str          # "Oca 2026"
+    year: int
+    month: int
+    amount: float
+    paid_amount: float
+    status: str               # "paid_on_time" | "paid_late" | "partial" | "pending"
+    days_late: int = 0       # Geciktirilen gün sayısı (sadece geciktiyse)
+    paid_at: Optional[date]  # Fiili ödeme tarihi
+
+
 class LandlordTenantPerformance(BaseModel):
     """Kiracı performans bilgisi (ödeme geçmişi vb.)"""
     tenant_id: UUID4
@@ -60,9 +72,12 @@ class LandlordTenantPerformance(BaseModel):
     contract_end: date
     status: str
     is_active: bool
-    # Tahmini ödeme performansı (basit)
     months_rented: int
     on_time_payments: int
+    late_payments: int = 0
+    missed_payments: int = 0
+    payment_score: float = 100.0
+    payment_history: List[PaymentMonthItem] = []
 
 
 class LandlordOperationItem(BaseModel):
@@ -94,3 +109,9 @@ class LandlordVacantUnit(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class LandlordInterestRequest(BaseModel):
+    """§4.3.4 — Ev Sahibinin yatırım ilgisi bildirmesi (Bilgi Al)"""
+    property_id: Optional[UUID4] = None
+    initial_message: str = "Bu mülk hakkında bilgi almak istiyorum."

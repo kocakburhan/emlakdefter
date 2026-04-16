@@ -45,9 +45,9 @@ class _TicketChatBottomSheetState extends ConsumerState<TicketChatBottomSheet> {
             margin: EdgeInsets.only(top: AppBar().preferredSize.height), // Çok yukarı çıkıp Notch (Çentik)'i ezmesin
             padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomInset),
             decoration: BoxDecoration(
-               color: AppColors.background.withOpacity(0.9), // Gece karanlığında tatlı Şeffaf arkaplanı
+               color: AppColors.background.withValues(alpha:0.9), // Gece karanlığında tatlı Şeffaf arkaplanı
                borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
-               border: Border.all(color: Colors.white.withOpacity(0.1)) // Tatlı Çerçeve Efekti
+               border: Border.all(color: Colors.white.withValues(alpha:0.1)) // Tatlı Çerçeve Efekti
             ),
             child: Column(
                mainAxisSize: MainAxisSize.min, // Ekranı klavye açıldıkça gerektiği kadar aşağı doğru itmesi için
@@ -74,7 +74,7 @@ class _TicketChatBottomSheetState extends ConsumerState<TicketChatBottomSheet> {
                            ElevatedButton(
                               onPressed: _closeTicket, 
                               style: ElevatedButton.styleFrom(
-                                 backgroundColor: AppColors.success.withOpacity(0.2), 
+                                 backgroundColor: AppColors.success.withValues(alpha:0.2), 
                                  padding: const EdgeInsets.symmetric(horizontal: 16), 
                                  minimumSize: const Size(0,36)
                               ),
@@ -100,14 +100,14 @@ class _TicketChatBottomSheetState extends ConsumerState<TicketChatBottomSheet> {
                                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75), // Baloncukların genişliği ekranı kaplamasın! Oranlı dursun
                                  padding: const EdgeInsets.all(14),
                                  decoration: BoxDecoration(
-                                    color: msg.isMe ? AppColors.accent.withOpacity(0.2) : AppColors.surface, // Ben yolladımsa Camgöbeği/Mavi
+                                    color: msg.isMe ? AppColors.accent.withValues(alpha:0.2) : AppColors.surface, // Ben yolladımsa Camgöbeği/Mavi
                                     borderRadius: BorderRadius.only(
                                        topLeft: const Radius.circular(16),
                                        topRight: const Radius.circular(16),
                                        bottomLeft: msg.isMe ? const Radius.circular(16) : const Radius.circular(4),  // Sola baloncuk sivrisi
                                        bottomRight: msg.isMe ? const Radius.circular(4) : const Radius.circular(16), // Sağa baloncuk sivrisi
                                     ),
-                                    border: Border.all(color: msg.isMe ? AppColors.accent.withOpacity(0.5) : Colors.white12)
+                                    border: Border.all(color: msg.isMe ? AppColors.accent.withValues(alpha:0.5) : Colors.white12)
                                  ),
                                  child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,

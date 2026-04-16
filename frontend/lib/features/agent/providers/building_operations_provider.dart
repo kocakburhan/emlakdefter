@@ -1,6 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:uuid/uuid.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/offline/connectivity_service.dart';
+import '../../../core/offline/offline_storage.dart';
 
 /// Bina Operasyon Log — Backend BuildingOperationLog karşılığı
 class BuildingOperationModel {
@@ -15,6 +18,8 @@ class BuildingOperationModel {
   final String? invoiceUrl;
   final bool isReflectedToFinance;
   final DateTime createdAt;
+  final String? category;
+  final bool isPendingSync; // §5.3 — cloud upload bekleyen
 
   BuildingOperationModel({
     required this.id,
@@ -28,6 +33,8 @@ class BuildingOperationModel {
     this.invoiceUrl,
     this.isReflectedToFinance = false,
     required this.createdAt,
+    this.category,
+    this.isPendingSync = false,
   });
 
   factory BuildingOperationModel.fromJson(Map<String, dynamic> json) {
@@ -45,6 +52,32 @@ class BuildingOperationModel {
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : DateTime.now(),
+      category: json['category'],
+    );
+  }
+
+  /// Local pending operation (queued for sync).
+  factory BuildingOperationModel.pending({
+    required String propertyId,
+    required String title,
+    String? description,
+    int cost = 0,
+    String? invoiceUrl,
+    bool isReflectedToFinance = false,
+    String? category,
+  }) {
+    return BuildingOperationModel(
+      id: const Uuid().v4(),
+      agencyId: '',
+      propertyId: propertyId,
+      title: title,
+      description: description,
+      cost: cost,
+      invoiceUrl: invoiceUrl,
+      isReflectedToFinance: isReflectedToFinance,
+      createdAt: DateTime.now(),
+      category: category,
+      isPendingSync: true,
     );
   }
 
@@ -104,6 +137,9 @@ class BuildingOperationsState {
 }
 
 class BuildingOperationsNotifier extends StateNotifier<BuildingOperationsState> {
+  final _offlineStorage = OfflineStorage();
+  final _connService = ConnectivityService();
+
   BuildingOperationsNotifier() : super(BuildingOperationsState()) {
     fetchOperations();
   }
@@ -131,7 +167,33 @@ class BuildingOperationsNotifier extends StateNotifier<BuildingOperationsState> 
     int cost = 0,
     String? invoiceUrl,
     bool isReflectedToFinance = false,
+    String? category,
   }) async {
+    // §5.3 — offline: queue locally with cloud-upload icon
+    if (!_connService.isOnline) {
+      final pending = BuildingOperationModel.pending(
+        propertyId: propertyId,
+        title: title,
+        description: description,
+        cost: cost,
+        invoiceUrl: invoiceUrl,
+        isReflectedToFinance: isReflectedToFinance,
+        category: category,
+      );
+      state = state.copyWith(operations: [pending, ...state.operations]);
+      await _offlineStorage.addToOpQueue(pending.id, {
+        'local_id': pending.id,
+        'property_id': propertyId,
+        'title': title,
+        'description': description,
+        'cost': cost,
+        'invoice_url': invoiceUrl,
+        'is_reflected_to_finance': isReflectedToFinance,
+        'category': category,
+      });
+      return true;
+    }
+
     try {
       final response = await ApiClient.dio.post('/operations/building-logs', data: {
         'property_id': propertyId,
@@ -140,6 +202,7 @@ class BuildingOperationsNotifier extends StateNotifier<BuildingOperationsState> 
         'cost': cost,
         'invoice_url': invoiceUrl,
         'is_reflected_to_finance': isReflectedToFinance,
+        if (category != null) 'category': category,
       });
       if (response.statusCode == 201) {
         final newOp = BuildingOperationModel.fromJson(response.data);
@@ -147,7 +210,29 @@ class BuildingOperationsNotifier extends StateNotifier<BuildingOperationsState> 
         return true;
       }
     } catch (e) {
-      debugPrint('⚠️ Bina operasyonu oluşturma hatası: $e');
+      // §5.3 fallback — network error, queue locally
+      final pending = BuildingOperationModel.pending(
+        propertyId: propertyId,
+        title: title,
+        description: description,
+        cost: cost,
+        invoiceUrl: invoiceUrl,
+        isReflectedToFinance: isReflectedToFinance,
+        category: category,
+      );
+      state = state.copyWith(operations: [pending, ...state.operations]);
+      await _offlineStorage.addToOpQueue(pending.id, {
+        'local_id': pending.id,
+        'property_id': propertyId,
+        'title': title,
+        'description': description,
+        'cost': cost,
+        'invoice_url': invoiceUrl,
+        'is_reflected_to_finance': isReflectedToFinance,
+        'category': category,
+      });
+      debugPrint('⚠️ Bina operasyonu offline kuyruğa eklendi: $e');
+      return true;
     }
     return false;
   }

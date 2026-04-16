@@ -42,7 +42,7 @@ async def _build_portfolio_performance(db: AsyncSession, agency_id: UUID) -> Por
     units = (await db.execute(unit_stmt)).scalars().all()
 
     total_units = len(units)
-    occupied_units = sum(1 for u in units if u.status == "occupied")
+    occupied_units = sum(1 for u in units if u.status == "rented")
     vacant_units = total_units - occupied_units
     overall_rate = (occupied_units / total_units * 100) if total_units > 0 else 0.0
 
@@ -51,7 +51,7 @@ async def _build_portfolio_performance(db: AsyncSession, agency_id: UUID) -> Por
     for p in props:
         prop_units = [u for u in units if u.property_id == p.id]
         p_total = len(prop_units)
-        p_occ = sum(1 for u in prop_units if u.status == "occupied")
+        p_occ = sum(1 for u in prop_units if u.status == "rented")
         by_property.append(OccupancyRateItem(
             property_id=p.id,
             property_name=p.name,

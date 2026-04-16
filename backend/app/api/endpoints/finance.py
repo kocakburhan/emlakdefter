@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, func, and_
 from typing import List, Optional
 from datetime import date
 import uuid
@@ -26,9 +26,11 @@ router = APIRouter()
 
 @router.get("/transactions", response_model=TransactionListResponse)
 async def list_transactions(
-    type: Optional[str] = None,       # income / expense filtresi
+    tx_type: Optional[str] = None,    # income / expense filtresi
     category: Optional[str] = None,   # rent / dues / commission / ...
-    limit: int = 50,
+    start_date: Optional[str] = None, # YYYY-MM-DD
+    end_date: Optional[str] = None,    # YYYY-MM-DD
+    limit: int = 200,
     offset: int = 0,
     current_user: User = Depends(deps.get_current_user),
     agency_id: uuid.UUID = Depends(deps.get_current_user_agency_id),
@@ -42,29 +44,61 @@ async def list_transactions(
             FinancialTransaction.is_deleted == False,
         )
     )
-    
+
     # Opsiyonel filtreler
-    if type:
-        query = query.where(FinancialTransaction.type == type)
+    if tx_type:
+        query = query.where(FinancialTransaction.type == tx_type)
     if category:
         query = query.where(FinancialTransaction.category == category)
-    
+
+    # Tarih aralığı filtresi
+    if start_date:
+        try:
+            start = date.fromisoformat(start_date)
+            query = query.where(FinancialTransaction.transaction_date >= start)
+        except ValueError:
+            pass
+    if end_date:
+        try:
+            end = date.fromisoformat(end_date)
+            query = query.where(FinancialTransaction.transaction_date <= end)
+        except ValueError:
+            pass
+
     query = query.order_by(desc(FinancialTransaction.transaction_date)).offset(offset).limit(limit)
-    
+
     result = await db.execute(query)
     transactions = result.scalars().all()
-    
-    # Toplam gelir/gider hesapla
-    total_q = select(FinancialTransaction).where(
-        FinancialTransaction.agency_id == agency_id,
-        FinancialTransaction.is_deleted == False,
+
+    # Toplam gelir/gider hesapla (filtrelenmiş)
+    total_q = (
+        select(FinancialTransaction)
+        .where(
+            FinancialTransaction.agency_id == agency_id,
+            FinancialTransaction.is_deleted == False,
+        )
     )
+    if tx_type:
+        total_q = total_q.where(FinancialTransaction.type == tx_type)
+    if category:
+        total_q = total_q.where(FinancialTransaction.category == category)
+    if start_date:
+        try:
+            total_q = total_q.where(FinancialTransaction.transaction_date >= date.fromisoformat(start_date))
+        except ValueError:
+            pass
+    if end_date:
+        try:
+            total_q = total_q.where(FinancialTransaction.transaction_date <= date.fromisoformat(end_date))
+        except ValueError:
+            pass
+
     total_result = await db.execute(total_q)
     all_txs = total_result.scalars().all()
-    
+
     total_income = sum(t.amount for t in all_txs if t.type == TransactionType.income)
     total_expense = sum(t.amount for t in all_txs if t.type == TransactionType.expense)
-    
+
     return TransactionListResponse(
         transactions=[TransactionResponse.from_orm(t) for t in transactions],
         total_income=total_income,
@@ -72,6 +106,134 @@ async def list_transactions(
         net_balance=total_income - total_expense,
         count=len(transactions),
     )
+
+
+@router.get("/monthly-stats")
+async def get_monthly_stats(
+    year: Optional[int] = None,  # Hangi yıl (varsayılan: bu yıl)
+    current_user: User = Depends(deps.get_current_user),
+    agency_id: uuid.UUID = Depends(deps.get_current_user_agency_id),
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """Aylık gelir/gider istatistikleri — bar chart için."""
+    if year is None:
+        year = date.today().year
+
+    from datetime import datetime
+    start_of_year = date(year, 1, 1)
+    end_of_year = date(year, 12, 31)
+
+    # Aylık gruplama sorgusu
+    monthly_data = []
+    for month in range(1, 13):
+        month_start = date(year, month, 1)
+        if month == 12:
+            month_end = date(year + 1, 1, 1)
+        else:
+            month_end = date(year, month + 1, 1)
+
+        # Gelir
+        income_q = select(func.sum(FinancialTransaction.amount)).where(
+            and_(
+                FinancialTransaction.agency_id == agency_id,
+                FinancialTransaction.is_deleted == False,
+                FinancialTransaction.type == TransactionType.income,
+                FinancialTransaction.transaction_date >= month_start,
+                FinancialTransaction.transaction_date < month_end,
+            )
+        )
+        income_result = await db.execute(income_q)
+        income = income_result.scalar() or 0
+
+        # Gider
+        expense_q = select(func.sum(FinancialTransaction.amount)).where(
+            and_(
+                FinancialTransaction.agency_id == agency_id,
+                FinancialTransaction.is_deleted == False,
+                FinancialTransaction.type == TransactionType.expense,
+                FinancialTransaction.transaction_date >= month_start,
+                FinancialTransaction.transaction_date < month_end,
+            )
+        )
+        expense_result = await db.execute(expense_q)
+        expense = expense_result.scalar() or 0
+
+        monthly_data.append({
+            "month": month,
+            "month_name": _MONTH_NAMES[month - 1],
+            "income": income,
+            "expense": expense,
+        })
+
+    return {
+        "year": year,
+        "months": monthly_data,
+    }
+
+
+_MONTH_NAMES = [
+    "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
+    "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"
+]
+
+
+@router.get("/category-breakdown")
+async def get_category_breakdown(
+    tx_type: Optional[str] = None,  # income / expense
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: User = Depends(deps.get_current_user),
+    agency_id: uuid.UUID = Depends(deps.get_current_user_agency_id),
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """Kategori bazlı gelir/gider dağılımı — pie chart için."""
+    query = (
+        select(
+            FinancialTransaction.category,
+            func.sum(FinancialTransaction.amount).label("total"),
+            func.count(FinancialTransaction.id).label("count"),
+        )
+        .where(
+            FinancialTransaction.agency_id == agency_id,
+            FinancialTransaction.is_deleted == False,
+        )
+        .group_by(FinancialTransaction.category)
+    )
+
+    if tx_type:
+        query = query.where(FinancialTransaction.type == tx_type)
+    if start_date:
+        try:
+            query = query.where(FinancialTransaction.transaction_date >= date.fromisoformat(start_date))
+        except ValueError:
+            pass
+    if end_date:
+        try:
+            query = query.where(FinancialTransaction.transaction_date <= date.fromisoformat(end_date))
+        except ValueError:
+            pass
+
+    result = await db.execute(query)
+    rows = result.all()
+
+    # Enum'i stringe çevir
+    breakdown = []
+    for row in rows:
+        cat_value = row.category.value if hasattr(row.category, 'value') else str(row.category)
+        breakdown.append({
+            "category": cat_value,
+            "total": row.total,
+            "count": row.count,
+        })
+
+    # Toplam hesapla
+    grand_total = sum(b["total"] for b in breakdown)
+
+    return {
+        "type": tx_type,
+        "breakdown": breakdown,
+        "grand_total": grand_total,
+    }
 
 
 @router.post("/transactions", response_model=TransactionResponse, status_code=201)

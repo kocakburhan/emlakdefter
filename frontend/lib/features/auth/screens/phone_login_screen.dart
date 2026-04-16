@@ -48,7 +48,7 @@ class _PhoneLoginScreenState extends ConsumerState<PhoneLoginScreen> {
       body: Stack(
         children: [
           // Arkadaki Klasik Cam Glow'umuz
-          Positioned(top: -50, left: -50, child: Container(width: 300, height: 300, decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.accent.withOpacity(0.15)))),
+          Positioned(top: -50, left: -50, child: Container(width: 300, height: 300, decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.accent.withValues(alpha:0.15)))),
           Positioned.fill(child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 70, sigmaY: 70), child: const SizedBox())),
           
           SafeArea(
@@ -72,9 +72,9 @@ class _PhoneLoginScreenState extends ConsumerState<PhoneLoginScreen> {
                   // Akıllı Telefon Girdi Kutusu (+90)
                   Container(
                     decoration: BoxDecoration(
-                      color: AppColors.surface.withOpacity(0.5),
+                      color: AppColors.surface.withValues(alpha:0.5),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white.withOpacity(0.1)),
+                      border: Border.all(color: Colors.white.withValues(alpha:0.1)),
                     ),
                     child: TextField(
                       controller: _phoneController,
@@ -89,7 +89,7 @@ class _PhoneLoginScreenState extends ConsumerState<PhoneLoginScreen> {
                           ),
                         ),
                         hintText: "5XX XXX XX XX",
-                        hintStyle: TextStyle(color: AppColors.textBody.withOpacity(0.5)),
+                        hintStyle: TextStyle(color: AppColors.textBody.withValues(alpha:0.5)),
                         border: InputBorder.none,
                       ),
                     ),

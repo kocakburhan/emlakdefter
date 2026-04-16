@@ -91,7 +91,7 @@ class _LandlordDashboardScreenState extends ConsumerState<LandlordDashboardScree
                     Text(
                       'Mülklerim',
                       style: TextStyle(
-                        color: AppColors.textBody.withOpacity(0.6),
+                        color: AppColors.textBody.withValues(alpha:0.6),
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                         letterSpacing: 0.5,
@@ -117,8 +117,8 @@ class _LandlordDashboardScreenState extends ConsumerState<LandlordDashboardScree
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      const Color(0xFFD4A574).withOpacity(0.8),
-                      const Color(0xFFB8956A).withOpacity(0.9),
+                      const Color(0xFFD4A574).withValues(alpha:0.8),
+                      const Color(0xFFB8956A).withValues(alpha:0.9),
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -126,7 +126,7 @@ class _LandlordDashboardScreenState extends ConsumerState<LandlordDashboardScree
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFD4A574).withOpacity(0.3),
+                      color: const Color(0xFFD4A574).withValues(alpha:0.3),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -163,9 +163,9 @@ class _LandlordDashboardScreenState extends ConsumerState<LandlordDashboardScree
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha:0.1),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.15)),
+          border: Border.all(color: color.withValues(alpha:0.15)),
         ),
         child: Column(
           children: [
@@ -182,7 +182,7 @@ class _LandlordDashboardScreenState extends ConsumerState<LandlordDashboardScree
             Text(
               label,
               style: TextStyle(
-                color: color.withOpacity(0.7),
+                color: color.withValues(alpha:0.7),
                 fontSize: 10,
                 fontWeight: FontWeight.w500,
               ),
@@ -202,13 +202,13 @@ class _LandlordDashboardScreenState extends ConsumerState<LandlordDashboardScree
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha:0.05)),
       ),
       child: TabBar(
         controller: _tabController,
         indicator: BoxDecoration(
           gradient: LinearGradient(
-            colors: [const Color(0xFFD4A574).withOpacity(0.3), const Color(0xFF8B7355).withOpacity(0.2)],
+            colors: [const Color(0xFFD4A574).withValues(alpha:0.3), const Color(0xFF8B7355).withValues(alpha:0.2)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -218,7 +218,7 @@ class _LandlordDashboardScreenState extends ConsumerState<LandlordDashboardScree
         indicatorPadding: const EdgeInsets.all(4),
         dividerColor: Colors.transparent,
         labelColor: const Color(0xFFD4A574),
-        unselectedLabelColor: AppColors.textBody.withOpacity(0.5),
+        unselectedLabelColor: AppColors.textBody.withValues(alpha:0.5),
         labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
         unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 12),
         tabs: List.generate(5, (i) => Tab(
@@ -239,11 +239,11 @@ class _LandlordDashboardScreenState extends ConsumerState<LandlordDashboardScree
     return Container(
       margin: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       decoration: BoxDecoration(
-        color: AppColors.surface.withOpacity(0.8),
+        color: AppColors.surface.withValues(alpha:0.8),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha:0.05)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 20, offset: const Offset(0, 8)),
+          BoxShadow(color: Colors.black.withValues(alpha:0.25), blurRadius: 20, offset: const Offset(0, 8)),
         ],
       ),
       child: ClipRRect(
@@ -258,7 +258,7 @@ class _LandlordDashboardScreenState extends ConsumerState<LandlordDashboardScree
           backgroundColor: Colors.transparent,
           elevation: 0,
           selectedItemColor: const Color(0xFFD4A574),
-          unselectedItemColor: AppColors.textBody.withOpacity(0.4),
+          unselectedItemColor: AppColors.textBody.withValues(alpha:0.4),
           showUnselectedLabels: false,
           selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
           items: const [
@@ -364,9 +364,9 @@ class _OverviewTab extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.12)),
+        border: Border.all(color: color.withValues(alpha:0.12)),
         boxShadow: [
-          BoxShadow(color: color.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(color: color.withValues(alpha:0.05), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       child: Row(
@@ -374,7 +374,7 @@ class _OverviewTab extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha:0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: color, size: 22),
@@ -384,7 +384,7 @@ class _OverviewTab extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: TextStyle(color: AppColors.textBody.withOpacity(0.6), fontSize: 11)),
+                Text(label, style: TextStyle(color: AppColors.textBody.withValues(alpha:0.6), fontSize: 11)),
                 const SizedBox(height: 4),
                 Text(
                   value,
@@ -422,7 +422,7 @@ class _OverviewTab extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha:0.05)),
       ),
       child: Row(
         children: [
@@ -430,7 +430,7 @@ class _OverviewTab extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: const Color(0xFF8B7355).withOpacity(0.12),
+              color: const Color(0xFF8B7355).withValues(alpha:0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(Icons.home_work_outlined, color: Color(0xFF8B7355), size: 24),
@@ -444,7 +444,7 @@ class _OverviewTab extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   '${prop.ownedUnits} birim • ${prop.occupancyRate.toStringAsFixed(0)}% dolu',
-                  style: TextStyle(color: AppColors.textBody.withOpacity(0.6), fontSize: 12),
+                  style: TextStyle(color: AppColors.textBody.withValues(alpha:0.6), fontSize: 12),
                 ),
               ],
             ),
@@ -468,7 +468,7 @@ class _OverviewTab extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha:0.05)),
       ),
       child: Row(
         children: [
@@ -476,12 +476,12 @@ class _OverviewTab extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: scoreColor.withOpacity(0.12),
+              color: scoreColor.withValues(alpha:0.12),
               shape: BoxShape.circle,
             ),
             child: Center(
               child: Text(
-                '${score.toStringAsFixed(0)}',
+                score.toStringAsFixed(0),
                 style: TextStyle(
                   color: scoreColor,
                   fontSize: 13,
@@ -496,7 +496,7 @@ class _OverviewTab extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(tenant.tenantName ?? 'Kiracı', style: const TextStyle(color: AppColors.textHeader, fontSize: 14, fontWeight: FontWeight.w600)),
-                Text('${tenant.propertyName} • ${tenant.doorNumber}', style: TextStyle(color: AppColors.textBody.withOpacity(0.6), fontSize: 12)),
+                Text('${tenant.propertyName} • ${tenant.doorNumber}', style: TextStyle(color: AppColors.textBody.withValues(alpha:0.6), fontSize: 12)),
               ],
             ),
           ),
@@ -512,11 +512,11 @@ class _OverviewTab extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const SizedBox(height: 40),
-          Icon(Icons.home_work_outlined, size: 56, color: AppColors.textBody.withOpacity(0.2)),
+          Icon(Icons.home_work_outlined, size: 56, color: AppColors.textBody.withValues(alpha:0.2)),
           const SizedBox(height: 16),
           const Text('Henüz mülk bağlantısı yok', style: TextStyle(color: AppColors.textBody, fontSize: 15)),
           const SizedBox(height: 8),
-          Text('Emlakçınız sizi mülkünüze davet ettiğinde burada görünür', style: TextStyle(color: AppColors.textBody.withOpacity(0.5), fontSize: 12), textAlign: TextAlign.center),
+          Text('Emlakçınız sizi mülkünüze davet ettiğinde burada görünür', style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 12), textAlign: TextAlign.center),
         ],
       ),
     );

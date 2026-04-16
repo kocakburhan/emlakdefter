@@ -1,5 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+import os
+
+# .env dosyasını yükle (DEV_MODE, DEV_AGENCY_ID vb. için)
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 from app.api.api import api_router
 from app.core.firebase import init_firebase

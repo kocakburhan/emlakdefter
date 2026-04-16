@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:uuid/uuid.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/offline/connectivity_service.dart';
+import '../../../core/offline/offline_storage.dart';
 
 /// ──────────────────────────────────────────────
 /// MODELS
@@ -19,6 +22,7 @@ class ChatMessage {
   final bool isEdited;
   final String? editedAt;
   final bool isMine;
+  final bool isPending; // §5.2 — clock icon for queued messages
 
   ChatMessage({
     required this.id,
@@ -32,7 +36,27 @@ class ChatMessage {
     this.isEdited = false,
     this.editedAt,
     this.isMine = false,
+    this.isPending = false,
   });
+
+  /// Create a local pending message (for outbox queue).
+  factory ChatMessage.pending({
+    required String conversationId,
+    required String message,
+    required String senderUserId,
+    String? senderName,
+  }) {
+    return ChatMessage(
+      id: const Uuid().v4(),
+      conversationId: conversationId,
+      senderUserId: senderUserId,
+      senderName: senderName,
+      message: message,
+      createdAt: DateTime.now(),
+      isMine: true,
+      isPending: true,
+    );
+  }
 
   factory ChatMessage.fromJson(Map<String, dynamic> json, String myUserId) {
     return ChatMessage(
@@ -251,23 +275,81 @@ class ChatNotifier extends StateNotifier<ChatState> {
   }
 
   // ── Send Message ──
+  // §5.2 — Offline: queued to outbox with clock icon, auto-syncs when online.
+
+  final _offlineStorage = OfflineStorage();
+  final _connService = ConnectivityService();
 
   Future<bool> sendMessage(String text) async {
     final conv = state.activeConversation;
     if (conv == null || text.trim().isEmpty) return false;
-    try {
-      final response = await ApiClient.dio.post('/chat/messages', data: {
-        'type': 'message',
-        'conversation_id': conv.id,
-        'message': text.trim(),
-      });
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return true;
+
+    if (_connService.isOnline) {
+      try {
+        final response = await ApiClient.dio.post('/chat/messages', data: {
+          'type': 'message',
+          'conversation_id': conv.id,
+          'message': text.trim(),
+        });
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          return true;
+        }
+      } catch (e) {
+        debugPrint('Send message error: $e — falling back to outbox');
+        await _queueToOutbox(conv.id, text.trim());
+        return true; // UI'de görünsün
       }
-    } catch (e) {
-      debugPrint('Send message error: $e');
+    } else {
+      await _queueToOutbox(conv.id, text.trim());
+      return true;
     }
     return false;
+  }
+
+  Future<void> _queueToOutbox(String conversationId, String text) async {
+    final pendingMsg = ChatMessage.pending(
+      conversationId: conversationId,
+      message: text,
+      senderUserId: _myUserId ?? '',
+    );
+    // UI'ye ekle (clock ikonlu)
+    addLocalMessage(pendingMsg);
+    // Outbox'a kaydet
+    await _offlineStorage.addToOutbox(pendingMsg.id, {
+      'local_id': pendingMsg.id,
+      'conversation_id': conversationId,
+      'message': text,
+      'created_at': pendingMsg.createdAt.toIso8601String(),
+    });
+  }
+
+  /// Called by SyncService after reconnect — replaces pending msg with server msg.
+  void confirmMessage(String localId, String serverId) {
+    final msgs = state.messages.map((m) {
+      if (m.id == localId) {
+        return ChatMessage(
+          id: serverId,
+          conversationId: m.conversationId,
+          senderUserId: m.senderUserId,
+          senderName: m.senderName,
+          message: m.message,
+          mediaUrl: m.mediaUrl,
+          createdAt: m.createdAt,
+          isDeleted: false,
+          isEdited: false,
+          isMine: true,
+          isPending: false,
+        );
+      }
+      return m;
+    }).toList();
+    state = state.copyWith(messages: msgs);
+  }
+
+  /// Remove a pending (failed) message from UI.
+  void removePendingMessage(String localId) {
+    final msgs = state.messages.where((m) => m.id != localId).toList();
+    state = state.copyWith(messages: msgs);
   }
 
   // ── Edit Message (15 dk içinde) ──

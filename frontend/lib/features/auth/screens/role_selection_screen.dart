@@ -18,7 +18,7 @@ class RoleSelectionScreen extends StatelessWidget {
             child: Container(
               width: 300,
               height: 300,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.accent.withOpacity(0.2)),
+              decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.accent.withValues(alpha:0.2)),
             ),
           ),
           // Alt Sağdan Parlayan Zümrüt Yeşili
@@ -28,7 +28,7 @@ class RoleSelectionScreen extends StatelessWidget {
             child: Container(
               width: 250,
               height: 250,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.success.withOpacity(0.1)),
+              decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.success.withValues(alpha:0.1)),
             ),
           ),
           
@@ -113,15 +113,15 @@ class _RoleCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: AppColors.surface.withOpacity(0.4),
+          color: AppColors.surface.withValues(alpha:0.4),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha:0.3)),
         ),
         child: Row(
           children: [
              Container(
                padding: const EdgeInsets.all(14),
-               decoration: BoxDecoration(color: color.withOpacity(0.15), shape: BoxShape.circle),
+               decoration: BoxDecoration(color: color.withValues(alpha:0.15), shape: BoxShape.circle),
                child: Icon(icon, color: color, size: 28),
              ),
              const SizedBox(width: 20),

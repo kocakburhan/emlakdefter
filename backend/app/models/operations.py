@@ -1,5 +1,5 @@
 import enum
-from sqlalchemy import Column, String, ForeignKey, Enum, Text, Integer, Boolean
+from sqlalchemy import Column, String, ForeignKey, Enum, Text, Integer, Boolean, Date
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from .base import BaseModel
@@ -47,13 +47,15 @@ class TicketMessage(BaseModel):
 class BuildingOperationLog(BaseModel):
     """Bina geneli bakım onarım kayıtları (Şeffaflık Modülü)"""
     __tablename__ = "building_operations_log"
-    
+
     agency_id = Column(UUID(as_uuid=True), ForeignKey("agencies.id", ondelete="CASCADE"), nullable=False, index=True)
     property_id = Column(UUID(as_uuid=True), ForeignKey("properties.id", ondelete="CASCADE"), nullable=False, index=True)
     created_by_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    
+
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     cost = Column(Integer, default=0)
     invoice_url = Column(String, nullable=True)
     is_reflected_to_finance = Column(Boolean, default=False)
+    operation_date = Column(Date, nullable=True)  # PRD §6.E — İşlem tarihi
+    transaction_id = Column(UUID(as_uuid=True), ForeignKey("financial_transactions.id", ondelete="SET NULL"), nullable=True)  # PRD §6.E — Mali referans

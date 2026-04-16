@@ -1,12 +1,14 @@
 import enum
-from sqlalchemy import Column, String, ForeignKey, Integer, Enum, JSON, DateTime
+from sqlalchemy import Column, String, ForeignKey, Integer, Float, Enum, JSON, DateTime, ARRAY
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from .base import BaseModel
 
 class PropertyType(str, enum.Enum):
-    building = "building" # Apartman / Site
-    single = "single"     # Müstakil / Arsa
+    apartment_complex = "apartment_complex"  # Apartman / Site
+    standalone_house = "standalone_house"      # Müstakil / Villa
+    land = "land"                             # Arsa / Tarla
+    commercial = "commercial"                 # Ticari
 
 class Property(BaseModel):
     __tablename__ = "properties"
@@ -23,8 +25,9 @@ class Property(BaseModel):
     units = relationship("PropertyUnit", back_populates="property")
 
 class UnitStatus(str, enum.Enum):
-    vacant = "vacant"
-    occupied = "occupied"
+    vacant = "vacant"       # Boş
+    rented = "rented"       # Kiralanmış
+    maintenance = "maintenance"  # Bakımda
 
 class PropertyUnit(BaseModel):
     __tablename__ = "property_units"
@@ -37,7 +40,11 @@ class PropertyUnit(BaseModel):
     vacant_since = Column(DateTime, nullable=True) # Boş kalma süresi analitiği için
     dues_amount = Column(Integer, default=0) # Aidat bedeli
     rent_price = Column(Integer, nullable=True) # Kira bedeli (PRD §4.1.3)
-    
+    commission_rate = Column(Float, default=0.0) # Komisyon oranı % (PRD §4.1.3-A)
+    youtube_video_link = Column(String, nullable=True) # Liste dışı video linki (PRD §4.1.3-C)
+    media_links = Column(ARRAY(String), nullable=True) # Fotoğraf galerisi
+    features = Column(JSON, nullable=True) # Birime özel özellikler
+
     property = relationship("Property", back_populates="units")
     landlord_relations = relationship("LandlordUnit", back_populates="unit")
     tenant_contracts = relationship("Tenant", back_populates="unit")

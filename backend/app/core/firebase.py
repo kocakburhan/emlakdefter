@@ -3,6 +3,8 @@ import firebase_admin
 from firebase_admin import credentials, auth
 from firebase_admin import messaging as fb_messaging
 from fastapi import HTTPException, status
+from fastapi.exceptions import HTTPException as FastAPIHTTPException
+from jose import jwt, JWTError
 import logging
 
 logger = logging.getLogger(__name__)
@@ -42,6 +44,34 @@ async def verify_firebase_token(id_token: str) -> dict:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Süresi dolmuş veya hatalı Firebase jetonu: {str(e)}",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+def verify_access_token(token: str) -> dict:
+    """
+    Backend'de email/şifre ile üretilen basit JWT access token'ı doğrular.
+    Bu token Firebase'e değil, backend'in kendi SECRET_KEY + ALGORITHM ile üretilmiştir.
+    Token'ın "type" alanı "access" olmalıdır.
+    """
+    from app.core.security import SECRET_KEY, ALGORITHM
+    try:
+        claims = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if claims.get("type") != "access":
+            raise ValueError("Token type is not access")
+        return claims
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Access token süresi dolmuş.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Geçersiz access token.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 

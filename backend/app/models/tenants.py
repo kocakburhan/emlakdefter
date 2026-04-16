@@ -1,13 +1,13 @@
 import enum
-from sqlalchemy import Column, Integer, Date, ForeignKey, String, Boolean, Enum
+from sqlalchemy import Column, Integer, Date, ForeignKey, String, Boolean, Enum, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from .base import BaseModel
 
 class ContractStatus(str, enum.Enum):
+    """Kiracı sözleşme durumu — PRD §6.C"""
     active = "active"
-    expired = "expired"
-    terminated = "terminated"
+    past = "past"
 
 class LandlordUnit(BaseModel):
     __tablename__ = "landlords_units"
@@ -38,6 +38,8 @@ class Tenant(BaseModel):
     actual_end_date = Column(Date, nullable=True) # Erken çıkış/sirkülasyon logu
     is_active = Column(Boolean, default=True)
     status = Column(Enum(ContractStatus), default=ContractStatus.active, nullable=False)
-    
+    contract_document_url = Column(String, nullable=True)  # Sözleşme PDF URL (Hetzner)
+    documents = Column(JSON, nullable=True)  # [{"url": "...", "name": "...", "type": "contract"}]
+
     unit = relationship("PropertyUnit", back_populates="tenant_contracts")
     user = relationship("User")

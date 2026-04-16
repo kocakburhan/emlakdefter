@@ -1,7 +1,28 @@
 from pydantic import BaseModel, UUID4, Field
-from typing import Optional
+from typing import Optional, List
 from datetime import date, datetime
 from enum import Enum
+from app.models.operations import TicketPriority, TicketStatus
+
+
+class TenantDocumentItem(BaseModel):
+    """Kiracının tek bir belgesi — PRD §4.2.3"""
+    name: str
+    doc_type: str  # "contract" | "handover" | "aidat_plan" | "other"
+    url: str
+    uploaded_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class TenantDocumentsResponse(BaseModel):
+    """Kiracının tüm belgeleri — PRD §4.2.3"""
+    contract_document_url: Optional[str] = None
+    documents: List[TenantDocumentItem] = []
+
+    class Config:
+        from_attributes = True
 
 
 class ContractStatusEnum(str, Enum):
@@ -31,6 +52,8 @@ class TenantUpdate(BaseModel):
     rent_amount: Optional[int] = None
     payment_day: Optional[int] = None
     end_date: Optional[date] = None
+    contract_document_url: Optional[str] = None
+    documents: Optional[list] = None
 
 
 class TenantResponse(TenantBase):
@@ -89,3 +112,48 @@ class LandlordWithDetailsResponse(LandlordResponse):
     property_name: Optional[str] = None
     user_full_name: Optional[str] = None
     user_phone: Optional[str] = None
+
+
+# ──────────────────────────────────────────────
+# Tenant Support Ticket Schemas — PRD §4.2.2
+# ──────────────────────────────────────────────
+
+class TenantTicketMessageResponse(BaseModel):
+    id: UUID4
+    sender_user_id: Optional[UUID4]
+    sender_name: Optional[str] = None
+    message: str
+    attachment_url: Optional[str] = None
+    is_agent: bool = False
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class TenantTicketCreate(BaseModel):
+    """Kiracının yeni destek bileti açması için form — PRD §4.2.2-A"""
+    title: str = Field(..., max_length=200, description="Sorunun başlığı")
+    description: Optional[str] = Field(None, description="Detaylı açıklama")
+    priority: TicketPriority = TicketPriority.medium
+    attachment_url: Optional[str] = None
+
+
+class TenantTicketResponse(BaseModel):
+    """Kiracının kendi bileti — PRD §4.2.2"""
+    id: UUID4
+    title: str
+    description: Optional[str]
+    priority: TicketPriority
+    status: TicketStatus
+    created_at: datetime
+    updated_at: datetime
+    unit_door: Optional[str] = None
+    property_name: Optional[str] = None
+    message_count: int = 0
+    last_message: Optional[str] = None
+    last_message_at: Optional[datetime] = None
+    messages: List[TenantTicketMessageResponse] = []
+
+    class Config:
+        from_attributes = True

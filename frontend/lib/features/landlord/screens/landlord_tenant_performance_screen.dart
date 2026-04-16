@@ -36,11 +36,11 @@ class LandlordTenantPerformanceScreen extends ConsumerWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.people_outline, size: 56, color: AppColors.textBody.withOpacity(0.2)),
+          Icon(Icons.people_outline, size: 56, color: AppColors.textBody.withValues(alpha:0.2)),
           const SizedBox(height: 16),
           const Text('Kiracı bağlantısı yok', style: TextStyle(color: AppColors.textBody, fontSize: 16)),
           const SizedBox(height: 8),
-          Text('Mülkünüze kiracı atandığında görünür', style: TextStyle(color: AppColors.textBody.withOpacity(0.5), fontSize: 13)),
+          Text('Mülkünüze kiracı atandığında görünür', style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 13)),
         ],
       ),
     );
@@ -64,9 +64,9 @@ class LandlordTenantPerformanceScreen extends ConsumerWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: scoreColor.withOpacity(0.12)),
+          border: Border.all(color: scoreColor.withValues(alpha:0.12)),
           boxShadow: [
-            BoxShadow(color: scoreColor.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 3)),
+            BoxShadow(color: scoreColor.withValues(alpha:0.04), blurRadius: 10, offset: const Offset(0, 3)),
           ],
         ),
         child: Material(
@@ -103,8 +103,8 @@ class LandlordTenantPerformanceScreen extends ConsumerWidget {
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(
                                     color: isActive
-                                        ? const Color(0xFF6B8E6B).withOpacity(0.12)
-                                        : AppColors.textBody.withOpacity(0.08),
+                                        ? const Color(0xFF6B8E6B).withValues(alpha:0.12)
+                                        : AppColors.textBody.withValues(alpha:0.08),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Text(
@@ -121,7 +121,7 @@ class LandlordTenantPerformanceScreen extends ConsumerWidget {
                             const SizedBox(height: 4),
                             Text(
                               '${tenant.propertyName} • ${tenant.doorNumber}',
-                              style: TextStyle(color: AppColors.textBody.withOpacity(0.6), fontSize: 12),
+                              style: TextStyle(color: AppColors.textBody.withValues(alpha:0.6), fontSize: 12),
                             ),
                           ],
                         ),
@@ -157,11 +157,11 @@ class LandlordTenantPerformanceScreen extends ConsumerWidget {
                       children: [
                         Text(
                           'Sözleşme',
-                          style: TextStyle(color: AppColors.textBody.withOpacity(0.5), fontSize: 11),
+                          style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 11),
                         ),
                         Text(
                           '${_formatDate(tenant.contractStart)} — ${_formatDate(tenant.contractEnd)}',
-                          style: TextStyle(color: AppColors.textBody.withOpacity(0.7), fontSize: 11),
+                          style: TextStyle(color: AppColors.textBody.withValues(alpha:0.7), fontSize: 11),
                         ),
                       ],
                     ),
@@ -181,7 +181,7 @@ class LandlordTenantPerformanceScreen extends ConsumerWidget {
       height: 54,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha:0.1),
       ),
       child: Stack(
         alignment: Alignment.center,
@@ -189,11 +189,11 @@ class LandlordTenantPerformanceScreen extends ConsumerWidget {
           SizedBox(width: 44, height: 44, child: CircularProgressIndicator(
             value: score / 100,
             strokeWidth: 4,
-            backgroundColor: color.withOpacity(0.15),
+            backgroundColor: color.withValues(alpha:0.15),
             valueColor: AlwaysStoppedAnimation(color),
           )),
           Text(
-            '${score.toStringAsFixed(0)}',
+            score.toStringAsFixed(0),
             style: TextStyle(
               color: color,
               fontSize: 14,
@@ -209,14 +209,14 @@ class LandlordTenantPerformanceScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.07),
+        color: color.withValues(alpha:0.07),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
           Text(value, style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.bold)),
           const SizedBox(height: 2),
-          Text(label, style: TextStyle(color: color.withOpacity(0.6), fontSize: 10)),
+          Text(label, style: TextStyle(color: color.withValues(alpha:0.6), fontSize: 10)),
         ],
       ),
     );

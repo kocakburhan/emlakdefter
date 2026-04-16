@@ -36,11 +36,11 @@ class LandlordPropertiesScreen extends ConsumerWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.home_work_outlined, size: 56, color: AppColors.textBody.withOpacity(0.2)),
+          Icon(Icons.home_work_outlined, size: 56, color: AppColors.textBody.withValues(alpha:0.2)),
           const SizedBox(height: 16),
           const Text('Henüz mülk bağlantısı yok', style: TextStyle(color: AppColors.textBody, fontSize: 16)),
           const SizedBox(height: 8),
-          Text('Emlakçınız sizi davet ettiğinde görünür', style: TextStyle(color: AppColors.textBody.withOpacity(0.5), fontSize: 13)),
+          Text('Emlakçınız sizi davet ettiğinde görünür', style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 13)),
         ],
       ),
     );
@@ -60,9 +60,9 @@ class LandlordPropertiesScreen extends ConsumerWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: Colors.white.withOpacity(0.05)),
+          border: Border.all(color: Colors.white.withValues(alpha:0.05)),
           boxShadow: [
-            BoxShadow(color: const Color(0xFF8B7355).withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 4)),
+            BoxShadow(color: const Color(0xFF8B7355).withValues(alpha:0.04), blurRadius: 12, offset: const Offset(0, 4)),
           ],
         ),
         child: Material(
@@ -81,7 +81,7 @@ class LandlordPropertiesScreen extends ConsumerWidget {
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [const Color(0xFF8B7355).withOpacity(0.15), const Color(0xFFD4A574).withOpacity(0.1)],
+                            colors: [const Color(0xFF8B7355).withValues(alpha:0.15), const Color(0xFFD4A574).withValues(alpha:0.1)],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
@@ -106,7 +106,7 @@ class LandlordPropertiesScreen extends ConsumerWidget {
                               const SizedBox(height: 2),
                               Text(
                                 prop.address!,
-                                style: TextStyle(color: AppColors.textBody.withOpacity(0.6), fontSize: 12),
+                                style: TextStyle(color: AppColors.textBody.withValues(alpha:0.6), fontSize: 12),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -114,7 +114,7 @@ class LandlordPropertiesScreen extends ConsumerWidget {
                           ],
                         ),
                       ),
-                      Icon(Icons.chevron_right, color: AppColors.textBody.withOpacity(0.3)),
+                      Icon(Icons.chevron_right, color: AppColors.textBody.withValues(alpha:0.3)),
                     ],
                   ),
                   const SizedBox(height: 18),
@@ -159,16 +159,16 @@ class LandlordPropertiesScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha:0.1),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.15)),
+        border: Border.all(color: color.withValues(alpha:0.15)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(value, style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.bold)),
           const SizedBox(width: 4),
-          Text(label, style: TextStyle(color: color.withOpacity(0.7), fontSize: 10)),
+          Text(label, style: TextStyle(color: color.withValues(alpha:0.7), fontSize: 10)),
         ],
       ),
     );
@@ -182,7 +182,7 @@ class LandlordPropertiesScreen extends ConsumerWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Doluluk', style: TextStyle(color: AppColors.textBody.withOpacity(0.6), fontSize: 11)),
+            Text('Doluluk', style: TextStyle(color: AppColors.textBody.withValues(alpha:0.6), fontSize: 11)),
             Text('${rate.toStringAsFixed(0)}%', style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold)),
           ],
         ),
@@ -191,7 +191,7 @@ class LandlordPropertiesScreen extends ConsumerWidget {
           borderRadius: BorderRadius.circular(4),
           child: LinearProgressIndicator(
             value: rate / 100,
-            backgroundColor: AppColors.textBody.withOpacity(0.08),
+            backgroundColor: AppColors.textBody.withValues(alpha:0.08),
             valueColor: AlwaysStoppedAnimation(color),
             minHeight: 6,
           ),
@@ -201,11 +201,6 @@ class LandlordPropertiesScreen extends ConsumerWidget {
   }
 
   void _showPropertyDetail(BuildContext context, WidgetRef ref, LandlordProperty prop) {
-    final units = ref.read(landlordProvider).units.where((u) {
-      // Mülke ait birimleri filtrele (unit'de property bilgisi yok, basitçe show all)
-      return true;
-    }).toList();
-
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -225,12 +220,12 @@ class LandlordPropertiesScreen extends ConsumerWidget {
             children: [
               Center(
                 child: Container(width: 40, height: 4, decoration: BoxDecoration(
-                  color: AppColors.textBody.withOpacity(0.3), borderRadius: BorderRadius.circular(2),
+                  color: AppColors.textBody.withValues(alpha:0.3), borderRadius: BorderRadius.circular(2),
                 )),
               ),
               const SizedBox(height: 20),
               Text(prop.propertyName, style: const TextStyle(color: AppColors.textHeader, fontSize: 22, fontWeight: FontWeight.bold)),
-              if (prop.address != null) Text(prop.address!, style: TextStyle(color: AppColors.textBody.withOpacity(0.6))),
+              if (prop.address != null) Text(prop.address!, style: TextStyle(color: AppColors.textBody.withValues(alpha:0.6))),
               const SizedBox(height: 20),
               Expanded(
                 child: ListView.builder(
@@ -248,7 +243,7 @@ class LandlordPropertiesScreen extends ConsumerWidget {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF8B7355).withOpacity(0.1),
+                            color: const Color(0xFF8B7355).withValues(alpha:0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(Icons.door_front_door, color: Color(0xFF8B7355), size: 20),
@@ -259,14 +254,14 @@ class LandlordPropertiesScreen extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('Birim ${i + 1}', style: const TextStyle(color: AppColors.textHeader, fontWeight: FontWeight.bold)),
-                              Text(prop.propertyName, style: TextStyle(color: AppColors.textBody.withOpacity(0.6), fontSize: 12)),
+                              Text(prop.propertyName, style: TextStyle(color: AppColors.textBody.withValues(alpha:0.6), fontSize: 12)),
                             ],
                           ),
                         ),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF6B8E6B).withOpacity(0.1),
+                            color: const Color(0xFF6B8E6B).withValues(alpha:0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Text('Kiracılı', style: TextStyle(color: Color(0xFF6B8E6B), fontSize: 11, fontWeight: FontWeight.w600)),
