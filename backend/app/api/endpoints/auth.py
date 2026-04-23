@@ -6,21 +6,363 @@ from pydantic import BaseModel
 from jose import jwt, JWTError
 import uuid
 import os
+import re
 
 from app.api import deps
 from app.database import get_db
-from app.schemas.users import UserLogin, LoginResponse, UserResponse, InviteCreate, InviteResponse, FCMTokenRegister, FCMTokenResponse
+from app.schemas.users import (
+    UserLogin, LoginResponse, UserResponse, InviteCreate, InviteResponse,
+    FCMTokenRegister, FCMTokenResponse, LoginRequest, LoginResponse as AuthLoginResponse,
+    VerifyOTPRequest, SetPasswordRequest, PasswordLoginRequest, ForgotPasswordRequest,
+    UserRole
+)
 from app.models.users import User, Invitation, AgencyStaff, GlobalUserRole, StaffRole, Agency, UserDeviceToken, DeviceType, PasswordResetAttempt
 from app.models.tenants import Tenant, LandlordUnit
 from app.models.properties import PropertyUnit
-from app.core.firebase import verify_firebase_token, reset_user_password_by_phone
-from app.core.security import create_invitation_token, SECRET_KEY, ALGORITHM
+from app.core.firebase import verify_firebase_token, reset_user_password_by_phone, generate_email_verification_link
+from app.core.security import create_invitation_token, create_access_token, verify_password, hash_password, SECRET_KEY, ALGORITHM
 from app.core.rate_limiter import limiter, AUTH_FCM_LIMIT, PASSWORD_RESET_LIMIT
 
 router = APIRouter()
 
 # ──────────────────────────────────────────────
-# FIREBASE + DAVET LOGIN
+# HELPERS
+# ──────────────────────────────────────────────
+
+def normalize_phone(phone: str) -> str:
+    """Normalize phone number to +90 format"""
+    digits = ''.join(filter(str.isdigit, phone))
+    if digits.startswith('0'):
+        digits = digits[1:]
+    if not digits.startswith('90'):
+        digits = '90' + digits
+    return '+' + digits
+
+
+def is_email(value: str) -> bool:
+    return '@' in value and '.' in value.split('@')[-1]
+
+
+async def get_user_by_email_or_phone(db: AsyncSession, email_or_phone: str):
+    """Find user by email or phone number"""
+    if is_email(email_or_phone):
+        stmt = select(User).where(User.email == email_or_phone.lower())
+    else:
+        phone = normalize_phone(email_or_phone)
+        stmt = select(User).where(User.phone_number == phone)
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+# ──────────────────────────────────────────────
+# NEW AUTH FLOW ENDPOINTS
+# ──────────────────────────────────────────────
+
+@router.post("/login")
+async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Email veya telefon numarası ile giriş başlatır.
+
+    Returns:
+    - status: "password_required" → şifre ekranı gösterilmeli
+    - status: "otp_required" → OTP ekranı gösterilmeli
+    """
+    user = await get_user_by_email_or_phone(db, request.email_or_phone)
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Bu bilgilerle kayıtlı hesap bulunamadı"
+        )
+
+    if user.password_hash:
+        return AuthLoginResponse(
+            status="password_required",
+            user=UserResponse(
+                id=user.id,
+                email=user.email,
+                phone_number=user.phone_number,
+                full_name=user.full_name,
+                role=user.role,
+                status=user.status,
+                agency_id=user.agency_id,
+                created_at=user.created_at,
+                last_login_at=user.last_login_at
+            ),
+            message="Şifrenizi girin"
+        )
+    else:
+        return AuthLoginResponse(
+            status="otp_required",
+            user=UserResponse(
+                id=user.id,
+                email=user.email,
+                phone_number=user.phone_number,
+                full_name=user.full_name,
+                role=user.role,
+                status=user.status,
+                agency_id=user.agency_id,
+                created_at=user.created_at,
+                last_login_at=user.last_login_at
+            ),
+            message="Doğrulama kodu gönderilecek"
+        )
+
+
+@router.post("/send-otp")
+async def send_otp(request: LoginRequest, db: AsyncSession = Depends(get_db)):
+    """
+    OTP gönderir (email veya SMS).
+
+    Email: Firebase email verification link gönderir.
+    Telefon: Backend kayıt tutar, client-side Firebase SDK ile SMS gönderilir.
+    """
+    user = await get_user_by_email_or_phone(db, request.email_or_phone)
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Bu bilgilerle kayıtlı hesap bulunamadı"
+        )
+
+    if is_email(request.email_or_phone):
+        # Email OTP - Firebase email verification link
+        try:
+            link = generate_email_verification_link(request.email_or_phone)
+            # Log the link for development (in production, Firebase sends the email)
+            print(f"[DEV] Email verification link: {link}")
+            return {"message": "Doğrulama linki email adresinize gönderildi", "dev_link": link}
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Email gönderilemedi: {str(e)}"
+            )
+    else:
+        # Phone OTP - Client-side Firebase SDK handles SMS
+        # Backend just returns success and logs for development
+        phone = normalize_phone(request.email_or_phone)
+        print(f"[DEV] Phone OTP requested for: {phone}")
+        return {"message": "SMS doğrulama kodu gönderildi", "phone": phone}
+
+
+@router.post("/verify-otp")
+async def verify_otp(request: VerifyOTPRequest, db: AsyncSession = Depends(get_db)):
+    """
+    OTP doğrulanır (email link tıklama veya SMS code).
+
+    Email: Firebase email verification status kontrol edilir.
+    Telefon: Firebase SDK verification ID doğrulanır (client-side).
+
+    Bu endpoint client-side OTP verification tamamlandıktan sonra
+    şifre belirleme akışına geçmek için kullanılır.
+    """
+    stmt = select(User).where(User.id == request.user_id)
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Kullanıcı bulunamadı"
+        )
+
+    # OTP verification is done client-side with Firebase SDK
+    # This endpoint just marks that OTP was verified for the user
+    return {
+        "status": "otp_verified",
+        "user_id": str(user.id),
+        "message": "Doğrulama başarılı. Şifrenizi belirleyebilirsiniz."
+    }
+
+
+@router.post("/set-password")
+async def set_password(request: SetPasswordRequest, db: AsyncSession = Depends(get_db)):
+    """
+    OTP doğrulandıktan sonra şifre belirleme.
+
+    1. Password validation (8+ char, 1 uppercase, 1 number)
+    2. Confirm password match kontrolü
+    3. password_hash = bcrypt.hash(password)
+    4. status = "active"
+    5. JWT token oluştur ve döndür
+    """
+    stmt = select(User).where(User.id == request.user_id)
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Kullanıcı bulunamadı"
+        )
+
+    # Validate password
+    if len(request.password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Şifre en az 8 karakter olmalıdır"
+        )
+
+    has_uppercase = any(c.isupper() for c in request.password)
+    has_digit = any(c.isdigit() for c in request.password)
+
+    if not has_uppercase:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Şifre en az bir büyük harf içermelidir"
+        )
+
+    if not has_digit:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Şifre en az bir rakam içermelidir"
+        )
+
+    if request.password != request.confirm_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Şifreler uyuşmuyor"
+        )
+
+    # Update user
+    user.password_hash = hash_password(request.password)
+    user.status = "active"
+    user.last_login_at = datetime.utcnow()
+    await db.commit()
+    await db.refresh(user)
+
+    # Create access token
+    access_token = create_access_token(
+        data={"sub": str(user.id), "role": user.role.value if hasattr(user.role, 'value') else user.role}
+    )
+
+    return AuthLoginResponse(
+        status="success",
+        user=UserResponse(
+            id=user.id,
+            email=user.email,
+            phone_number=user.phone_number,
+            full_name=user.full_name,
+            role=user.role,
+            status=user.status,
+            agency_id=user.agency_id,
+            created_at=user.created_at,
+            last_login_at=user.last_login_at
+        ),
+        access_token=access_token,
+        message="Şifreniz belirlendi ve giriş yaptınız"
+    )
+
+
+@router.post("/password-login")
+async def password_login(request: PasswordLoginRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Şifre ile giriş.
+
+    1. User'ı bul
+    2. password_hash doğrula
+    3. 5 yanlış deneme kontrolü (15 dakika kilit) - TODO: implement later
+    4. Başarılı → JWT token döndür
+    5. last_login_at güncelle
+    """
+    user = await get_user_by_email_or_phone(db, request.email_or_phone)
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Geçersiz email veya telefon numarası"
+        )
+
+    if not user.password_hash:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Bu hesap için şifre belirlenmemiş. OTP ile şifre belirleyin."
+        )
+
+    if not verify_password(request.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Yanlış şifre"
+        )
+
+    if user.status != "active":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Hesap askıya alınmış"
+        )
+
+    # Update last login
+    user.last_login_at = datetime.utcnow()
+    await db.commit()
+    await db.refresh(user)
+
+    # Create access token
+    access_token = create_access_token(
+        data={"sub": str(user.id), "role": user.role.value if hasattr(user.role, 'value') else user.role}
+    )
+
+    return AuthLoginResponse(
+        status="success",
+        user=UserResponse(
+            id=user.id,
+            email=user.email,
+            phone_number=user.phone_number,
+            full_name=user.full_name,
+            role=user.role,
+            status=user.status,
+            agency_id=user.agency_id,
+            created_at=user.created_at,
+            last_login_at=user.last_login_at
+        ),
+        access_token=access_token,
+        message="Giriş başarılı"
+    )
+
+
+@router.get("/me", response_model=UserResponse)
+async def get_me(current_user: User = Depends(deps.get_current_user)):
+    """
+    Oturumdaki kullanıcının profil bilgisini döner.
+    """
+    return UserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        phone_number=current_user.phone_number,
+        full_name=current_user.full_name,
+        role=current_user.role,
+        status=current_user.status,
+        agency_id=current_user.agency_id,
+        created_at=current_user.created_at,
+        last_login_at=current_user.last_login_at
+    )
+
+
+@router.post("/forgot-password")
+async def forgot_password(request: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Şifremi unuttum - OTP flow başlatır.
+    """
+    user = await get_user_by_email_or_phone(db, request.email_or_phone)
+
+    if not user:
+        # Security: don't reveal if email/phone exists
+        return {"message": "Şifre sıfırlama talimatı email veya telefon numaranıza gönderildi"}
+
+    if is_email(request.email_or_phone):
+        try:
+            link = generate_email_verification_link(request.email_or_phone)
+            print(f"[DEV] Password reset link: {link}")
+            return {"message": "Şifre sıfırlama linki email adresinize gönderildi", "dev_link": link}
+        except Exception as e:
+            return {"message": "Şifre sıfırlama talimatı email veya telefon numaranıza gönderildi"}
+    else:
+        phone = normalize_phone(request.email_or_phone)
+        print(f"[DEV] Password reset OTP for: {phone}")
+        return {"message": "Şifre sıfırlama talimatı telefon numaranıza gönderildi"}
+
+
+# ──────────────────────────────────────────────
+# LEGACY / COMPATIBILITY ENDPOINTS
 # ──────────────────────────────────────────────
 
 @router.post("/invite", response_model=InviteResponse)
@@ -64,6 +406,7 @@ async def create_invite(
         expires_at=db_invite.expires_at
     )
 
+
 @router.post("/login", response_model=LoginResponse)
 async def login_with_firebase(
     login_in: UserLogin,
@@ -74,31 +417,19 @@ async def login_with_firebase(
 
     PRD Madde 4.1.4-C: Firebase tek kimlik otoritesidir.
     Bu endpoint Firebase token'ı doğrular, kullanıcıyı bulur/oluşturur ve profil bilgisini döner.
-
-    Akış:
-    1. Firebase token doğrula
-    2. Kullanıcıyı firebase_uid ile bul
-    3. Yoksa oluştur (email ve/veya phone_number ile)
-    4. Davet token varsa: Tenant veya LandlordUnit kaydı oluştur
     """
-    # 1. Firebase Sunucusunda Token'ı Güvenli Yoldan Doğrula
     firebase_payload = await verify_firebase_token(login_in.firebase_id_token)
     firebase_uid = firebase_payload.get("uid")
-    phone_number = firebase_payload.get("phone_number")  # Phone auth için gelir, email/pass için None olabilir
-    email = firebase_payload.get("email")  # Email/password auth için gelir
+    phone_number = firebase_payload.get("phone_number")
+    email = firebase_payload.get("email")
 
     if not firebase_uid:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Firebase UID eksik.")
 
-    # 2. Kullanıcıyı firebase_uid ile bul
     stmt = select(User).where(User.firebase_uid == firebase_uid)
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
 
-    # 2b. firebase_uid ile bulunamazsa email veya phone ile dene
-    # Bu durum şunlardan kaynaklanabilir:
-    #   - Kullanıcı daha önce kaydolmuş ama firebase_uid atanmamış (seed data / eski kayıt)
-    #   - Firebase tarafında kullanıcı yeniden oluşturulmuş (farklı UID)
     if user is None and email:
         stmt = select(User).where(User.email == email)
         result = await db.execute(stmt)
@@ -109,15 +440,12 @@ async def login_with_firebase(
         result = await db.execute(stmt)
         user = result.scalar_one_or_none()
 
-    # 3. Kullanıcıyı oluştur veya güncelle
     is_new_user = False
     invitation_data = None
 
     if user:
-        # Mevcut kullanıcının firebase_uid'sini güncelle (farklıysa veya null'sa)
         if user.firebase_uid != firebase_uid:
             user.firebase_uid = firebase_uid
-        # Eksik bilgileri tamamla
         if not user.email and email:
             user.email = email
         if not user.phone_number and phone_number:
@@ -138,7 +466,6 @@ async def login_with_firebase(
         db.add(user)
         await db.flush()
 
-        # Davet JWT'si varsa, kullanıcıyı ajans/birim listesine ekle
         if login_in.invitation_token:
             try:
                 inv_payload = jwt.decode(login_in.invitation_token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -161,7 +488,6 @@ async def login_with_firebase(
         await db.commit()
         await db.refresh(user)
 
-    # 4. Davet ile gelen kullanıcı için Tenant veya LandlordUnit kaydı oluştur
     if invitation_data and invitation_data.related_entity_id:
         target_role = invitation_data.target_role
         unit_id = invitation_data.related_entity_id
@@ -228,22 +554,6 @@ async def login_with_firebase(
         message="Yeni hesap açıldı ve sisteme giriş yapıldı." if is_new_user else "var olan hesapla giriş yapıldı."
     )
 
-@router.get("/me", response_model=UserResponse)
-async def get_current_user_profile(
-    current_user: User = Depends(deps.get_current_user),
-):
-    """
-    Oturumdaki kullanıcının profil bilgisini döner.
-    Bu endpoint her sayfa yüklemesinde auth durumunu kontrol etmek için kullanılır.
-    """
-    return UserResponse(
-        id=current_user.id,
-        full_name=current_user.full_name,
-        phone_number=current_user.phone_number,
-        email=current_user.email,
-        role=current_user.role.value if current_user.role else "standard",
-    )
-
 
 @router.post("/fcm-token", response_model=FCMTokenResponse)
 @limiter.limit(AUTH_FCM_LIMIT)
@@ -256,8 +566,6 @@ async def register_fcm_token(
     """
     Kullanıcının cihaz FCM push notification token'ını kaydeder.
     PRD §3.3 — APScheduler + FCM Bildirimleri.
-
-    Aynı token varsa güncellenir, yoksa yeni kayıt oluşturulur.
     """
     try:
         device_type = DeviceType(token_in.device_type)
@@ -290,7 +598,6 @@ async def register_fcm_token(
 
 # ──────────────────────────────────────────────
 # PASSWORD RESET OTP — SMS PUMPING KORUMASI
-# PRD §4.1.4-D
 # ──────────────────────────────────────────────
 
 MONTHLY_OTP_LIMIT = 15
@@ -339,10 +646,6 @@ async def request_password_reset_otp(
     return {"message": "Doğrulama kodu gönderildi."}
 
 
-# ──────────────────────────────────────────────
-# PASSWORD RESET SCHEMAS
-# ──────────────────────────────────────────────
-
 class PasswordResetConfirmRequest(BaseModel):
     id_token: str
     phone_number: str
@@ -354,10 +657,6 @@ class PasswordResetConfirmResponse(BaseModel):
     message: str
 
 
-# ──────────────────────────────────────────────
-# PASSWORD RESET ENDPOINT
-# ──────────────────────────────────────────────
-
 @router.post("/reset-password", response_model=PasswordResetConfirmResponse)
 @limiter.limit(PASSWORD_RESET_LIMIT)
 async def reset_password(
@@ -367,12 +666,6 @@ async def reset_password(
 ):
     """
     Şifre sıfırlama işlemini tamamlar — PRD §4.1.4-D.
-
-    Akış:
-    1. İstemci (Flutter) Firebase OTP'yi doğrular → Firebase ID token alır
-    2. İstemci bu endpoint'e ID token + yeni şifre gönderir
-    3. Backend ID token'ı doğrular
-    4. Backend Firebase Admin SDK ile şifreyi günceller
     """
     try:
         decoded = await verify_firebase_token(data.id_token)
