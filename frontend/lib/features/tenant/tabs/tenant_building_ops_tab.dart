@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/theme/colors.dart';
 import '../providers/tenant_provider.dart';
 
 // ──────────────────────────────────────────────
@@ -8,15 +9,15 @@ import '../providers/tenant_provider.dart';
 // PRD §4.2.4
 // ──────────────────────────────────────────────
 
-const _bg = Color(0xFF0F1823);
-const _surface = Color(0xFF151E2B);
-const _surface2 = Color(0xFF1C2836);
-const _border = Color(0xFF253040);
-const _teal = Color(0xFF14B8A6);
-const _coral = Color(0xFFEF6C6C);
-const _white = Color(0xFFF1F5F9);
-const _muted = Color(0xFF94A3B8);
-const _dim = Color(0xFF4A5568);
+const _bg = AppColors.background;
+const _surface = AppColors.surface;
+const _surface2 = AppColors.surfaceVariant;
+const _border = AppColors.border;
+const _teal = AppColors.success;
+const _coral = AppColors.error;
+const _white = AppColors.textOnPrimary;
+const _muted = AppColors.textSecondary;
+const _dim = AppColors.textTertiary;
 
 // Category definitions for building operations
 final _catList = [

@@ -2,6 +2,7 @@ import 'dart:io' show Platform;
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Tüm FastAPI Sunucu trafiğimizin kalbi.
 /// Firebase ID Token otomatik olarak her isteğe eklenir.
@@ -9,12 +10,14 @@ class ApiClient {
   static Dio? _dio;
   static String? _simpleAuthToken;
 
+  static const String _tokenKey = 'simple_auth_token';
+
   /// Platform'a göre doğru base URL'i belirler:
   /// - Web: localhost
   /// - Android Emülatör: 10.0.2.2 (localhost yerine)
   /// - iOS Simulator / Fiziksel Cihaz: localhost
   static String get _baseUrl {
-    const port = '8001';
+    const port = '8000';
     if (kIsWeb) {
       return 'http://127.0.0.1:$port/api/v1';
     }
@@ -32,8 +35,45 @@ class ApiClient {
     return _dio!;
   }
 
-  static void setSimpleAuthToken(String? token) {
+  /// Token'ı hem memory'de hem de SharedPreferences'ta saklar.
+  /// Böylece sayfa yenilendiğinde (F5) token kaybolmaz.
+  static Future<void> setSimpleAuthToken(String? token) async {
     _simpleAuthToken = token;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (token != null) {
+        await prefs.setString(_tokenKey, token);
+      } else {
+        await prefs.remove(_tokenKey);
+      }
+    } catch (e) {
+      debugPrint('⚠️ Token kaydedilemedi: $e');
+    }
+  }
+
+  /// Token'ı temizler (logout işlemi için).
+  static Future<void> clearSimpleAuthToken() async {
+    _simpleAuthToken = null;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_tokenKey);
+    } catch (e) {
+      debugPrint('⚠️ Token temizlenemedi: $e');
+    }
+  }
+
+  /// Uygulama başlatıldığında SharedPreferences'tan token'ı geri yükler.
+  static Future<void> restoreToken() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedToken = prefs.getString(_tokenKey);
+      if (savedToken != null && savedToken.isNotEmpty) {
+        _simpleAuthToken = savedToken;
+        debugPrint('🔑 Kaydedilmiş token geri yüklendi.');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Token geri yüklenemedi: $e');
+    }
   }
 
   static String? get simpleAuthToken => _simpleAuthToken;

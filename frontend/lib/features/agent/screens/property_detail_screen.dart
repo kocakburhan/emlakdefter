@@ -81,6 +81,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen>
         await _fetchProperty();
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Birim ekleme hatası: $e")),
       );
@@ -98,7 +99,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen>
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
-            Icon(Icons.campaign, color: AppColors.accent, size: 22),
+            Icon(Icons.campaign, color: AppColors.charcoal, size: 22),
             SizedBox(width: 10),
             Text("Toplu Bildirim", style: TextStyle(color: Colors.white, fontSize: 18)),
           ],
@@ -111,7 +112,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen>
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 labelText: "Başlık",
-                labelStyle: const TextStyle(color: AppColors.textBody),
+                labelStyle: const TextStyle(color: AppColors.textSecondary),
                 filled: true,
                 fillColor: AppColors.background,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -124,7 +125,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen>
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 labelText: "Mesaj",
-                labelStyle: const TextStyle(color: AppColors.textBody),
+                labelStyle: const TextStyle(color: AppColors.textSecondary),
                 filled: true,
                 fillColor: AppColors.background,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -135,12 +136,12 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text("İptal", style: TextStyle(color: AppColors.textBody)),
+            child: const Text("İptal", style: TextStyle(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.accent,
+              backgroundColor: AppColors.charcoal,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             child: const Text("Gönder"),
@@ -160,6 +161,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen>
         );
         if (resp.statusCode == 200) {
           final data = resp.data;
+          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               backgroundColor: AppColors.success,
@@ -168,6 +170,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen>
           );
         }
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Bildirim hatası: $e")),
         );
@@ -197,7 +200,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen>
             // ── SLIVER APP BAR ──────────────────────────────────────────
             SliverAppBar(
               backgroundColor: AppColors.background,
-              foregroundColor: AppColors.textHeader,
+              foregroundColor: AppColors.charcoal,
               pinned: true,
               expandedHeight: 120,
               leading: IconButton(
@@ -221,7 +224,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen>
                     Text(
                       widget.propertyName,
                       style: const TextStyle(
-                        color: AppColors.textHeader,
+                        color: AppColors.charcoal,
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                       ),
@@ -230,7 +233,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen>
                       Text(
                         "$_occupiedCount Dolu · $_vacantCount Müsait · %${_occupancyRate.toStringAsFixed(0)} Doluluk",
                         style: const TextStyle(
-                          color: AppColors.accent,
+                          color: AppColors.charcoal,
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
                         ),
@@ -264,7 +267,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen>
                       child: _buildActionBtn(
                         Icons.campaign,
                         "Toplu Bildirim",
-                        AppColors.accent,
+                        AppColors.charcoal,
                         _showBroadcastDialog,
                       ),
                     ),
@@ -301,7 +304,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen>
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.textBody,
+                            color: AppColors.textSecondary,
                             letterSpacing: 1.5,
                           ),
                         ),
@@ -314,7 +317,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen>
                                 style: const TextStyle(color: Colors.white),
                                 decoration: InputDecoration(
                                   labelText: "Kapı No",
-                                  labelStyle: const TextStyle(color: AppColors.textBody),
+                                  labelStyle: const TextStyle(color: AppColors.textSecondary),
                                   filled: true,
                                   fillColor: AppColors.background,
                                   border: OutlineInputBorder(
@@ -333,7 +336,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen>
                                 style: const TextStyle(color: Colors.white),
                                 decoration: InputDecoration(
                                   labelText: "Kat",
-                                  labelStyle: const TextStyle(color: AppColors.textBody),
+                                  labelStyle: const TextStyle(color: AppColors.textSecondary),
                                   filled: true,
                                   fillColor: AppColors.background,
                                   border: OutlineInputBorder(
@@ -352,7 +355,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen>
                                 style: const TextStyle(color: Colors.white),
                                 decoration: InputDecoration(
                                   labelText: "Aidat",
-                                  labelStyle: const TextStyle(color: AppColors.textBody),
+                                  labelStyle: const TextStyle(color: AppColors.textSecondary),
                                   filled: true,
                                   fillColor: AppColors.background,
                                   border: OutlineInputBorder(
@@ -399,7 +402,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen>
                         children: [
                           Text(
                             "${_units.length} Toplam Birim",
-                            style: const TextStyle(color: AppColors.textBody, fontSize: 12),
+                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
                           ),
                           Text(
                             "%${_occupancyRate.toStringAsFixed(0)} Doluluk",
@@ -435,7 +438,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen>
             if (_isLoading)
               const SliverFillRemaining(
                 child: Center(
-                  child: CircularProgressIndicator(color: AppColors.accent),
+                  child: CircularProgressIndicator(color: AppColors.charcoal),
                 ),
               )
             else if (_error != null)
@@ -448,7 +451,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen>
                       const SizedBox(height: 16),
                       Text(
                         "Mülk yüklenemedi",
-                        style: const TextStyle(color: AppColors.textHeader, fontSize: 18),
+                        style: const TextStyle(color: AppColors.charcoal, fontSize: 18),
                       ),
                       const SizedBox(height: 12),
                       TextButton(
@@ -471,12 +474,12 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen>
                           color: AppColors.surface,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.home_outlined, size: 48, color: AppColors.textBody),
+                        child: const Icon(Icons.home_outlined, size: 48, color: AppColors.textSecondary),
                       ),
                       const SizedBox(height: 16),
                       const Text(
                         "Bu mülkte henüz birim yok",
-                        style: TextStyle(color: AppColors.textBody, fontSize: 15),
+                        style: TextStyle(color: AppColors.textSecondary, fontSize: 15),
                       ),
                       const SizedBox(height: 8),
                       TextButton.icon(
@@ -628,7 +631,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen>
               Text(
                 "Kapı ${unit['door_number'] ?? '-'}",
                 style: const TextStyle(
-                  color: AppColors.textHeader,
+                  color: AppColors.charcoal,
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
                 ),
@@ -637,7 +640,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen>
               Text(
                 "Kat ${unit['floor'] ?? '-'}${isOccupied ? " · ${unit['rent_price'] ?? '?'} ₺" : ""}",
                 style: TextStyle(
-                  color: AppColors.textBody.withValues(alpha: 0.7),
+                  color: AppColors.textSecondary.withValues(alpha: 0.7),
                   fontSize: 11,
                 ),
               ),

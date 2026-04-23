@@ -69,15 +69,15 @@ class _TenantFinanceTabState extends ConsumerState<TenantFinanceTab> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                 const Text("Geçmiş Ekstreler", style: TextStyle(color: AppColors.textHeader, fontSize: 18, fontWeight: FontWeight.bold)),
-                 Icon(Icons.history, color: AppColors.textBody.withValues(alpha:0.5)),
+                 const Text("Geçmiş Ekstreler", style: TextStyle(color: AppColors.charcoal, fontSize: 18, fontWeight: FontWeight.bold)),
+                 Icon(Icons.history, color: AppColors.textSecondary.withValues(alpha:0.5)),
               ],
             ),
             const SizedBox(height: 16),
 
             Expanded(
                child: txAsync.when(
-                  loading: () => const Center(child: CircularProgressIndicator(color: AppColors.accent)),
+                  loading: () => const Center(child: CircularProgressIndicator(color: AppColors.charcoal)),
                   error: (e, _) => Center(child: Text('Yüklenemedi: $e', style: const TextStyle(color: AppColors.error))),
                   data: (transactions) {
                     if (transactions.isEmpty) {
@@ -85,12 +85,12 @@ class _TenantFinanceTabState extends ConsumerState<TenantFinanceTab> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.receipt_long_rounded, color: AppColors.textBody.withValues(alpha:0.3), size: 64),
+                            Icon(Icons.receipt_long_rounded, color: AppColors.textSecondary.withValues(alpha:0.3), size: 64),
                             const SizedBox(height: 16),
                             Text(
                               'Henüz işlem kaydınız bulunmuyor.\nDekont yükleyerek başlayın.',
                               textAlign: TextAlign.center,
-                              style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 14, height: 1.5),
+                              style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.5), fontSize: 14, height: 1.5),
                             ),
                           ],
                         ),
@@ -120,21 +120,21 @@ class _TenantFinanceTabState extends ConsumerState<TenantFinanceTab> {
          child: Container(
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
-               color: AppColors.accent.withValues(alpha:0.1),
+               color: AppColors.charcoal.withValues(alpha:0.1),
                borderRadius: BorderRadius.circular(24),
-               border: Border.all(color: AppColors.accent.withValues(alpha:0.4), width: 1.5),
+               border: Border.all(color: AppColors.charcoal.withValues(alpha:0.4), width: 1.5),
             ),
             child: Column(
                children: [
                   Container(
                      padding: const EdgeInsets.all(16),
-                     decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
+                     decoration: const BoxDecoration(color: AppColors.charcoal, shape: BoxShape.circle),
                      child: const Icon(Icons.receipt_long_rounded, color: Colors.white, size: 36),
                   ),
                   const SizedBox(height: 16),
-                  const Text("Yeni Dekont / Makbuz Yükle", style: TextStyle(color: AppColors.accent, fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text("Yeni Dekont / Makbuz Yükle", style: TextStyle(color: AppColors.charcoal, fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  const Text("EFT/Havale yaptıysanız makbuzu buradan yükleyin. AI sistemimiz onu okuyup Emlakçınıza iletecektir.", textAlign: TextAlign.center, style: TextStyle(color: AppColors.textBody, fontSize: 13, height: 1.4)),
+                  const Text("EFT/Havale yaptıysanız makbuzu buradan yükleyin. AI sistemimiz onu okuyup Emlakçınıza iletecektir.", textAlign: TextAlign.center, style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4)),
                ]
             )
          ),
@@ -142,6 +142,7 @@ class _TenantFinanceTabState extends ConsumerState<TenantFinanceTab> {
   }
 
   Future<void> _pickAndUploadReceipt(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
@@ -151,7 +152,7 @@ class _TenantFinanceTabState extends ConsumerState<TenantFinanceTab> {
 
     final file = result.files.first;
     if (file.path == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(
           content: Text('Dosya seçilemedi'),
           backgroundColor: AppColors.error,
@@ -160,10 +161,10 @@ class _TenantFinanceTabState extends ConsumerState<TenantFinanceTab> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    messenger.showSnackBar(
       const SnackBar(
         content: Text('Dekont yükleniyor...'),
-        backgroundColor: AppColors.accent,
+        backgroundColor: AppColors.charcoal,
         duration: Duration(seconds: 1),
       ),
     );
@@ -183,7 +184,7 @@ class _TenantFinanceTabState extends ConsumerState<TenantFinanceTab> {
       );
       if (resp.statusCode == 200) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          messenger.showSnackBar(
             const SnackBar(
               content: Text('✅ Dekont başarıyla yüklendi! Emlakçınız inceleyecek.'),
               backgroundColor: AppColors.success,
@@ -194,7 +195,7 @@ class _TenantFinanceTabState extends ConsumerState<TenantFinanceTab> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(
             content: Text('Yükleme hatası: $e'),
             backgroundColor: AppColors.error,
@@ -239,11 +240,11 @@ class _TenantFinanceTabState extends ConsumerState<TenantFinanceTab> {
                 const SizedBox(height: 4),
                 Text(
                   '${tx.transactionDate.day.toString().padLeft(2, '0')}.${tx.transactionDate.month.toString().padLeft(2, '0')}.${tx.transactionDate.year}',
-                  style: const TextStyle(color: AppColors.textBody, fontSize: 12),
+                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
                 ),
                 if (tx.description != null && tx.description!.isNotEmpty) ...[
                   const SizedBox(height: 2),
-                  Text(tx.description!, style: TextStyle(color: AppColors.textBody.withValues(alpha:0.6), fontSize: 11)),
+                  Text(tx.description!, style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.6), fontSize: 11)),
                 ],
               ],
             ),

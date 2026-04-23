@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/theme/colors.dart';
 import '../providers/properties_provider.dart';
 import '../widgets/create_property_bottom_sheet.dart';
@@ -12,39 +13,7 @@ class PropertiesTab extends ConsumerStatefulWidget {
   ConsumerState<PropertiesTab> createState() => _PropertiesTabState();
 }
 
-class _PropertiesTabState extends ConsumerState<PropertiesTab>
-    with TickerProviderStateMixin {
-  late AnimationController _headerAnimController;
-  late Animation<double> _headerFade;
-  late Animation<Offset> _headerSlide;
-
-  @override
-  void initState() {
-    super.initState();
-    _headerAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 700),
-    );
-    _headerFade = CurvedAnimation(
-      parent: _headerAnimController,
-      curve: Curves.easeOutCubic,
-    );
-    _headerSlide = Tween<Offset>(
-      begin: const Offset(-0.1, 0),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _headerAnimController,
-      curve: Curves.easeOutCubic,
-    ));
-    _headerAnimController.forward();
-  }
-
-  @override
-  void dispose() {
-    _headerAnimController.dispose();
-    super.dispose();
-  }
-
+class _PropertiesTabState extends ConsumerState<PropertiesTab> {
   void _showCreateBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -62,75 +31,71 @@ class _PropertiesTabState extends ConsumerState<PropertiesTab>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── HEADER ─────────────────────────────────────────────────
-          SlideTransition(
-            position: _headerSlide,
-            child: FadeTransition(
-              opacity: _headerFade,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-                child: Column(
+          // HEADER
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "PORTFÖY",
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.accent.withValues(alpha: 0.8),
-                                  letterSpacing: 2.0,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "PORTFÖY",
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  color: AppColors.slateGray,
+                                  letterSpacing: 2,
                                 ),
-                              ),
-                              const SizedBox(height: 6),
-                              const Text(
-                                "Gayrimenkul\nYönetimi",
-                                style: TextStyle(
-                                  fontSize: 30,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.textHeader,
-                                  height: 1.15,
-                                  letterSpacing: -0.5,
-                                ),
-                              ),
-                            ],
                           ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppColors.surface,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.06),
-                            ),
+                          const SizedBox(height: 6),
+                          Text(
+                            "Gayrimenkul\nYönetimi",
+                            style: Theme.of(context).textTheme.headlineLarge,
                           ),
-                          child: const Icon(
-                            Icons.add_location_alt,
-                            color: AppColors.accent,
-                            size: 22,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 20),
+                    GestureDetector(
+                      onTap: () => _showCreateBottomSheet(context),
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: AppColors.charcoal,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Icon(
+                          Icons.add,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                      ),
+                    )
+                        .animate()
+                        .scale(
+                          begin: const Offset(0.8, 0.8),
+                          end: const Offset(1.0, 1.0),
+                          duration: 300.ms,
+                          curve: Curves.easeOut,
+                        ),
                   ],
                 ),
-              ),
+                const SizedBox(height: 20),
+              ],
             ),
-          ),
+          )
+              .animate()
+              .fadeIn(duration: 400.ms)
+              .slideX(begin: -0.05, end: 0, duration: 400.ms),
 
-          // ── CONTENT ────────────────────────────────────────────────
+          // CONTENT
           Expanded(
             child: propertiesState.when(
               loading: () => const Center(
-                child: CircularProgressIndicator(color: AppColors.accent),
+                child: CircularProgressIndicator(color: AppColors.charcoal),
               ),
               error: (err, stack) => Center(
                 child: Column(
@@ -139,7 +104,7 @@ class _PropertiesTabState extends ConsumerState<PropertiesTab>
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: AppColors.error.withValues(alpha: 0.1),
+                        color: AppColors.errorLight,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -151,16 +116,11 @@ class _PropertiesTabState extends ConsumerState<PropertiesTab>
                     const SizedBox(height: 16),
                     Text(
                       "Portföy yüklenemedi",
-                      style: const TextStyle(
-                        color: AppColors.textHeader,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 8),
                     TextButton(
-                      onPressed: () =>
-                          ref.read(propertiesProvider.notifier).refresh(),
+                      onPressed: () => ref.read(propertiesProvider.notifier).refresh(),
                       child: const Text("Tekrar dene"),
                     ),
                   ],
@@ -189,53 +149,55 @@ class _PropertiesTabState extends ConsumerState<PropertiesTab>
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: AppColors.surface.withValues(alpha: 0.5),
+                color: AppColors.surfaceVariant,
                 shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.business_outlined,
                 size: 48,
-                color: AppColors.textBody,
+                color: AppColors.slateGray,
               ),
-            ),
+            )
+                .animate()
+                .scale(
+                  begin: const Offset(0.8, 0.8),
+                  end: const Offset(1.0, 1.0),
+                  duration: 400.ms,
+                  curve: Curves.easeOut,
+                )
+                .fadeIn(duration: 400.ms),
+
             const SizedBox(height: 24),
-            const Text(
+
+            Text(
               "Henüz mülk eklenmemiş",
-              style: TextStyle(
-                color: AppColors.textHeader,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+              style: Theme.of(context).textTheme.titleLarge,
+              textAlign: TextAlign.center,
+            )
+                .animate()
+                .fadeIn(delay: 100.ms, duration: 400.ms)
+                .slideY(begin: 0.2, end: 0, delay: 100.ms, duration: 400.ms),
+
             const SizedBox(height: 8),
+
             Text(
               "Portföyünüze ilk binanızı ekleyerek başlayın",
-              style: TextStyle(
-                color: AppColors.textBody.withValues(alpha: 0.7),
-                fontSize: 13,
-              ),
+              style: Theme.of(context).textTheme.bodyMedium,
               textAlign: TextAlign.center,
-            ),
+            )
+                .animate()
+                .fadeIn(delay: 200.ms, duration: 400.ms),
+
             const SizedBox(height: 32),
+
             ElevatedButton.icon(
               onPressed: () => _showCreateBottomSheet(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accent,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 14,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
               icon: const Icon(Icons.add_business, size: 20),
-              label: const Text(
-                "İlk Mülkü Ekle",
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-            ),
+              label: const Text("İlk Mülkü Ekle"),
+            )
+                .animate()
+                .fadeIn(delay: 300.ms, duration: 400.ms)
+                .slideY(begin: 0.2, end: 0, delay: 300.ms, duration: 400.ms),
           ],
         ),
       ),
@@ -244,7 +206,7 @@ class _PropertiesTabState extends ConsumerState<PropertiesTab>
 
   Widget _buildPropertyList(List<PropertyModel> list) {
     return RefreshIndicator(
-      color: AppColors.accent,
+      color: AppColors.charcoal,
       backgroundColor: AppColors.surface,
       onRefresh: () async {
         ref.read(propertiesProvider.notifier).refresh();
@@ -256,27 +218,13 @@ class _PropertiesTabState extends ConsumerState<PropertiesTab>
         separatorBuilder: (_, __) => const SizedBox(height: 14),
         itemBuilder: (context, index) {
           final prop = list[index];
-          return TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.0, end: 1.0),
-            duration: Duration(milliseconds: 400 + (index * 60).clamp(0, 500)),
-            curve: Curves.easeOutCubic,
-            builder: (context, value, child) {
-              return Opacity(
-                opacity: value,
-                child: Transform.translate(
-                  offset: Offset(0, 20 * (1 - value)),
-                  child: child,
-                ),
-              );
-            },
-            child: _buildPropertyCard(context, prop),
-          );
+          return _buildPropertyCard(context, prop, index);
         },
       ),
     );
   }
 
-  Widget _buildPropertyCard(BuildContext context, PropertyModel prop) {
+  Widget _buildPropertyCard(BuildContext context, PropertyModel prop, int index) {
     final double occupancyRate = prop.totalUnits > 0
         ? ((prop.totalUnits - prop.emptyUnits) / prop.totalUnits) * 100
         : 0.0;
@@ -299,25 +247,30 @@ class _PropertiesTabState extends ConsumerState<PropertiesTab>
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.06),
-          ),
+          border: Border.all(color: AppColors.border),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.shadowLight,
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top row: icon + name + chevron
+            // Top row
             Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.accent.withValues(alpha: 0.12),
+                    color: AppColors.charcoal.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(
                     _getPropertyIcon(prop.type),
-                    color: AppColors.accent,
+                    color: AppColors.charcoal,
                     size: 22,
                   ),
                 ),
@@ -328,53 +281,41 @@ class _PropertiesTabState extends ConsumerState<PropertiesTab>
                     children: [
                       Text(
                         prop.name,
-                        style: const TextStyle(
-                          color: AppColors.textHeader,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                        ),
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 2),
                       Text(
                         _getPropertyTypeLabel(prop.type),
-                        style: TextStyle(
-                          color: AppColors.textBody.withValues(alpha: 0.6),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.textTertiary,
+                            ),
                       ),
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: (isHighOccupancy
-                            ? AppColors.success
-                            : AppColors.warning)
-                        .withValues(alpha: 0.12),
+                    color: (isHighOccupancy ? AppColors.success : AppColors.warning)
+                        .withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     "%${occupancyRate.toStringAsFixed(0)}",
-                    style: TextStyle(
-                      color: isHighOccupancy
-                          ? AppColors.success
-                          : AppColors.warning,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: isHighOccupancy ? AppColors.success : AppColors.warning,
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 const Icon(
                   Icons.chevron_right,
-                  color: AppColors.textBody,
+                  color: AppColors.textTertiary,
                   size: 22,
                 ),
               ],
@@ -389,7 +330,7 @@ class _PropertiesTabState extends ConsumerState<PropertiesTab>
                   Icons.door_front_door_outlined,
                   "${prop.totalUnits}",
                   "Kapı",
-                  AppColors.accent,
+                  AppColors.charcoal,
                 ),
                 const SizedBox(width: 20),
                 _buildMiniStat(
@@ -403,9 +344,7 @@ class _PropertiesTabState extends ConsumerState<PropertiesTab>
                   Icons.home_outlined,
                   "${prop.emptyUnits}",
                   "Boş",
-                  prop.emptyUnits > 0
-                      ? AppColors.warning
-                      : AppColors.textBody,
+                  prop.emptyUnits > 0 ? AppColors.warning : AppColors.textTertiary,
                 ),
               ],
             ),
@@ -417,7 +356,7 @@ class _PropertiesTabState extends ConsumerState<PropertiesTab>
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
                 value: occupancyRate / 100,
-                backgroundColor: Colors.white.withValues(alpha: 0.05),
+                backgroundColor: AppColors.lightGray,
                 color: isHighOccupancy ? AppColors.success : AppColors.warning,
                 minHeight: 5,
               ),
@@ -425,7 +364,19 @@ class _PropertiesTabState extends ConsumerState<PropertiesTab>
           ],
         ),
       ),
-    );
+    )
+        .animate()
+        .fadeIn(
+          delay: Duration(milliseconds: 50 * index),
+          duration: 300.ms,
+        )
+        .slideX(
+          begin: 0.05,
+          end: 0,
+          delay: Duration(milliseconds: 50 * index),
+          duration: 300.ms,
+          curve: Curves.easeOut,
+        );
   }
 
   Widget _buildMiniStat(IconData icon, String value, String label, Color color) {
@@ -435,19 +386,17 @@ class _PropertiesTabState extends ConsumerState<PropertiesTab>
         const SizedBox(width: 5),
         Text(
           value,
-          style: TextStyle(
-            color: color,
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-          ),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: color,
+                fontWeight: FontWeight.bold,
+              ),
         ),
         const SizedBox(width: 4),
         Text(
           label,
-          style: TextStyle(
-            color: AppColors.textBody.withValues(alpha: 0.6),
-            fontSize: 11,
-          ),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.textTertiary,
+              ),
         ),
       ],
     );

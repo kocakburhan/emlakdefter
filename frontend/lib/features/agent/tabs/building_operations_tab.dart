@@ -139,7 +139,7 @@ class _BuildingOperationsTabState extends ConsumerState<BuildingOperationsTab>
     final ops = _filteredOps(state);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0D14),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -161,7 +161,7 @@ class _BuildingOperationsTabState extends ConsumerState<BuildingOperationsTab>
                   _headerAnimWidget(
                     const Text('Operasyon Merkezi',
                       style: TextStyle(
-                        color: Colors.white, fontSize: 26,
+                        color: AppColors.charcoal, fontSize: 26,
                         fontWeight: FontWeight.bold, letterSpacing: -0.5,
                       )),
                     delayMs: 80,
@@ -227,7 +227,7 @@ class _BuildingOperationsTabState extends ConsumerState<BuildingOperationsTab>
               child: state.isLoading
                   ? const Center(
                       child: CircularProgressIndicator(
-                        color: AppColors.accent, strokeWidth: 2,
+                        color: AppColors.charcoal, strokeWidth: 2,
                       ),
                     )
                   : ops.isEmpty
@@ -258,7 +258,7 @@ class _BuildingOperationsTabState extends ConsumerState<BuildingOperationsTab>
 
     return Row(
       children: [
-        Expanded(child: _summaryCard('Toplam Maliyet', '₺${_fmt(total)}', AppColors.accent)),
+        Expanded(child: _summaryCard('Toplam Maliyet', '₺${_fmt(total)}', AppColors.charcoal)),
         const SizedBox(width: 10),
         Expanded(child: _summaryCard('Finansa Yansıyan', '₺${_fmt(reflected)}', AppColors.success)),
         const SizedBox(width: 10),
@@ -381,7 +381,7 @@ class _BuildingOperationsTabState extends ConsumerState<BuildingOperationsTab>
                   child: _filterChip(
                     label: p.name,
                     isSelected: state.propertyFilter == p.id,
-                    color: AppColors.accent,
+                    color: AppColors.charcoal,
                     onTap: () => ref.read(buildingOperationsProvider.notifier).setPropertyFilter(
                       state.propertyFilter == p.id ? null : p.id,
                     ),
@@ -412,7 +412,7 @@ class _BuildingOperationsTabState extends ConsumerState<BuildingOperationsTab>
     IconData? icon,
     required VoidCallback onTap,
   }) {
-    final chipColor = color ?? AppColors.accent;
+    final chipColor = color ?? AppColors.charcoal;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -456,7 +456,7 @@ class _BuildingOperationsTabState extends ConsumerState<BuildingOperationsTab>
         return Theme(
           data: ThemeData.dark().copyWith(
             colorScheme: const ColorScheme.dark(
-              primary: AppColors.accent,
+              primary: AppColors.charcoal,
               surface: Color(0xFF1A1A2E),
             ),
           ),
@@ -486,20 +486,20 @@ class _BuildingOperationsTabState extends ConsumerState<BuildingOperationsTab>
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: AppColors.accent.withValues(alpha:0.08),
+                color: AppColors.charcoal.withValues(alpha:0.08),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 Icons.engineering_outlined,
                 size: 48,
-                color: AppColors.accent.withValues(alpha:0.4),
+                color: AppColors.charcoal.withValues(alpha:0.4),
               ),
             ),
             const SizedBox(height: 20),
             const Text(
               'Henüz operasyon yok',
               style: TextStyle(
-                color: Colors.white, fontSize: 18,
+                color: AppColors.charcoal, fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -507,7 +507,7 @@ class _BuildingOperationsTabState extends ConsumerState<BuildingOperationsTab>
             Text(
               'Yukarıdaki + ile ilk kaydı oluşturun',
               style: TextStyle(
-                color: Colors.white.withValues(alpha:0.35), fontSize: 13,
+                color: AppColors.textSecondary, fontSize: 13,
               ),
             ),
           ],
@@ -535,14 +535,14 @@ class _BuildingOperationsTabState extends ConsumerState<BuildingOperationsTab>
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.accent, AppColors.accent.withValues(alpha:0.65)],
+          colors: [AppColors.charcoal, AppColors.charcoal.withValues(alpha:0.65)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppColors.accent.withValues(alpha:0.35),
+            color: AppColors.charcoal.withValues(alpha:0.35),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -563,7 +563,7 @@ class _BuildingOperationsTabState extends ConsumerState<BuildingOperationsTab>
                 Text(
                   'Yeni Kayıt',
                   style: TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold,
+                    color: AppColors.charcoal, fontWeight: FontWeight.bold,
                     fontSize: 14,
                   ),
                 ),
@@ -632,7 +632,7 @@ class _OperationCard extends StatelessWidget {
       opacity: 0.98,
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF13131F),
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: _catColor.withValues(alpha:0.15),
@@ -686,13 +686,13 @@ class _OperationCard extends StatelessWidget {
                       // Mülk adı
                       if (op.propertyName != null) ...[
                         Icon(Icons.home_outlined, size: 12,
-                            color: Colors.white.withValues(alpha:0.3)),
+                            color: AppColors.textTertiary),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             op.propertyName!,
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha:0.45),
+                              color: AppColors.textSecondary,
                               fontSize: 11,
                             ),
                             overflow: TextOverflow.ellipsis,
@@ -703,7 +703,7 @@ class _OperationCard extends StatelessWidget {
                       Text(
                         '₺${_fmt(op.cost)}',
                         style: const TextStyle(
-                          color: Colors.white, fontSize: 17,
+                          color: AppColors.charcoal, fontSize: 17,
                           fontWeight: FontWeight.bold,
                           letterSpacing: -0.3,
                         ),
@@ -716,7 +716,7 @@ class _OperationCard extends StatelessWidget {
                   Text(
                     op.title,
                     style: const TextStyle(
-                      color: Colors.white, fontSize: 15,
+                      color: AppColors.charcoal, fontSize: 15,
                       fontWeight: FontWeight.w600,
                     ),
                     maxLines: 2,
@@ -729,7 +729,7 @@ class _OperationCard extends StatelessWidget {
                     Text(
                       op.description!,
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha:0.4),
+                        color: AppColors.textSecondary,
                         fontSize: 12,
                         height: 1.4,
                       ),
@@ -743,12 +743,12 @@ class _OperationCard extends StatelessWidget {
                   Row(
                     children: [
                       Icon(Icons.calendar_today_outlined,
-                          size: 11, color: Colors.white.withValues(alpha:0.3)),
+                          size: 11, color: AppColors.textTertiary),
                       const SizedBox(width: 4),
                       Text(
                         _formatDate(op.createdAt),
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha:0.35), fontSize: 11,
+                          color: AppColors.textTertiary, fontSize: 11,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -876,7 +876,7 @@ extension _BuildingOperationsTabStateExt on _BuildingOperationsTabState {
                   child: Container(
                     width: 40, height: 4,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha:0.15),
+                      color: AppColors.border,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -887,7 +887,7 @@ extension _BuildingOperationsTabStateExt on _BuildingOperationsTabState {
                 const Text(
                   'Yeni Bina Operasyonu',
                   style: TextStyle(
-                    color: Colors.white, fontSize: 20,
+                    color: AppColors.charcoal, fontSize: 20,
                     fontWeight: FontWeight.bold, letterSpacing: -0.3,
                   ),
                 ),
@@ -895,7 +895,7 @@ extension _BuildingOperationsTabStateExt on _BuildingOperationsTabState {
                 Text(
                   'Bakım, onarım ve diğer bina giderlerini kaydedin',
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha:0.4), fontSize: 12,
+                    color: AppColors.textSecondary, fontSize: 12,
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -904,7 +904,7 @@ extension _BuildingOperationsTabStateExt on _BuildingOperationsTabState {
                 const Text(
                   'Kategori',
                   style: TextStyle(
-                    color: Colors.white, fontSize: 13,
+                    color: AppColors.charcoal, fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -966,7 +966,7 @@ extension _BuildingOperationsTabStateExt on _BuildingOperationsTabState {
                 const Text(
                   'Bina / Mülk',
                   style: TextStyle(
-                    color: Colors.white, fontSize: 13,
+                    color: AppColors.charcoal, fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -974,17 +974,17 @@ extension _BuildingOperationsTabStateExt on _BuildingOperationsTabState {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0D0D14),
+                    color: AppColors.surface,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.white.withValues(alpha:0.06)),
+                    border: Border.all(color: AppColors.border),
                   ),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
                       isExpanded: true,
                       value: selectedPropertyId,
-                      dropdownColor: const Color(0xFF0D0D14),
-                      style: const TextStyle(color: Colors.white),
-                      iconEnabledColor: Colors.white54,
+                      dropdownColor: AppColors.surface,
+                      style: const TextStyle(color: AppColors.charcoal),
+                      iconEnabledColor: AppColors.textSecondary,
                       items: props.map((p) => DropdownMenuItem(
                         value: p.id,
                         child: Text(p.name,
@@ -1036,9 +1036,9 @@ extension _BuildingOperationsTabStateExt on _BuildingOperationsTabState {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0D0D14),
+                    color: AppColors.surface,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.white.withValues(alpha:0.06)),
+                    border: Border.all(color: AppColors.border),
                   ),
                   child: Row(
                     children: [
@@ -1059,7 +1059,7 @@ extension _BuildingOperationsTabStateExt on _BuildingOperationsTabState {
                             Text(
                               'Finansa Yansıt',
                               style: TextStyle(
-                                color: Colors.white, fontSize: 13,
+                                color: AppColors.charcoal, fontSize: 13,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -1120,7 +1120,7 @@ extension _BuildingOperationsTabStateExt on _BuildingOperationsTabState {
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accent,
+                    backgroundColor: AppColors.charcoal,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
@@ -1153,9 +1153,9 @@ extension _BuildingOperationsTabStateExt on _BuildingOperationsTabState {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF0D0D14),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha:0.06)),
+        border: Border.all(color: AppColors.border),
       ),
       child: TextField(
         controller: controller,
@@ -1165,7 +1165,7 @@ extension _BuildingOperationsTabStateExt on _BuildingOperationsTabState {
         decoration: InputDecoration(
           labelText: label,
           labelStyle: TextStyle(color: Colors.white.withValues(alpha:0.35)),
-          prefixIcon: Icon(icon, color: AppColors.accent, size: 18),
+          prefixIcon: Icon(icon, color: AppColors.charcoal, size: 18),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16, vertical: 14,
@@ -1201,7 +1201,7 @@ extension _DetailSheet on _BuildingOperationsTabState {
               child: Container(
                 width: 40, height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha:0.15),
+                  color: AppColors.border,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -1242,7 +1242,7 @@ extension _DetailSheet on _BuildingOperationsTabState {
             Text(
               op.title,
               style: const TextStyle(
-                color: Colors.white, fontSize: 20,
+                color: AppColors.charcoal, fontSize: 20,
                 fontWeight: FontWeight.bold, letterSpacing: -0.3,
               ),
             ),
@@ -1256,7 +1256,7 @@ extension _DetailSheet on _BuildingOperationsTabState {
                   Text(
                     op.propertyName!,
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha:0.45), fontSize: 12,
+                      color: AppColors.textSecondary, fontSize: 12,
                     ),
                   ),
                 ],
@@ -1268,7 +1268,7 @@ extension _DetailSheet on _BuildingOperationsTabState {
               Text(
                 op.description!,
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha:0.6),
+                  color: AppColors.textSecondary,
                   fontSize: 14, height: 1.6,
                 ),
               ),
@@ -1281,25 +1281,25 @@ extension _DetailSheet on _BuildingOperationsTabState {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    AppColors.accent.withValues(alpha:0.12),
-                    AppColors.accent.withValues(alpha:0.04),
+                    AppColors.charcoal.withValues(alpha:0.12),
+                    AppColors.charcoal.withValues(alpha:0.04),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.accent.withValues(alpha:0.2)),
+                border: Border.all(color: AppColors.charcoal.withValues(alpha:0.2)),
               ),
               child: Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppColors.accent.withValues(alpha:0.15),
+                      color: AppColors.charcoal.withValues(alpha:0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child:
-                        Icon(Icons.payments_outlined, color: AppColors.accent),
+                        Icon(Icons.payments_outlined, color: AppColors.charcoal),
                   ),
                   const SizedBox(width: 16),
                   const Expanded(
@@ -1313,7 +1313,7 @@ extension _DetailSheet on _BuildingOperationsTabState {
                   Text(
                     '₺${_fmt(op.cost)}',
                     style: const TextStyle(
-                      color: Colors.white, fontSize: 22,
+                      color: AppColors.charcoal, fontSize: 22,
                       fontWeight: FontWeight.bold, letterSpacing: -0.5,
                     ),
                   ),
@@ -1353,7 +1353,7 @@ extension _DetailSheet on _BuildingOperationsTabState {
                   Text(
                     _formatDate(op.createdAt),
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha:0.3), fontSize: 12,
+                      color: AppColors.textSecondary, fontSize: 12,
                     ),
                   ),
                 ],
@@ -1380,13 +1380,13 @@ extension _DetailSheet on _BuildingOperationsTabState {
                       child: Text(
                         'Fatura kanıtı mevcut',
                         style: TextStyle(
-                          color: Colors.white, fontSize: 13,
+                          color: AppColors.charcoal, fontSize: 13,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
                     Icon(Icons.open_in_new,
-                        color: Colors.white.withValues(alpha:0.3), size: 16),
+                        color: AppColors.textTertiary, size: 16),
                   ],
                 ),
               ),
@@ -1437,7 +1437,7 @@ extension _DetailSheet on _BuildingOperationsTabState {
                 final confirm = await showDialog<bool>(
                   context: context,
                   builder: (_) => AlertDialog(
-                    backgroundColor: const Color(0xFF1A1A2E),
+                    backgroundColor: AppColors.surface,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
                     ),
@@ -1575,7 +1575,7 @@ class _InvoiceUploaderState extends State<_InvoiceUploader> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF0D0D14),
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: hasFile
@@ -1588,18 +1588,18 @@ class _InvoiceUploaderState extends State<_InvoiceUploader> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppColors.accent.withValues(alpha: 0.1),
+                color: AppColors.charcoal.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: _isUploading
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.charcoal),
                     )
                   : Icon(
                       hasFile ? Icons.check_circle : Icons.receipt_long_rounded,
-                      color: hasFile ? AppColors.success : AppColors.accent,
+                      color: hasFile ? AppColors.success : AppColors.charcoal,
                       size: 20,
                     ),
             ),
@@ -1627,7 +1627,7 @@ class _InvoiceUploaderState extends State<_InvoiceUploader> {
                             ? _fileName ?? 'Kaydedildi'
                             : 'Fotoğraf veya PDF — Hetzner\'a yüklenecek',
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.35),
+                      color: AppColors.textTertiary,
                       fontSize: 11,
                     ),
                   ),
@@ -1636,7 +1636,7 @@ class _InvoiceUploaderState extends State<_InvoiceUploader> {
             ),
             Icon(
               hasFile ? Icons.check : Icons.add_photo_alternate_outlined,
-              color: Colors.white.withValues(alpha: 0.4),
+              color: AppColors.textSecondary,
             ),
           ],
         ),

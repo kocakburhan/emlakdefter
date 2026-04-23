@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import '../../../core/theme/colors.dart';
 import '../../../core/network/api_client.dart';
 import '../providers/tenant_provider.dart';
 
@@ -14,17 +15,17 @@ import '../providers/tenant_provider.dart';
 // PRD §4.2.2
 // ──────────────────────────────────────────────
 
-// Palette
-const _bg = Color(0xFF141210);
-const _surface = Color(0xFF1E1A17);
-const _surface2 = Color(0xFF282220);
-const _amber = Color(0xFFD4893F);
-const _amberDim = Color(0xFF8B5E34);
-const _sage = Color(0xFF7AB892);
-const _coral = Color(0xFFE27D7D);
-const _warmWhite = Color(0xFFF5EDE4);
-const _warmMuted = Color(0xFFA89B8C);
-const _warmHint = Color(0xFF6B5F52);
+// Palette — mapped to AppColors Modern Minimalist
+const _bg = AppColors.background;
+const _surface = AppColors.surface;
+const _surface2 = AppColors.surfaceVariant;
+const _amber = AppColors.charcoal;
+const _amberDim = AppColors.charcoalLight;
+const _sage = AppColors.success;
+const _coral = AppColors.error;
+const _warmWhite = AppColors.textOnPrimary;
+const _warmMuted = AppColors.textSecondary;
+const _warmHint = AppColors.textTertiary;
 
 Color _statusColor(TenantTicketStatus s) {
   switch (s) {

@@ -21,7 +21,7 @@ class UserProfile {
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
-      id: json['id'] ?? '',
+      id: json['id']?.toString() ?? '',
       fullName: json['full_name'] ?? '',
       phoneNumber: json['phone_number'],
       email: json['email'],
@@ -33,130 +33,154 @@ class UserProfile {
 class AuthState {
   final bool isLoading;
   final String? error;
-  final bool isCodeSent;
   final bool isAuthenticated;
-  final String? verificationId;
   final UserProfile? user;
+  final String? invitationToken;
 
   AuthState({
     this.isLoading = false,
     this.error,
-    this.isCodeSent = false,
     this.isAuthenticated = false,
-    this.verificationId,
     this.user,
+    this.invitationToken,
   });
 
   AuthState copyWith({
     bool? isLoading,
     String? error,
-    bool? isCodeSent,
     bool? isAuthenticated,
-    String? verificationId,
     UserProfile? user,
+    String? invitationToken,
   }) {
     return AuthState(
       isLoading: isLoading ?? this.isLoading,
       error: error,
-      isCodeSent: isCodeSent ?? this.isCodeSent,
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
-      verificationId: verificationId ?? this.verificationId,
       user: user ?? this.user,
+      invitationToken: invitationToken ?? this.invitationToken,
     );
   }
 }
 
-/// Uygulamanın Firebase Auth motoru + Backend login köprüsü
+/// Firebase Email/Password Auth motoru + Backend login köprüsü
 class AuthNotifier extends StateNotifier<AuthState> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   AuthNotifier() : super(AuthState());
 
-  /// 1. Kullanıcı numarasını yazdığında Firebase'e gidip cihaza SMS atması
-  Future<bool> sendPhoneCode(String phoneNumber) async {
+  /// Email/password ile giriş
+  Future<bool> signInWithEmail(String email, String password) async {
     state = state.copyWith(isLoading: true, error: null);
-    
+
     try {
-      await _auth.verifyPhoneNumber(
-        phoneNumber: phoneNumber,
-        // Android: Eğer cihaz PIN'i otonom okursa, input ekranına bile geçmeden giriş yap
-        verificationCompleted: (PhoneAuthCredential credential) async {
-          await _auth.signInWithCredential(credential);
-          state = state.copyWith(isLoading: false, isCodeSent: true, isAuthenticated: true);
-          debugPrint("✅ Google SMS'i otonom (Arka Plandan) okudu ve içeri aldı!");
-        },
-        // Numara formatı bozuksa veya banlıysa
-        verificationFailed: (FirebaseAuthException e) {
-          state = state.copyWith(isLoading: false, error: "Firebase Reddedildi: ${e.message}");
-        },
-        // SMS gerçekten cihaza düştüğünde dönen doğrulama anahtarı
-        codeSent: (String verificationId, int? resendToken) {
-          state = state.copyWith(isLoading: false, isCodeSent: true, verificationId: verificationId);
-          debugPrint("📩 Firebase Başarıyla SMS Yolladı. Verification ID kilitlendi.");
-        },
-        codeAutoRetrievalTimeout: (String verificationId) {
-          state = state.copyWith(verificationId: verificationId);
-        },
+      final credential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
       );
-      
-      return true;
+
+      if (credential.user != null) {
+        final backendSuccess = await _loginToBackend(credential.user!);
+        state = state.copyWith(
+          isLoading: false,
+          isAuthenticated: backendSuccess,
+          error: backendSuccess ? null : "Backend bağlantısı kurulamadı",
+        );
+        return backendSuccess;
+      }
+      return false;
+    } on FirebaseAuthException catch (e) {
+      String message;
+      switch (e.code) {
+        case 'user-not-found':
+          message = "Bu email ile kayıtlı kullanıcı bulunamadı";
+          break;
+        case 'wrong-password':
+          message = "Şifre yanlış";
+          break;
+        case 'invalid-email':
+          message = "Geçersiz email formatı";
+          break;
+        case 'user-disabled':
+          message = "Bu hesap devre dışı bırakılmış";
+          break;
+        default:
+          message = "Giriş başarısız: ${e.message}";
+      }
+      state = state.copyWith(isLoading: false, error: message);
+      return false;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
       return false;
     }
   }
 
-  /// 2. Kullanıcı PIN ekranında şifreyi yazdı → Firebase doğrulama + Backend login
-  Future<bool> verifyOtpCode(String smsCode, String role) async {
-    if (state.verificationId == null) {
-       state = state.copyWith(error: "Firebase SMS Kilit Anahtarı eksik, baştan gönderin.");
-       return false;
-    }
-
+  /// Email/password ile kayıt
+  Future<bool> signUpWithEmail(String email, String password, String fullName) async {
     state = state.copyWith(isLoading: true, error: null);
+
     try {
-       // Firebase'de PIN doğrulama
-       PhoneAuthCredential credential = PhoneAuthProvider.credential(
-          verificationId: state.verificationId!,
-          smsCode: smsCode,
-       );
-       UserCredential userCredential = await _auth.signInWithCredential(credential);
-       
-       if (userCredential.user != null) {
-          // Firebase tarafında Authentication başarılı!
-          // Şimdi Backend'e login isteği at
-          final backendSuccess = await _loginToBackend(userCredential.user!);
-          
-          state = state.copyWith(
-            isLoading: false, 
-            isAuthenticated: backendSuccess,
-            error: backendSuccess ? null : "Backend bağlantısı kurulamadı ama Firebase girişi başarılı.",
-          );
-          
-          return true; // Firebase auth başarılı olduğu sürece devam et
-       } else {
-          state = state.copyWith(isLoading: false, error: "Firebase Giriş İşlemini Onaylamadı.");
-          return false;
-       }
+      final credential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      if (credential.user != null) {
+        // Firebase'e display name set et
+        await credential.user!.updateDisplayName(fullName);
+
+        final backendSuccess = await _loginToBackend(
+          credential.user!,
+          fullName: fullName,
+        );
+
+        state = state.copyWith(
+          isLoading: false,
+          isAuthenticated: backendSuccess,
+          error: backendSuccess ? null : "Backend bağlantısı kurulamadı",
+        );
+        return backendSuccess;
+      }
+      return false;
     } on FirebaseAuthException catch (e) {
-       state = state.copyWith(isLoading: false, error: "Girdiğiniz PİN Hatalı: ${e.message}");
-       return false;
+      String message;
+      switch (e.code) {
+        case 'email-already-in-use':
+          message = "Bu email zaten kullanımda";
+          break;
+        case 'invalid-email':
+          message = "Geçersiz email formatı";
+          break;
+        case 'weak-password':
+          message = "Şifre çok zayıf (en az 6 karakter gerekli)";
+          break;
+        default:
+          message = "Kayıt başarısız: ${e.message}";
+      }
+      state = state.copyWith(isLoading: false, error: message);
+      return false;
     } catch (e) {
-       state = state.copyWith(isLoading: false, error: e.toString());
-       return false;
+      state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
     }
   }
 
-  /// 3. Firebase auth başarılı → Backend'e login isteği at
-  Future<bool> _loginToBackend(User firebaseUser) async {
+  /// Firebase auth başarılı → Backend'e login isteği at
+  Future<bool> _loginToBackend(User firebaseUser, {String? fullName}) async {
     try {
       final idToken = await firebaseUser.getIdToken();
       if (idToken == null) return false;
 
-      final response = await ApiClient.dio.post('/auth/login', data: {
+      final data = <String, dynamic>{
         'firebase_id_token': idToken,
-        'full_name': firebaseUser.displayName ?? firebaseUser.phoneNumber ?? 'Kullanıcı',
-      });
+        'full_name': fullName ?? firebaseUser.displayName ?? firebaseUser.email ?? 'Kullanıcı',
+      };
+
+      // Davet token varsa ekle
+      if (state.invitationToken != null) {
+        data['invitation_token'] = state.invitationToken;
+      }
+
+      final response = await ApiClient.dio.post('/auth/login', data: data);
 
       if (response.statusCode == 200 && response.data != null) {
         final userData = response.data['user'];
@@ -170,10 +194,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
       }
       return false;
     } catch (e) {
-      debugPrint("⚠️ Backend login hatası (Firebase auth devam ediyor): $e");
-      // Backend'e bağlanamazsa bile Firebase auth başarılıysa devam et
+      debugPrint("⚠️ Backend login hatası: $e");
       return false;
     }
+  }
+
+  /// Davet token'ını kaydet (register ekranına geçmeden önce)
+  void setInvitationToken(String? token) {
+    state = state.copyWith(invitationToken: token);
   }
 
   /// Mevcut Firebase kullanıcısının oturum durumunu kontrol et
@@ -194,11 +222,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
       }
     }
   }
-  
-  /// Gerçek Oturum Kapatma İşlemi
+
+  /// Oturum Kapatma
   Future<void> logOut() async {
     await _auth.signOut();
-    state = AuthState(); // Tüm State hafızasını sil
+    await ApiClient.clearSimpleAuthToken();
+    state = AuthState();
   }
 }
 

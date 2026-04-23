@@ -40,8 +40,6 @@ apt-get install -y ufw
 ufw allow 22/tcp    # SSH
 ufw allow 80/tcp    # HTTP
 ufw allow 443/tcp   # HTTPS
-ufw allow 8000/tcp  # FastAPI
-ufw allow 8001/tcp  # WebSocket
 ufw --force enable
 
 # ── Fail2Ban (SSH brute-force protection) ──────────────────────────────────

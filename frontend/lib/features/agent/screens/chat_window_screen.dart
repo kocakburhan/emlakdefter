@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
@@ -139,14 +138,14 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
               ? 'Mesaj silindi'
               : 'Mesaj silindi — 30 sn içinde geri alınabilir',
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
-          backgroundColor: AppColors.textHeader,
+          backgroundColor: AppColors.charcoal,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           duration: const Duration(seconds: 30),
           action: SnackBarAction(
             label: 'Geri Al',
-            textColor: AppColors.accent,
+            textColor: AppColors.charcoal,
             onPressed: _undoDelete,
           ),
         ),
@@ -200,7 +199,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
             // Messages
             Expanded(
               child: state.isLoadingMessages
-                  ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+                  ? const Center(child: CircularProgressIndicator(color: AppColors.charcoal))
                   : visibleMessages.isEmpty
                       ? _buildEmptyChat()
                       : ListView.builder(
@@ -232,7 +231,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
       decoration: BoxDecoration(
         color: AppColors.surface,
         border: Border(
-          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+          bottom: BorderSide(color: AppColors.border),
         ),
       ),
       child: Row(
@@ -248,7 +247,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                 color: AppColors.background,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.arrow_back, size: 20, color: AppColors.textHeader),
+              child: const Icon(Icons.arrow_back, size: 20, color: AppColors.charcoal),
             ),
           ),
           const SizedBox(width: 8),
@@ -258,7 +257,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
             height: 42,
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [AppColors.accent.withValues(alpha: 0.7), AppColors.accent.withValues(alpha: 0.4)],
+                colors: [AppColors.charcoal.withValues(alpha: 0.7), AppColors.charcoal.withValues(alpha: 0.4)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -283,7 +282,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                 Text(
                   widget.conversation.clientName ?? 'Bilinmeyen',
                   style: const TextStyle(
-                    color: AppColors.textHeader,
+                    color: AppColors.charcoal,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
@@ -292,7 +291,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                   Text(
                     widget.conversation.clientRole!,
                     style: TextStyle(
-                      color: AppColors.textBody.withValues(alpha: 0.6),
+                      color: AppColors.textSecondary.withValues(alpha: 0.6),
                       fontSize: 12,
                     ),
                   ),
@@ -303,12 +302,12 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: AppColors.accent.withValues(alpha: 0.1),
+                color: AppColors.charcoal.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 widget.conversation.propertyName!,
-                style: const TextStyle(color: AppColors.accent, fontSize: 11, fontWeight: FontWeight.w600),
+                style: const TextStyle(color: AppColors.charcoal, fontSize: 11, fontWeight: FontWeight.w600),
               ),
             ),
         ],
@@ -356,7 +355,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
       decoration: BoxDecoration(
         color: AppColors.surface,
         border: Border(
-          left: BorderSide(color: AppColors.accent, width: 3),
+          left: BorderSide(color: AppColors.charcoal, width: 3),
         ),
       ),
       child: Row(
@@ -367,12 +366,12 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
               children: [
                 Text(
                   _replyTo!.senderName ?? 'Mesaj',
-                  style: const TextStyle(color: AppColors.accent, fontSize: 11, fontWeight: FontWeight.bold),
+                  style: const TextStyle(color: AppColors.charcoal, fontSize: 11, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   _replyTo!.message ?? '',
-                  style: TextStyle(color: AppColors.textBody.withValues(alpha: 0.7), fontSize: 12),
+                  style: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.7), fontSize: 12),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -381,7 +380,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
           ),
           IconButton(
             onPressed: () => setState(() => _replyTo = null),
-            icon: const Icon(Icons.close, size: 18, color: AppColors.textBody),
+            icon: const Icon(Icons.close, size: 18, color: AppColors.textSecondary),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),
@@ -398,24 +397,24 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: AppColors.accent.withValues(alpha: 0.08),
+              color: AppColors.charcoal.withValues(alpha: 0.08),
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.chat_bubble_outline,
               size: 48,
-              color: AppColors.accent.withValues(alpha: 0.3),
+              color: AppColors.charcoal.withValues(alpha: 0.3),
             ),
           ),
           const SizedBox(height: 16),
           const Text(
             'Henüz mesaj yok',
-            style: TextStyle(color: AppColors.textHeader, fontSize: 18, fontWeight: FontWeight.w600),
+            style: TextStyle(color: AppColors.charcoal, fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           Text(
             'İlk mesajı siz gönderin',
-            style: TextStyle(color: AppColors.textBody.withValues(alpha: 0.6)),
+            style: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.6)),
           ),
         ],
       ),
@@ -446,7 +445,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
               child: Text(
                 msg.senderName ?? (isMine ? 'Siz' : 'Karşı taraf'),
                 style: TextStyle(
-                  color: AppColors.textBody.withValues(alpha: 0.5),
+                  color: AppColors.textSecondary.withValues(alpha: 0.5),
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                 ),
@@ -496,13 +495,13 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                             margin: const EdgeInsets.only(bottom: 8),
                             decoration: BoxDecoration(
                               border: Border(
-                                left: BorderSide(color: AppColors.accent, width: 3),
+                                left: BorderSide(color: AppColors.charcoal, width: 3),
                               ),
                             ),
                             child: Text(
                               _replyTo!.message ?? '',
                               style: TextStyle(
-                                color: AppColors.textBody.withValues(alpha: 0.5),
+                                color: AppColors.textSecondary.withValues(alpha: 0.5),
                                 fontSize: 11,
                                 fontStyle: FontStyle.italic,
                               ),
@@ -514,7 +513,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                         Text(
                           msg.message ?? '',
                           style: TextStyle(
-                            color: isMine ? Colors.white : AppColors.textHeader,
+                            color: isMine ? Colors.white : AppColors.charcoal,
                             fontSize: 15,
                             height: 1.4,
                           ),
@@ -526,7 +525,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                             Text(
                               _formatTime(msg.createdAt),
                               style: TextStyle(
-                                color: (isMine ? Colors.white : AppColors.textBody).withValues(alpha: 0.5),
+                                color: (isMine ? Colors.white : AppColors.textSecondary).withValues(alpha: 0.5),
                                 fontSize: 10,
                               ),
                             ),
@@ -549,7 +548,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                                 Icon(
                                   Icons.done,
                                   size: 14,
-                                  color: AppColors.textBody.withValues(alpha: 0.4),  // gönderildi ama okunmadı
+                                  color: AppColors.textSecondary.withValues(alpha: 0.4),  // gönderildi ama okunmadı
                                 ),
                             ],
                             if (msg.isEdited) ...[
@@ -557,7 +556,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                               Text(
                                 '(düzenlendi)',
                                 style: TextStyle(
-                                  color: (isMine ? Colors.white : AppColors.textBody).withValues(alpha: 0.4),
+                                  color: (isMine ? Colors.white : AppColors.textSecondary).withValues(alpha: 0.4),
                                   fontSize: 10,
                                   fontStyle: FontStyle.italic,
                                 ),
@@ -596,7 +595,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
             Container(
               width: 40, height: 4,
               decoration: BoxDecoration(
-                color: AppColors.textBody.withValues(alpha: 0.3),
+                color: AppColors.textSecondary.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -627,7 +626,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
             _buildActionTile(
               Icons.reply_outlined,
               'Yanıtla',
-              AppColors.accent,
+              AppColors.charcoal,
               () {
                 Navigator.pop(ctx);
                 _setReplyTo(msg);
@@ -682,7 +681,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
       decoration: BoxDecoration(
         color: AppColors.surface,
         border: Border(
-          top: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+          top: BorderSide(color: AppColors.border),
         ),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4))],
       ),
@@ -698,7 +697,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                 color: AppColors.background,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Icon(Icons.attach_file, color: AppColors.textBody.withValues(alpha: 0.5), size: 22),
+              child: Icon(Icons.attach_file, color: AppColors.textSecondary.withValues(alpha: 0.5), size: 22),
             ),
           ),
           const SizedBox(width: 10),
@@ -712,8 +711,8 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: _isComposing
-                      ? AppColors.accent.withValues(alpha: 0.4)
-                      : Colors.white.withValues(alpha: 0.05),
+                      ? AppColors.charcoal.withValues(alpha: 0.4)
+                      : AppColors.border,
                 ),
               ),
               child: Row(
@@ -727,12 +726,12 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                       onSubmitted: (_) => _sendMessage(),
                       maxLines: 4,
                       minLines: 1,
-                      style: const TextStyle(color: AppColors.textHeader, fontSize: 15),
+                      style: const TextStyle(color: AppColors.charcoal, fontSize: 15),
                       decoration: InputDecoration(
                         hintText: _editingMessage != null
                             ? 'Mesajı düzenleyin...'
                             : 'Mesaj yazın...',
-                        hintStyle: TextStyle(color: AppColors.textBody.withValues(alpha: 0.4)),
+                        hintStyle: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.4)),
                         border: InputBorder.none,
                         contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                       ),
@@ -742,7 +741,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                     padding: const EdgeInsets.only(right: 8, bottom: 8),
                     child: Icon(
                       Icons.emoji_emotions_outlined,
-                      color: AppColors.textBody.withValues(alpha: 0.4),
+                      color: AppColors.textSecondary.withValues(alpha: 0.4),
                       size: 22,
                     ),
                   ),
@@ -760,7 +759,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
             decoration: BoxDecoration(
               gradient: _isComposing
                   ? LinearGradient(
-                      colors: [AppColors.accent, AppColors.accent.withValues(alpha: 0.8)],
+                      colors: [AppColors.charcoal, AppColors.charcoal.withValues(alpha: 0.8)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     )
@@ -768,7 +767,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
               color: _isComposing ? null : AppColors.background,
               borderRadius: BorderRadius.circular(16),
               boxShadow: _isComposing
-                  ? [BoxShadow(color: AppColors.accent.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))]
+                  ? [BoxShadow(color: AppColors.charcoal.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))]
                   : null,
             ),
             child: Material(
@@ -782,7 +781,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                     child: Icon(
                       _isComposing ? Icons.send_rounded : Icons.mic_rounded,
                       key: ValueKey(_isComposing),
-                      color: _isComposing ? Colors.white : AppColors.textBody.withValues(alpha: 0.3),
+                      color: _isComposing ? Colors.white : AppColors.textSecondary.withValues(alpha: 0.3),
                       size: 22,
                     ),
                   ),
@@ -815,7 +814,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
           children: [
             Container(width: 40, height: 4,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.12),
+                color: AppColors.border,
                 borderRadius: BorderRadius.circular(2),
               )),
             const SizedBox(height: 20),
@@ -823,7 +822,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                 style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
             Text('Fotoğraf veya PDF gönder',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 13)),
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
             const SizedBox(height: 24),
             Row(
               children: [
@@ -873,7 +872,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
             const SizedBox(height: 10),
             Text(title, style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            Text(subtitle, style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11)),
+            Text(subtitle, style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
           ],
         ),
       ),
@@ -906,6 +905,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
     );
     if (image == null) return;
 
+    if (!mounted) return;
     Navigator.pop(context);
 
     final uploadResp = await _uploadMedia(image.path, 'image');
@@ -925,6 +925,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
     final file = result.files.first;
     if (file.path == null) return;
 
+    if (!mounted) return;
     Navigator.pop(context);
 
     final uploadResp = await _uploadMedia(file.path!, 'document');
@@ -1098,7 +1099,7 @@ class _VoiceRecorderSheetState extends State<_VoiceRecorderSheet> {
         children: [
           Center(
             child: Container(width: 40, height: 4, decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(2),
+              color: AppColors.border, borderRadius: BorderRadius.circular(2),
             )),
           ),
           const SizedBox(height: 20),
@@ -1111,7 +1112,7 @@ class _VoiceRecorderSheetState extends State<_VoiceRecorderSheet> {
             _isRecording
                 ? 'Kaydı durdurmak için butona basın'
                 : (_recordedPath != null ? 'Göndermek için butona basın' : 'Kayda başlamak için butona basın'),
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 13),
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
           ),
           const SizedBox(height: 24),
 

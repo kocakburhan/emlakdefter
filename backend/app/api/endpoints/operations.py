@@ -8,7 +8,7 @@ from datetime import datetime, date
 
 from app.api import deps
 from app.models.users import User
-from app.models.properties import Property, PropertyUnit
+from app.models.properties import Property, PropertyUnit, UnitStatus
 from app.models.operations import SupportTicket, TicketMessage, BuildingOperationLog, TicketStatus, OperationCategory
 from app.models.tenants import Tenant
 from app.models.finance import FinancialTransaction, TransactionType, TransactionCategory
@@ -93,7 +93,7 @@ async def get_agent_dashboard_kpi(
 
     # Dolu/Boş birimler
     occ_stmt = select(func.count(PropertyUnit.id)).where(
-        PropertyUnit.agency_id == agency_id, PropertyUnit.status == "rented"
+        PropertyUnit.agency_id == agency_id, PropertyUnit.status == UnitStatus.rented
     )
     occ_result = await db.execute(occ_stmt)
     occupied_units = occ_result.scalar() or 0
@@ -101,7 +101,7 @@ async def get_agent_dashboard_kpi(
 
     # Toplam kira + aidat (aylık)
     rent_stmt = select(func.coalesce(func.sum(PropertyUnit.rent_price), 0)).where(
-        PropertyUnit.agency_id == agency_id, PropertyUnit.status == "rented"
+        PropertyUnit.agency_id == agency_id, PropertyUnit.status == UnitStatus.rented
     )
     rent_result = await db.execute(rent_stmt)
     total_monthly_rent = rent_result.scalar() or 0

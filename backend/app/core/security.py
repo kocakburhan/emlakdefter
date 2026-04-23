@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from jose import jwt
 from passlib.context import CryptContext
 
@@ -19,7 +19,7 @@ def get_password_hash(password: str) -> str:
 def create_invitation_token(data: dict, expires_delta: timedelta) -> str:
     """PRD Madde 4.1.4: Akıllı Davet Jetonları için kriptografik string üretir."""
     to_encode = data.copy()
-    expire = datetime.utcnow() + expires_delta
+    expire = datetime.now(timezone.utc) + expires_delta
     to_encode.update({"exp": expire, "type": "invitation"})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -27,7 +27,7 @@ def create_invitation_token(data: dict, expires_delta: timedelta) -> str:
 def create_access_token(data: dict, expires_delta: timedelta) -> str:
     """Backend korumalı rotaları (Kullanıcı Oturumu) için yetki token'ı."""
     to_encode = data.copy()
-    expire = datetime.utcnow() + expires_delta
+    expire = datetime.now(timezone.utc) + expires_delta
     to_encode.update({"exp": expire, "type": "access"})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt

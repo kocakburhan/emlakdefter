@@ -2,8 +2,10 @@ from datetime import timedelta, datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from passlib.context import CryptContext
 from pydantic import BaseModel
+from jose import jwt, JWTError
+import uuid
+import os
 
 from app.api import deps
 from app.database import get_db
@@ -12,128 +14,10 @@ from app.models.users import User, Invitation, AgencyStaff, GlobalUserRole, Staf
 from app.models.tenants import Tenant, LandlordUnit
 from app.models.properties import PropertyUnit
 from app.core.firebase import verify_firebase_token, reset_user_password_by_phone
-from app.core.security import create_invitation_token, create_access_token
-from app.core.rate_limiter import limiter, AUTH_FCM_LIMIT, PASSWORD_RESET_LIMIT, AUTH_LIMIT
-from jose import jwt, JWTError
-import uuid
-import os
-import bcrypt
-
-SECRET_KEY = os.getenv("SECRET_KEY", "b2c9a8db422e..._override_in_env_")
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+from app.core.security import create_invitation_token, SECRET_KEY, ALGORITHM
+from app.core.rate_limiter import limiter, AUTH_FCM_LIMIT, PASSWORD_RESET_LIMIT
 
 router = APIRouter()
-
-# ──────────────────────────────────────────────
-# BASIT TEST LOGIN/REGISTER (Firebase yok)
-# ──────────────────────────────────────────────
-
-class SimpleRegisterRequest(BaseModel):
-    email: str
-    password: str
-    full_name: str
-    role: str  # agent, tenant, landlord
-
-class SimpleLoginRequest(BaseModel):
-    email: str
-    password: str
-    role: str
-
-@router.post("/register-simple")
-async def simple_register(
-    data: SimpleRegisterRequest,
-    db: AsyncSession = Depends(get_db)
-):
-    """Test için email/şifre ile basit kayıt"""
-    # Email zaten var mı kontrol et
-    stmt = select(User).where(User.email == data.email)
-    result = await db.execute(stmt)
-    existing = result.scalar_one_or_none()
-
-    if existing:
-        raise HTTPException(status_code=400, detail="Bu email zaten kayıtlı")
-
-    # Yeni user oluştur
-    hashed = bcrypt.hashpw(data.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-    # Agent = superadmin (full access), tenant/landlord = standard
-    role_map = {
-        "agent": GlobalUserRole.superadmin,
-        "tenant": GlobalUserRole.standard,
-        "landlord": GlobalUserRole.standard,
-    }
-
-    user = User(
-        email=data.email,
-        password_hash=hashed,
-        full_name=data.full_name,
-        role=role_map.get(data.role, GlobalUserRole.standard),
-        phone_number=f"+test-{data.email}",  # placeholder
-    )
-    db.add(user)
-    await db.flush()
-
-    # Agent için AgencyStaff oluştur
-    if data.role == "agent":
-        agency_stmt = select(Agency).limit(1)
-        agency_result = await db.execute(agency_stmt)
-        agency = agency_result.scalar_one_or_none()
-
-        if not agency:
-            agency = Agency(name="Test Agency", phone="+905551234567")
-            db.add(agency)
-            await db.flush()
-
-        staff = AgencyStaff(
-            agency_id=agency.id,
-            user_id=user.id,
-            role=StaffRole.agent,
-        )
-        db.add(staff)
-
-    await db.commit()
-    await db.refresh(user)
-
-    return {
-        "success": True,
-        "user_id": str(user.id),
-        "message": "Kayıt başarılı"
-    }
-
-@router.post("/login-simple")
-async def simple_login(
-    data: SimpleLoginRequest,
-    db: AsyncSession = Depends(get_db)
-):
-    """Test için email/şifre ile basit giriş"""
-    stmt = select(User).where(User.email == data.email)
-    result = await db.execute(stmt)
-    user = result.scalar_one_or_none()
-
-    if not user or not user.password_hash:
-        raise HTTPException(status_code=401, detail="Geçersiz email veya şifre")
-
-    if not bcrypt.checkpw(data.password.encode('utf-8'), user.password_hash.encode('utf-8')):
-        raise HTTPException(status_code=401, detail="Geçersiz email veya şifre")
-
-    # Basit bir token üret (test için)
-    token_data = {
-        "sub": str(user.id),
-        "email": user.email,
-        "role": data.role,
-    }
-    access_token = create_access_token(token_data, expires_delta=timedelta(hours=24))
-
-    return {
-        "success": True,
-        "access_token": str(access_token),
-        "user": {
-            "id": str(user.id),
-            "email": str(user.email),
-            "full_name": str(user.full_name),
-            "role": str(user.role.value if user.role else "standard"),
-        }
-    }
 
 # ──────────────────────────────────────────────
 # FIREBASE + DAVET LOGIN
@@ -149,7 +33,7 @@ async def create_invite(
     Emlakçının kiracı veya ev sahipleri için Akıllı Davet linki yaratması.
     Bu servis JWT kullanıp bunu 'invitations' tablosuna şifreli string (Token) olarak gömer.
     """
-    
+
     # 72 saat geçerli JWT davet formu oluştur (Payload)
     raw_payload = {
         "agency_id": str(invite_in.agency_id),
@@ -157,7 +41,7 @@ async def create_invite(
         "related_entity_id": str(invite_in.related_entity_id) if invite_in.related_entity_id else None
     }
     jwt_token = create_invitation_token(raw_payload, timedelta(hours=72))
-    
+
     # Veritabanına Kaydet (Eğer çalınırsa veritabanından kolayca silinip engellenebilir)
     db_invite = Invitation(
         agency_id=invite_in.agency_id,
@@ -168,11 +52,11 @@ async def create_invite(
     )
     db.add(db_invite)
     await db.commit()
-    
+
     # İstemcinin (Flutter) Web Platformuna fırlatılması için Link Üretimi
     FRONTEND_URL = os.getenv("FRONTEND_URL", "https://app.emlakdefter.com")
     invite_url = f"{FRONTEND_URL}/register?t={jwt_token}"
-    
+
     return InviteResponse(
         success=True,
         invite_url=invite_url,
@@ -186,76 +70,93 @@ async def login_with_firebase(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Firebase OTP doğrulamasını geçtikten sonra Mobil/Web uygulamasından atılan Login/Register isteği.
+    Firebase Email/Password veya Phone OTP doğrulamasından sonra backend'e gelen login isteği.
 
     PRD Madde 4.1.4-C: Firebase tek kimlik otoritesidir.
     Bu endpoint Firebase token'ı doğrular, kullanıcıyı bulur/oluşturur ve profil bilgisini döner.
-    Backend artık kendi JWT üretmez — tüm sonraki isteklerde Firebase token kullanılır.
 
     Akış:
     1. Firebase token doğrula
-    2. Kullanıcı yoksa oluştur
-    3. Davet token varsa: Tenant veya LandlordUnit kaydı oluştur
-    4. Agent için: AgencyStaff kaydı kontrol et/yoksa oluştur
+    2. Kullanıcıyı firebase_uid ile bul
+    3. Yoksa oluştur (email ve/veya phone_number ile)
+    4. Davet token varsa: Tenant veya LandlordUnit kaydı oluştur
     """
     # 1. Firebase Sunucusunda Token'ı Güvenli Yoldan Doğrula
     firebase_payload = await verify_firebase_token(login_in.firebase_id_token)
-    phone_number = firebase_payload.get("phone_number")
     firebase_uid = firebase_payload.get("uid")
+    phone_number = firebase_payload.get("phone_number")  # Phone auth için gelir, email/pass için None olabilir
+    email = firebase_payload.get("email")  # Email/password auth için gelir
 
-    if not phone_number:
-         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Firebase kimliğinde Telefon Numarası eksik.")
+    if not firebase_uid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Firebase UID eksik.")
 
-    # 2. Kullanıcının sistemde (Global User olarak) olup olmadığını tespit et
+    # 2. Kullanıcıyı firebase_uid ile bul
     stmt = select(User).where(User.firebase_uid == firebase_uid)
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
 
-    # Geriye uyumluluk: firebase_uid set edilmemis kullanıcılar icin phone_number ile kontrol et
-    if user is None:
+    # 2b. firebase_uid ile bulunamazsa email veya phone ile dene
+    # Bu durum şunlardan kaynaklanabilir:
+    #   - Kullanıcı daha önce kaydolmuş ama firebase_uid atanmamış (seed data / eski kayıt)
+    #   - Firebase tarafında kullanıcı yeniden oluşturulmuş (farklı UID)
+    if user is None and email:
+        stmt = select(User).where(User.email == email)
+        result = await db.execute(stmt)
+        user = result.scalar_one_or_none()
+
+    if user is None and phone_number:
         stmt = select(User).where(User.phone_number == phone_number)
         result = await db.execute(stmt)
         user = result.scalar_one_or_none()
-        # Mevcut kullanıcıya firebase_uid ataması yap
-        if user and user.firebase_uid is None:
-            user.firebase_uid = firebase_uid
-            await db.commit()
 
-    # 3. Eğer kullanıcı yoksa YENİ HESAP AÇ.
+    # 3. Kullanıcıyı oluştur veya güncelle
     is_new_user = False
     invitation_data = None
 
-    if not user:
+    if user:
+        # Mevcut kullanıcının firebase_uid'sini güncelle (farklıysa veya null'sa)
+        if user.firebase_uid != firebase_uid:
+            user.firebase_uid = firebase_uid
+        # Eksik bilgileri tamamla
+        if not user.email and email:
+            user.email = email
+        if not user.phone_number and phone_number:
+            user.phone_number = phone_number
+        if login_in.full_name and (not user.full_name or user.full_name == 'Kullanıcı'):
+            user.full_name = login_in.full_name
+        await db.commit()
+        await db.refresh(user)
+    else:
         is_new_user = True
         user = User(
-             firebase_uid=firebase_uid,
-             phone_number=phone_number,
-             full_name=login_in.full_name,
-             role=GlobalUserRole.standard
+            firebase_uid=firebase_uid,
+            phone_number=phone_number,
+            email=email,
+            full_name=login_in.full_name,
+            role=GlobalUserRole.standard
         )
         db.add(user)
-        await db.flush()  # UID atamasını garantilemek için
+        await db.flush()
 
-        # Eğer davet JWT'si (t) parametresi varsa, bu kişiyi ajans/birim listesine ekle.
+        # Davet JWT'si varsa, kullanıcıyı ajans/birim listesine ekle
         if login_in.invitation_token:
-             try:
-                 inv_payload = jwt.decode(login_in.invitation_token, SECRET_KEY, algorithms=[ALGORITHM])
-             except JWTError:
-                 raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="Bozulmuş veya süresi bitmiş davet linki.")
+            try:
+                inv_payload = jwt.decode(login_in.invitation_token, SECRET_KEY, algorithms=[ALGORITHM])
+            except JWTError:
+                raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="Bozulmuş veya süresi bitmiş davet linki.")
 
-             inv_stmt = select(Invitation).where(
-                 Invitation.token == login_in.invitation_token,
-                 Invitation.is_used == False
-             )
-             inv_res = await db.execute(inv_stmt)
-             db_invitation = inv_res.scalar_one_or_none()
+            inv_stmt = select(Invitation).where(
+                Invitation.token == login_in.invitation_token,
+                Invitation.is_used == False
+            )
+            inv_res = await db.execute(inv_stmt)
+            db_invitation = inv_res.scalar_one_or_none()
 
-             if not db_invitation:
-                 raise HTTPException(status_code=400, detail="Davet linkinizin geçerlilik ömrü dolmuş ya da harcanmış.")
+            if not db_invitation:
+                raise HTTPException(status_code=400, detail="Davet linkinizin geçerlilik ömrü dolmuş ya da harcanmış.")
 
-             invitation_data = db_invitation
-             # Davet kullanıldı olarak işaretle
-             db_invitation.is_used = True
+            invitation_data = db_invitation
+            db_invitation.is_used = True
 
         await db.commit()
         await db.refresh(user)
@@ -266,7 +167,6 @@ async def login_with_firebase(
         unit_id = invitation_data.related_entity_id
         agency_id = invitation_data.agency_id
 
-        # Birim gerçekten var mı kontrol et
         unit_stmt = select(PropertyUnit).where(PropertyUnit.id == unit_id)
         unit_res = await db.execute(unit_stmt)
         unit = unit_res.scalar_one_or_none()
@@ -275,7 +175,6 @@ async def login_with_firebase(
             raise HTTPException(status_code=400, detail="Davet edilen birim bulunamadı.")
 
         if target_role == "tenant":
-            # Tenant kaydı oluştur (varsa oluşturma, çünkü aynı birime tekrar davet atılabilir)
             existing_tenant_stmt = select(Tenant).where(
                 Tenant.user_id == user.id,
                 Tenant.unit_id == unit_id,
@@ -298,7 +197,6 @@ async def login_with_firebase(
                 db.add(tenant)
 
         elif target_role == "landlord":
-            # LandlordUnit kaydı oluştur
             existing_landlord_stmt = select(LandlordUnit).where(
                 LandlordUnit.user_id == user.id,
                 LandlordUnit.unit_id == unit_id
@@ -317,11 +215,6 @@ async def login_with_firebase(
 
         await db.commit()
 
-    # 5. Kullanıcının agency bilgisini çöz (sadece agent için zorunlu)
-    staff_stmt = select(AgencyStaff).where(AgencyStaff.user_id == user.id)
-    staff_result = await db.execute(staff_stmt)
-    staff = staff_result.scalar_one_or_none()
-
     return LoginResponse(
         success=True,
         user=UserResponse(
@@ -331,7 +224,7 @@ async def login_with_firebase(
             email=user.email,
             role=user.role.value if user.role else "standard",
         ),
-        access_token=login_in.firebase_id_token,  # Firebase token'ı aynen geri gönder (client zaten biliyor ama tutarlılık için)
+        access_token=login_in.firebase_id_token,
         message="Yeni hesap açıldı ve sisteme giriş yapıldı." if is_new_user else "var olan hesapla giriş yapıldı."
     )
 
@@ -366,13 +259,11 @@ async def register_fcm_token(
 
     Aynı token varsa güncellenir, yoksa yeni kayıt oluşturulur.
     """
-    # device_type enum'a çevir
     try:
         device_type = DeviceType(token_in.device_type)
     except ValueError:
         raise HTTPException(status_code=400, detail="Geçersiz cihaz tipi. Değerler: ios, android, web")
 
-    # Token zaten var mı kontrol et
     stmt = select(UserDeviceToken).where(
         UserDeviceToken.fcm_token == token_in.fcm_token,
         UserDeviceToken.user_id == current_user.id,
@@ -381,13 +272,11 @@ async def register_fcm_token(
     existing = result.scalar_one_or_none()
 
     if existing:
-        # Güncelle
         existing.device_type = device_type
         existing.last_used_at = datetime.utcnow()
         await db.commit()
         return FCMTokenResponse(success=True, message="FCM token güncellendi.")
     else:
-        # Yeni kayıt oluştur
         new_token = UserDeviceToken(
             user_id=current_user.id,
             fcm_token=token_in.fcm_token,
@@ -423,7 +312,6 @@ async def request_password_reset_otp(
     Şifre sıfırlama OTP'si talep eder.
     PRD §4.1.4-D: Aylık 15 limit kontrolü.
     """
-    # 1) Limit kontrolü — bu ay içinde kaç talep var?
     first_of_month = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     stmt = select(func.count(PasswordResetAttempt.id)).where(
         PasswordResetAttempt.phone_number == data.phone_number,
@@ -441,7 +329,6 @@ async def request_password_reset_otp(
             ),
         )
 
-    # 2) Meşru talep — kaydı tut
     attempt = PasswordResetAttempt(
         phone_number=data.phone_number,
         attempted_at=datetime.utcnow(),
@@ -449,8 +336,6 @@ async def request_password_reset_otp(
     db.add(attempt)
     await db.commit()
 
-    # 3) Firebase OTP gönder (Firebase Admin SDK flow)
-    # Firebase verifyPhoneNumber otomatik olarak çalışır
     return {"message": "Doğrulama kodu gönderildi."}
 
 
@@ -459,10 +344,9 @@ async def request_password_reset_otp(
 # ──────────────────────────────────────────────
 
 class PasswordResetConfirmRequest(BaseModel):
-    """Şifre sıfırlama doğrulama isteği — PRD §4.1.4-D"""
-    id_token: str          # Firebase ID token (OTP doğrulandıktan sonra client'dan)
-    phone_number: str      # Doğrulanan telefon numarası
-    new_password: str      # Yeni şifre (Firebase'e gönderilecek)
+    id_token: str
+    phone_number: str
+    new_password: str
 
 
 class PasswordResetConfirmResponse(BaseModel):
@@ -489,15 +373,10 @@ async def reset_password(
     2. İstemci bu endpoint'e ID token + yeni şifre gönderir
     3. Backend ID token'ı doğrular
     4. Backend Firebase Admin SDK ile şifreyi günceller
-
-    NOT: OTP doğrulaması Firebase SDK'da client-side yapılır.
-    Backend sadece Firebase ID token doğrulaması yapar.
     """
-    # 1) Firebase ID token doğrula
     try:
         decoded = await verify_firebase_token(data.id_token)
         token_phone = decoded.get("phone_number", "")
-        # Telefon numarasının eşleştiğinden emin ol
         if token_phone and token_phone != data.phone_number:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -511,17 +390,14 @@ async def reset_password(
             detail=f"Token doğrulama başarısız: {str(e)}"
         )
 
-    # 2) Şifre uzunluk kontrolü
     if len(data.new_password) < 6:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Şifre en az 6 karakter olmalıdır."
         )
 
-    # 3) Firebase Admin SDK ile şifreyi güncelle
     reset_user_password_by_phone(data.phone_number, data.new_password)
 
-    # 4) Başarılı yanıt
     return PasswordResetConfirmResponse(
         success=True,
         message="Şifreniz başarıyla güncellendi."

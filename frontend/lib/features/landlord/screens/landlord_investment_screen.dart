@@ -70,11 +70,11 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
                   ),
                   child: TextField(
                     controller: _searchController,
-                    style: const TextStyle(color: AppColors.textHeader, fontSize: 14),
+                    style: const TextStyle(color: AppColors.charcoal, fontSize: 14),
                     decoration: InputDecoration(
                       hintText: 'Lokasyon, mülk adı...',
-                      hintStyle: TextStyle(color: AppColors.textBody.withValues(alpha:0.4), fontSize: 13),
-                      prefixIcon: Icon(Icons.search, color: AppColors.textBody.withValues(alpha:0.4), size: 20),
+                      hintStyle: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.4), fontSize: 13),
+                      prefixIcon: Icon(Icons.search, color: AppColors.textSecondary.withValues(alpha:0.4), size: 20),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     ),
@@ -96,7 +96,7 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
                   ),
                   child: Icon(
                     Icons.tune_rounded,
-                    color: _showFilters ? Colors.white : AppColors.textBody.withValues(alpha:0.5),
+                    color: _showFilters ? Colors.white : AppColors.textSecondary.withValues(alpha:0.5),
                     size: 20,
                   ),
                 ),
@@ -125,8 +125,8 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
                 OutlinedButton(
                   onPressed: _clearFilters,
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.textBody,
-                    side: BorderSide(color: AppColors.textBody.withValues(alpha:0.2)),
+                    foregroundColor: AppColors.textSecondary,
+                    side: BorderSide(color: AppColors.textSecondary.withValues(alpha:0.2)),
                     padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -154,7 +154,7 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Kira Aralığı', style: TextStyle(color: AppColors.textBody.withValues(alpha:0.7), fontSize: 12)),
+              Text('Kira Aralığı', style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.7), fontSize: 12)),
               Text(
                 '₺${_priceRange.start.round()} — ₺${_priceRange.end.round()}',
                 style: const TextStyle(color: Color(0xFFD4A574), fontSize: 12, fontWeight: FontWeight.bold),
@@ -251,7 +251,7 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
                   Text(
                     unit.propertyName,
                     style: const TextStyle(
-                      color: AppColors.textHeader,
+                      color: AppColors.charcoal,
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
                     ),
@@ -263,7 +263,7 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
                   if (unit.address != null)
                     Text(
                       unit.address!,
-                      style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 11),
+                      style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.5), fontSize: 11),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -295,7 +295,7 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
                       const SizedBox(height: 2),
                       Text(
                         '₺${_fmt(unit.duesAmount)} aidat',
-                        style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 10),
+                        style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.5), fontSize: 10),
                       ),
                     ],
                   ),
@@ -336,14 +336,14 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
           const SizedBox(height: 20),
           const Text(
             'Portföy vitrini boş',
-            style: TextStyle(color: AppColors.textHeader, fontSize: 17, fontWeight: FontWeight.bold),
+            style: TextStyle(color: AppColors.charcoal, fontSize: 17, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 48),
             child: Text(
               'Emlak ofisinin uygun mülkleri burada görünür',
-              style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 13),
+              style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.5), fontSize: 13),
               textAlign: TextAlign.center,
             ),
           ),
@@ -369,7 +369,7 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
           children: [
             Center(
               child: Container(width: 40, height: 4, decoration: BoxDecoration(
-                color: AppColors.textBody.withValues(alpha:0.3), borderRadius: BorderRadius.circular(2),
+                color: AppColors.textSecondary.withValues(alpha:0.3), borderRadius: BorderRadius.circular(2),
               )),
             ),
             const SizedBox(height: 20),
@@ -392,9 +392,9 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(unit.propertyName, style: const TextStyle(color: AppColors.textHeader, fontSize: 20, fontWeight: FontWeight.bold)),
+                      Text(unit.propertyName, style: const TextStyle(color: AppColors.charcoal, fontSize: 20, fontWeight: FontWeight.bold)),
                       if (unit.address != null)
-                        Text(unit.address!, style: TextStyle(color: AppColors.textBody.withValues(alpha:0.6), fontSize: 12)),
+                        Text(unit.address!, style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.6), fontSize: 12)),
                     ],
                   ),
                 ),

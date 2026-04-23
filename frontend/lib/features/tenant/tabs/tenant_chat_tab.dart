@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
+import '../../../core/theme/colors.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/chat_websocket_service.dart';
 import '../providers/tenant_provider.dart';
@@ -14,18 +15,18 @@ import '../providers/tenant_provider.dart';
 // PRD §4.2.5
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ── Palette ──────────────────────────────────────────────────────────────────
-const _white = Color(0xFFFFFFFF);
-const _bg = Color(0xFFF0F2F5);
-const _surface = Color(0xFFFFFFFF);
-const _surface2 = Color(0xFFF5F7FA);
-const _bubbleMe = Color(0xFF00A884);
-const _bubbleOther = Color(0xFFE8E9EB);
-const _textDark = Color(0xFF1A1A1A);
-const _textMid = Color(0xFF6A6A6A);
-const _textLight = Color(0xFF9A9A9A);
-const _accent = Color(0xFF00A884);
-const _danger = Color(0xFFFF4757);
+// ── Palette — mapped to AppColors Modern Minimalist ──────────────────────────
+const _white = AppColors.textOnPrimary;
+const _bg = AppColors.background;
+const _surface = AppColors.surface;
+const _surface2 = AppColors.surfaceVariant;
+const _bubbleMe = AppColors.charcoal;
+const _bubbleOther = AppColors.lightGray;
+const _textDark = AppColors.charcoal;
+const _textMid = AppColors.textSecondary;
+const _textLight = AppColors.textTertiary;
+const _accent = AppColors.charcoal;
+const _danger = AppColors.error;
 
 // ── Spring curves ─────────────────────────────────────────────────────────────
 final _springFast = Curves.easeOutBack;

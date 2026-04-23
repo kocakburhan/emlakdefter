@@ -56,13 +56,13 @@ class _ActivityFeedScreenState extends ConsumerState<ActivityFeedScreen> {
         backgroundColor: AppColors.background,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: AppColors.textHeader, size: 20),
+          icon: const Icon(Icons.arrow_back_ios, color: AppColors.charcoal, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'Etkinlik Akışı',
           style: TextStyle(
-            color: AppColors.textHeader,
+            color: AppColors.charcoal,
             fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
@@ -70,17 +70,17 @@ class _ActivityFeedScreenState extends ConsumerState<ActivityFeedScreen> {
         centerTitle: true,
       ),
       body: _items.isEmpty && _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+          ? const Center(child: CircularProgressIndicator(color: AppColors.charcoal))
           : _items.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.inbox_outlined, size: 56, color: AppColors.textBody.withValues(alpha: 0.2)),
+                      Icon(Icons.inbox_outlined, size: 56, color: AppColors.textSecondary.withValues(alpha: 0.2)),
                       const SizedBox(height: 16),
                       const Text(
                         'Henüz etkinlik yok',
-                        style: TextStyle(color: AppColors.textBody, fontSize: 15),
+                        style: TextStyle(color: AppColors.textSecondary, fontSize: 15),
                       ),
                     ],
                   ),
@@ -94,7 +94,7 @@ class _ActivityFeedScreenState extends ConsumerState<ActivityFeedScreen> {
                     });
                     await _loadMore();
                   },
-                  color: AppColors.accent,
+                  color: AppColors.charcoal,
                   child: ListView.builder(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
@@ -108,7 +108,7 @@ class _ActivityFeedScreenState extends ConsumerState<ActivityFeedScreen> {
                                   child: SizedBox(
                                     width: 20,
                                     height: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent),
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.charcoal),
                                   ),
                                 )
                               : GestureDetector(
@@ -122,7 +122,7 @@ class _ActivityFeedScreenState extends ConsumerState<ActivityFeedScreen> {
                                     child: const Center(
                                       child: Text(
                                         'Daha Fazla Yükle',
-                                        style: TextStyle(color: AppColors.accent, fontSize: 13, fontWeight: FontWeight.w600),
+                                        style: TextStyle(color: AppColors.charcoal, fontSize: 13, fontWeight: FontWeight.w600),
                                       ),
                                     ),
                                   ),
@@ -141,10 +141,10 @@ class _ActivityFeedScreenState extends ConsumerState<ActivityFeedScreen> {
       'success': AppColors.success,
       'error': AppColors.error,
       'warning': AppColors.warning,
-      'accent': AppColors.accent,
-      'textBody': AppColors.textBody,
+      'accent': AppColors.charcoal,
+      'textBody': AppColors.textSecondary,
     };
-    final color = colors[item.color] ?? AppColors.textBody;
+    final color = colors[item.color] ?? AppColors.textSecondary;
 
     final icons = {
       'payments': Icons.payments_outlined,
@@ -193,7 +193,7 @@ class _ActivityFeedScreenState extends ConsumerState<ActivityFeedScreen> {
                   Text(
                     item.title,
                     style: const TextStyle(
-                      color: AppColors.textHeader,
+                      color: AppColors.charcoal,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
@@ -202,7 +202,7 @@ class _ActivityFeedScreenState extends ConsumerState<ActivityFeedScreen> {
                   Text(
                     item.subtitle,
                     style: TextStyle(
-                      color: AppColors.textBody.withValues(alpha: 0.6),
+                      color: AppColors.textSecondary.withValues(alpha: 0.6),
                       fontSize: 11,
                     ),
                   ),
@@ -212,7 +212,7 @@ class _ActivityFeedScreenState extends ConsumerState<ActivityFeedScreen> {
             Text(
               _formatTime(item.timestamp),
               style: TextStyle(
-                color: AppColors.textBody.withValues(alpha: 0.4),
+                color: AppColors.textSecondary.withValues(alpha: 0.4),
                 fontSize: 10,
               ),
             ),

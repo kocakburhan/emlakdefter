@@ -21,7 +21,7 @@ class LandlordTenantPerformanceScreen extends ConsumerWidget {
 
     return RefreshIndicator(
       onRefresh: () => ref.read(landlordProvider.notifier).fetchTenants(),
-      color: const Color(0xFFD4A574),
+      color: AppColors.charcoal,
       child: ListView.builder(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
@@ -36,11 +36,11 @@ class LandlordTenantPerformanceScreen extends ConsumerWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.people_outline, size: 56, color: AppColors.textBody.withValues(alpha:0.2)),
+          Icon(Icons.people_outline, size: 56, color: AppColors.textSecondary.withValues(alpha:0.2)),
           const SizedBox(height: 16),
-          const Text('Kiracı bağlantısı yok', style: TextStyle(color: AppColors.textBody, fontSize: 16)),
+          const Text('Kiracı bağlantısı yok', style: TextStyle(color: AppColors.textSecondary, fontSize: 16)),
           const SizedBox(height: 8),
-          Text('Mülkünüze kiracı atandığında görünür', style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 13)),
+          Text('Mülkünüze kiracı atandığında görünür', style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.5), fontSize: 13)),
         ],
       ),
     );
@@ -48,7 +48,7 @@ class LandlordTenantPerformanceScreen extends ConsumerWidget {
 
   Widget _buildTenantCard(TenantPerformance tenant) {
     final score = tenant.paymentScore;
-    final scoreColor = score >= 80 ? const Color(0xFF6B8E6B) : (score >= 50 ? const Color(0xFFD4A574) : const Color(0xFFAD7B7B));
+    final scoreColor = score >= 80 ? const Color(0xFF6B8E6B) : (score >= 50 ? AppColors.charcoal : const Color(0xFFAD7B7B));
     final isActive = tenant.isActive;
 
     return TweenAnimationBuilder<double>(
@@ -93,7 +93,7 @@ class LandlordTenantPerformanceScreen extends ConsumerWidget {
                                   child: Text(
                                     tenant.tenantName ?? 'Kiracı',
                                     style: const TextStyle(
-                                      color: AppColors.textHeader,
+                                      color: AppColors.charcoal,
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -104,13 +104,13 @@ class LandlordTenantPerformanceScreen extends ConsumerWidget {
                                   decoration: BoxDecoration(
                                     color: isActive
                                         ? const Color(0xFF6B8E6B).withValues(alpha:0.12)
-                                        : AppColors.textBody.withValues(alpha:0.08),
+                                        : AppColors.textSecondary.withValues(alpha:0.08),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Text(
                                     isActive ? 'Aktif' : 'Pasif',
                                     style: TextStyle(
-                                      color: isActive ? const Color(0xFF6B8E6B) : AppColors.textBody,
+                                      color: isActive ? const Color(0xFF6B8E6B) : AppColors.textSecondary,
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -121,13 +121,13 @@ class LandlordTenantPerformanceScreen extends ConsumerWidget {
                             const SizedBox(height: 4),
                             Text(
                               '${tenant.propertyName} • ${tenant.doorNumber}',
-                              style: TextStyle(color: AppColors.textBody.withValues(alpha:0.6), fontSize: 12),
+                              style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.6), fontSize: 12),
                             ),
                             if (tenant.tenantPhone != null && tenant.tenantPhone!.isNotEmpty) ...[
                               const SizedBox(height: 4),
                               Text(
                                 tenant.tenantPhone!,
-                                style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 12),
+                                style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.5), fontSize: 12),
                               ),
                             ],
                           ],
@@ -147,7 +147,7 @@ class LandlordTenantPerformanceScreen extends ConsumerWidget {
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: _buildInfoTile('Süre', '${tenant.monthsRented} ay', const Color(0xFFD4A574)),
+                        child: _buildInfoTile('Süre', '${tenant.monthsRented} ay', AppColors.charcoal),
                       ),
                     ],
                   ),
@@ -164,11 +164,11 @@ class LandlordTenantPerformanceScreen extends ConsumerWidget {
                       children: [
                         Text(
                           'Sözleşme',
-                          style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 11),
+                          style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.5), fontSize: 11),
                         ),
                         Text(
                           '${_formatDate(tenant.contractStart)} — ${_formatDate(tenant.contractEnd)}',
-                          style: TextStyle(color: AppColors.textBody.withValues(alpha:0.7), fontSize: 11),
+                          style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.7), fontSize: 11),
                         ),
                       ],
                     ),
@@ -252,7 +252,7 @@ class LandlordTenantPerformanceScreen extends ConsumerWidget {
         Text(
           'Ödeme Geçmişi',
           style: TextStyle(
-            color: AppColors.textBody.withValues(alpha:0.6),
+            color: AppColors.textSecondary.withValues(alpha:0.6),
             fontSize: 11,
             fontWeight: FontWeight.w600,
           ),
@@ -279,7 +279,7 @@ class LandlordTenantPerformanceScreen extends ConsumerWidget {
         label = m.monthLabel;
         break;
       case 'paid_late':
-        chipColor = const Color(0xFFD4A574);
+        chipColor = AppColors.charcoal;
         chipIcon = Icons.warning;
         label = '${m.monthLabel} (+${m.daysLate}g)';
         break;
@@ -290,7 +290,7 @@ class LandlordTenantPerformanceScreen extends ConsumerWidget {
         break;
       case 'pending':
       default:
-        chipColor = AppColors.textBody.withValues(alpha:0.3);
+        chipColor = AppColors.textSecondary.withValues(alpha:0.3);
         chipIcon = Icons.schedule;
         label = m.monthLabel;
         break;

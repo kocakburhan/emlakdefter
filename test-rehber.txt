@@ -1,0 +1,38 @@
+@test-rehber.txt dosyasında uygulaman gereken testlerin listesi yer almaktadır. tek tek buradaki testleri gerçekleştirmeni istiyorum. her bir adımı gerçekleştirdikten sonra bana rapor ver. testi başarılı kılana kadar seninle beraber uğraşalım. testi geçince testin geçildiği ile alakalı raporu @test-rehber.txt dosyasına not al ve sonraki adıma geçelim. Bu şekilde gerçekleştirilmesi gereken tüm testleri seninle interaktif bir şekilde gerçekleştirelim. 
+
+
+aşağıda maddelerce sıralanmış uygulaman gereken testler yer almaktadır:
+
+
+Backend ve Veritabanı (FastAPI & PostgreSQL)
+Veri İzolasyonu (RLS) Güvenlik Testi: PostgreSQL üzerinde uygulanan Row Level Security sayesinde, farklı agency_id değerlerine sahip ofislerin birbirlerinin portföy, finans veya müşteri verilerine kesinlikle erişemediği doğrulanmalıdır. ✅ GEÇTİ — 2026-04-20 (7/7 alt test başarılı)
+
+Kimlik Doğrulama ve JWT Entegrasyonu: Firebase Auth üzerinden üretilen ID Token'ların FastAPI sunucusunda doğru şekilde çözümlendiği ve yetkisiz token'lara sahip isteklerin (HTTP 401/403) reddedildiği test edilmelidir. ✅ GEÇTİ — 2026-04-20 (13/13 alt test başarılı)
+
+Yapay Zeka Tahsilat Motoru (Mocking): PDF dekont yükleme işlemi simüle edilerek, Gemini modelinden dönen JSON çıktısındaki kira tutarı, kiracı adı ve tarih bilgilerinin veritabanındaki aktif kiracılarla deterministik (kesin) olarak eşleştiği veya eksik verilerde "Onay Bekliyor" statüsüne düştüğü test edilmelidir. Bu adımda örnek pdf için benden belirli bir adrese pdf yüklememi istemelisin. O pdf'i sistem analiz etmeli ve sonrasında analizi göstermelidir. Biz de ne kadar iyi bir analiz gerçekleştirildi bunu belirlemeliyiz.
+
+Otonom Daire Üretim Motoru: Apartman eklendiğinde belirtilen kat ve daire döngülerinin saniyeler içinde alt birimleri (unit) ürettiği doğrulanmalıdır. Apartman eklenirken başlangıç kat değeri (-3 gibi) ve en üst kat değeri (12 gibi) girilmelidir. Her kat için belirlenen sayıda daire otomatik olarak oluşturulmalıdır. Kullanıcıya bu ekranda detaylı bir şekilde "her katta şu kadar daire otomatik olarak oluşturuldu dilerseniz katları ve daireleri inaktif edebilirsiniz" şeklinde uyarı gösterilmelidir kullanıcının seçimine göre belirlenen kat ve daireler apartmandan çıkartılmalıdır.
+
+Tekil Birim (Single-Unit) İstisnası: Mülk tipi olarak Arsa veya Müstakil Ev seçildiğinde döngü motorunun devre dışı kaldığı, ancak veritabanı ilişkilerinin çökmemesi için arka planda tekil birim kaydının hatasız oluştuğu test edilmelidir.
+
+APScheduler Otonom Görevleri: Arka plan zamanlayıcısının her ay ilgili günlerde çalışarak payment_schedules tablosuna beklenti kayıtlarını işlediği ve ödemesi yaklaşan kullanıcılara Firebase (FCM) üzerinden bildirim tetiklediği doğrulanmalıdır. Burada firebase tarafı firebase console veya firebase cli tarafından oluşturulmamış olabilir bu konuda benimle interaktif bir şekilde süreci çözmelisin. Bana güzelce sorunu açıkla ben seni çözüm konusunda yönlendireceğim.
+
+WebSocket Ölçeklenebilirlik Testi: Sohbet (Chat) modülünde Redis Pub/Sub altyapısı kullanılarak mesajların gerçek zamanlı iletildiği ve bağlantı kopmalarına karşı PostgreSQL üzerine hukuki kanıt olarak kaydedildiği test edilmelidir.
+
+İstemci ve Arayüz (Flutter Mobil & Web)
+Rol Bazlı Erişim (Yetki Çerçevesi): Kurucu Emlakçı, Kiracı ve Ev Sahibi profillerinin girişlerinde yalnızca kendi yetki setlerine uygun arayüzleri gördükleri test edilmelidir.
+
+Dinamik Form Davranışları: Portföy yönetiminde yeni mülk eklenirken seçilen türe göre (Apartman, Arsa vb.) UI alanlarının anında şekil değiştirdiği ve ilgisiz alanların (arsada asansör sorulması gibi) ekrandan gizlendiği doğrulanmalıdır.
+
+Akıllı Davet (Smart Inviting) Akışı: Davet bağlantısındaki güvenlik jetonunun arka planda doğru okunduğu, sistemin Web-First deneyimle tarayıcı üzerinden açıldığı ve Firebase OTP (SMS Doğrulama) adımlarının eksiksiz çalıştığı test edilmelidir.
+
+Şifre Kurtarma Güvenliği: Şifremi unuttum özelliğinde FastAPI backend'inin ilgili numara için aylık kota/limit kontrolü yaptığı ve sadece meşru taleplerde Firebase verifyPhoneNumber altyapısını tetiklediği doğrulanmalıdır.
+
+Çevrimdışı (Offline) Veri Okuma: Cihazın internet bağlantısı kesildiğinde yerel önbellek (SQLite/Hive) sayesinde emlakçının portföy durumlarına ve kiracı iletişim bilgilerine sorunsuz erişebildiği test edilmelidir.
+
+Çevrimdışı İşlem Kuyruklama: İnternet yokken yazılan sohbet mesajlarının veya girilen bina log makbuzlarının geçici bir uuid ile giden kutusunda (Outbox) bekletildiği, bağlantı yeniden sağlandığında veri kaybı olmadan backend ile senkronize olduğu doğrulanmalıdır.
+
+Çapraz Modül ve İş Akışı (End-to-End) Testleri
+Bütünleşik Finans Akışı: Tahsilat ekranından onaylanan bir kiranın otonom olarak Mali Rapor ekranına "Gelir" olarak yansıdığı; Bina Operasyonları panelinden işlenen tamirat faturasının ise "Gider" olarak eklendiği ve kasanın net bakiyesinin anlık güncellendiği test edilmelidir.
+
+Destek ve Şeffaflık Döngüsü: Kiracının yüklediği arıza fotoğrafına sistemin tarih/saat damgası vurduğu, emlakçının bu talebe yanıt verdiğinde kiracıya anlık bildirim (Push) gittiği ve bu sürecin tamamının Ev Sahibi arayüzünde "Salt Okunur" olarak listelendiği doğrulanmalıdır.

@@ -97,7 +97,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
     final src = tx['source'] as String?;
     if (src == 'finance_tab') return const Color(0xFF60A5FA);
     if (src == 'building_ops') return const Color(0xFFA78BFA);
-    return AppColors.textBody.withValues(alpha: 0.5);
+    return AppColors.textSecondary.withValues(alpha: 0.5);
   }
 
   @override
@@ -398,9 +398,9 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
             bottom: MediaQuery.of(ctx2).viewInsets.bottom + 32,
           ),
           decoration: BoxDecoration(
-            color: const Color(0xFF111118),
+            color: AppColors.charcoal,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+            border: Border.all(color: AppColors.border),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.4),
@@ -419,7 +419,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
                   child: Container(
                     width: 40, height: 4,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.12),
+                      color: AppColors.border,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -437,7 +437,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
                         )),
                     IconButton(
                       onPressed: () => Navigator.pop(ctx2),
-                      icon: Icon(Icons.close, color: Colors.white.withValues(alpha: 0.5)),
+                      icon: Icon(Icons.close, color: AppColors.textSecondary),
                     ),
                   ],
                 ),
@@ -463,9 +463,9 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
                       hintText: 'ör: nakliye, sigorta, temsilci ücreti',
-                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.25)),
+                      hintStyle: TextStyle(color: AppColors.textTertiary),
                       filled: true,
-                      fillColor: Colors.white.withValues(alpha: 0.05),
+                      fillColor: AppColors.border,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
                         borderSide: BorderSide.none,
@@ -485,19 +485,19 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
+                    color: AppColors.border,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                    border: Border.all(color: AppColors.border),
                   ),
                   child: DropdownButton<String?>(
                     value: _formPropertyId,
                     isExpanded: true,
-                    dropdownColor: const Color(0xFF1E1E28),
+                    dropdownColor: AppColors.surface,
                     underline: const SizedBox(),
                     hint: Text('Mülk seçin...',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.3))),
+                        style: TextStyle(color: AppColors.textSecondary)),
                     icon: Icon(Icons.keyboard_arrow_down,
-                        color: Colors.white.withValues(alpha: 0.4)),
+                        color: AppColors.textSecondary),
                     items: [
                       const DropdownMenuItem(value: null, child: Text('Mülk bağlama', style: TextStyle(color: Colors.white))),
                       ..._properties.map((p) => DropdownMenuItem(
@@ -514,14 +514,14 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
                 TextField(
                   controller: _formAmountController,
                   keyboardType: TextInputType.number,
-                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: AppColors.charcoal, fontSize: 20, fontWeight: FontWeight.bold),
                   decoration: InputDecoration(
                     hintText: '0',
-                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.2)),
+                    hintStyle: TextStyle(color: AppColors.textTertiary),
                     prefixText: '₺ ',
                     prefixStyle: const TextStyle(color: Colors.white, fontSize: 20),
                     filled: true,
-                    fillColor: Colors.white.withValues(alpha: 0.05),
+                    fillColor: AppColors.border,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
                       borderSide: BorderSide.none,
@@ -538,9 +538,9 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
                   maxLines: 2,
                   decoration: InputDecoration(
                     hintText: 'Açıklama (opsiyonel)',
-                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.25)),
+                    hintStyle: TextStyle(color: AppColors.textTertiary),
                     filled: true,
-                    fillColor: Colors.white.withValues(alpha: 0.05),
+                    fillColor: AppColors.border,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
                       borderSide: BorderSide.none,
@@ -558,14 +558,14 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          AppColors.accent.withValues(alpha: 0.9),
-                          AppColors.accent,
+                          AppColors.charcoal.withValues(alpha: 0.9),
+                          AppColors.charcoal,
                         ],
                       ),
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.accent.withValues(alpha: 0.35),
+                          color: AppColors.charcoal.withValues(alpha: 0.35),
                           blurRadius: 16,
                           offset: const Offset(0, 6),
                         ),
@@ -592,9 +592,9 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: AppColors.border,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
@@ -632,7 +632,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
               ],
               Text(label,
                   style: TextStyle(
-                    color: isSelected ? color : Colors.white.withValues(alpha: 0.4),
+                    color: isSelected ? color : AppColors.textSecondary,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                     fontSize: 15,
                   )),
@@ -668,21 +668,21 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
-          color: isSelected ? color.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.05),
+          color: isSelected ? color.withValues(alpha: 0.15) : AppColors.border,
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
-            color: isSelected ? color.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.07),
+            color: isSelected ? color.withValues(alpha: 0.5) : AppColors.border,
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(cat['icon'], size: 15,
-                color: isSelected ? color : Colors.white.withValues(alpha: 0.4)),
+                color: isSelected ? color : AppColors.textSecondary),
             const SizedBox(width: 7),
             Text(cat['label'],
                 style: TextStyle(
-                  color: isSelected ? color : Colors.white.withValues(alpha: 0.5),
+                  color: isSelected ? color : AppColors.textSecondary,
                   fontSize: 12, fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                 )),
           ],
@@ -701,23 +701,23 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
         decoration: BoxDecoration(
           color: _isCustomCategory
               ? color.withValues(alpha: 0.15)
-              : Colors.white.withValues(alpha: 0.05),
+              : AppColors.border,
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
             color: _isCustomCategory
                 ? color.withValues(alpha: 0.5)
-                : Colors.white.withValues(alpha: 0.07),
+                : AppColors.border,
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.add, size: 15,
-                color: _isCustomCategory ? color : Colors.white.withValues(alpha: 0.4)),
+                color: _isCustomCategory ? color : AppColors.textSecondary),
             const SizedBox(width: 7),
             Text('Yeni Kategori',
                 style: TextStyle(
-                  color: _isCustomCategory ? color : Colors.white.withValues(alpha: 0.5),
+                  color: _isCustomCategory ? color : AppColors.textSecondary,
                   fontSize: 12,
                   fontWeight: _isCustomCategory ? FontWeight.w600 : FontWeight.normal,
                 )),
@@ -740,9 +740,9 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0D14),
+      backgroundColor: AppColors.surface,
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+          ? const Center(child: CircularProgressIndicator(color: AppColors.charcoal))
           : _error != null
               ? _buildErrorState()
               : CustomScrollView(
@@ -775,7 +775,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
   // ─── AppBar ────────────────────────────────────────────────────────────────
   Widget _buildAppBar() {
     return SliverAppBar(
-      backgroundColor: const Color(0xFF0D0D14),
+      backgroundColor: AppColors.surface,
       foregroundColor: Colors.white,
       pinned: true,
       expandedHeight: 96,
@@ -784,7 +784,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
         icon: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.06),
+            color: AppColors.border,
             borderRadius: BorderRadius.circular(14),
           ),
           child: const Icon(Icons.arrow_back, size: 20),
@@ -804,7 +804,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
                 )),
             Text(_getPeriodLabel(),
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.45), fontSize: 11,
+                  color: AppColors.textSecondary, fontSize: 11,
                 )),
           ],
         ),
@@ -815,7 +815,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
           icon: Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.06),
+              color: AppColors.border,
               borderRadius: BorderRadius.circular(14),
             ),
             child: const Icon(Icons.refresh, size: 20),
@@ -826,7 +826,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
           icon: Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.06),
+              color: AppColors.border,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(Icons.download_rounded, size: 20, color: _incomeColor),
@@ -839,12 +839,12 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [AppColors.accent.withValues(alpha: 0.85), AppColors.accent],
+                colors: [AppColors.charcoal.withValues(alpha: 0.85), AppColors.charcoal],
               ),
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.accent.withValues(alpha: 0.3),
+                  color: AppColors.charcoal.withValues(alpha: 0.3),
                   blurRadius: 12, offset: const Offset(0, 4),
                 ),
               ],
@@ -899,7 +899,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.04),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+          border: Border.all(color: AppColors.border),
         ),
         child: Row(
           children: periods.map((p) {
@@ -911,12 +911,12 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(
-                    color: isSelected ? AppColors.accent : Colors.transparent,
+                    color: isSelected ? AppColors.charcoal : Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(p.$2, textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.4),
+                        color: isSelected ? Colors.white : AppColors.textSecondary,
                         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                         fontSize: 12,
                       )),
@@ -1002,7 +1002,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
           ),
           const SizedBox(height: 18),
           Text('Toplam Gelir',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 11, letterSpacing: 0.5)),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 11, letterSpacing: 0.5)),
           const SizedBox(height: 6),
           FittedBox(
             fit: BoxFit.scaleDown,
@@ -1058,7 +1058,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
           ),
           const SizedBox(height: 18),
           Text('Toplam Gider',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 11, letterSpacing: 0.5)),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 11, letterSpacing: 0.5)),
           const SizedBox(height: 6),
           FittedBox(
             fit: BoxFit.scaleDown,
@@ -1083,13 +1083,13 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppColors.accent.withValues(alpha: 0.12),
+            AppColors.charcoal.withValues(alpha: 0.12),
             color.withValues(alpha: 0.08),
           ],
           begin: Alignment.topLeft, end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.accent.withValues(alpha: 0.15)),
+        border: Border.all(color: AppColors.charcoal.withValues(alpha: 0.15)),
       ),
       child: Row(
         children: [
@@ -1098,7 +1098,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  AppColors.accent.withValues(alpha: 0.2),
+                  AppColors.charcoal.withValues(alpha: 0.2),
                   color.withValues(alpha: 0.12),
                 ],
               ),
@@ -1116,7 +1116,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
               children: [
                 Text('NET BAKİYE',
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.4),
+                      color: AppColors.textSecondary,
                       fontSize: 10, fontWeight: FontWeight.w700,
                       letterSpacing: 1.5,
                     )),
@@ -1151,7 +1151,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
               ),
               const SizedBox(height: 5),
               Text('Gel/Gid Oranı',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 10)),
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 10)),
             ],
           ),
         ],
@@ -1172,7 +1172,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.03),
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+            border: Border.all(color: AppColors.border),
           ),
           child: _categoryBreakdown.isEmpty
               ? _buildEmptyChart()
@@ -1193,7 +1193,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.03),
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+            border: Border.all(color: AppColors.border),
           ),
           child: _monthlyData.isEmpty ? _buildEmptyChart() : _buildBarChart(),
         ),
@@ -1227,10 +1227,10 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.pie_chart_outline,
-              size: 52, color: Colors.white.withValues(alpha: 0.1)),
+              size: 52, color: AppColors.border),
           const SizedBox(height: 14),
           Text('Henüz veri yok',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.25), fontSize: 14)),
+              style: TextStyle(color: AppColors.textTertiary, fontSize: 14)),
         ],
       ),
     );
@@ -1307,7 +1307,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
                 Expanded(
                   child: Text(_capitalize(item['category'] ?? ''),
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.65), fontSize: 12,
+                        color: AppColors.textSecondary, fontSize: 12,
                       ),
                       overflow: TextOverflow.ellipsis),
                 ),
@@ -1320,7 +1320,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
                 const SizedBox(width: 6),
                 Text('($pct%)',
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.35), fontSize: 10,
+                      color: AppColors.textSecondary, fontSize: 10,
                     )),
               ],
             ),
@@ -1358,7 +1358,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
               showTitles: true, reservedSize: 44, interval: maxVal > 0 ? maxVal / 4 : 20,
               getTitlesWidget: (value, _) => Text(
                 '₺${_formatNumber(value)}',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 9),
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 9),
               ),
             ),
           ),
@@ -1373,7 +1373,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
                     monthName.length > 3 ? monthName.substring(0, 3) : monthName,
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 10),
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 10),
                   ),
                 );
               },
@@ -1432,13 +1432,13 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? AppColors.accent.withValues(alpha: 0.2)
+                          ? AppColors.charcoal.withValues(alpha: 0.2)
                           : Colors.white.withValues(alpha: 0.04),
                       borderRadius: BorderRadius.circular(22),
                       border: Border.all(
                         color: isSelected
-                            ? AppColors.accent.withValues(alpha: 0.4)
-                            : Colors.white.withValues(alpha: 0.06),
+                            ? AppColors.charcoal.withValues(alpha: 0.4)
+                            : AppColors.border,
                       ),
                     ),
                     child: Row(
@@ -1446,14 +1446,14 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
                       children: [
                         Icon(cat['icon'] as IconData, size: 14,
                             color: isSelected
-                                ? AppColors.accent
-                                : Colors.white.withValues(alpha: 0.35)),
+                                ? AppColors.charcoal
+                                : AppColors.textSecondary),
                         const SizedBox(width: 7),
                         Text((cat['label'] ?? '').toString(),
                             style: TextStyle(
                               color: isSelected
-                                  ? AppColors.accent
-                                  : Colors.white.withValues(alpha: 0.45),
+                                  ? AppColors.charcoal
+                                  : AppColors.textSecondary,
                               fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                               fontSize: 12,
                             )),
@@ -1506,13 +1506,13 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                   decoration: BoxDecoration(
-                    color: AppColors.accent.withValues(alpha: 0.1),
+                    color: AppColors.charcoal.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     '${_transactions.length} kayıt',
                     style: const TextStyle(
-                      color: AppColors.accent, fontSize: 11, fontWeight: FontWeight.w600,
+                      color: AppColors.charcoal, fontSize: 11, fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -1527,7 +1527,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.03),
               borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+              border: Border.all(color: AppColors.border),
             ),
             child: Center(
               child: Column(
@@ -1536,7 +1536,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
                       size: 52, color: Colors.white.withValues(alpha: 0.08)),
                   const SizedBox(height: 16),
                   Text('Henüz işlem kaydı yok',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.25))),
+                      style: TextStyle(color: AppColors.textTertiary)),
                   const SizedBox(height: 8),
                   TextButton.icon(
                     onPressed: () => _showAddTransactionSheet(context),
@@ -1588,7 +1588,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         children: [
@@ -1617,7 +1617,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
                           ? (desc.length > 48 ? '${desc.substring(0, 48)}...' : desc)
                           : '—',
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.35), fontSize: 11,
+                        color: AppColors.textSecondary, fontSize: 11,
                       ),
                       maxLines: 1, overflow: TextOverflow.ellipsis,
                     ),
@@ -1637,7 +1637,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
                   const SizedBox(height: 3),
                   Text(_formatDateDisplay(tx['transaction_date'] ?? ''),
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.3), fontSize: 10,
+                        color: AppColors.textSecondary, fontSize: 10,
                       )),
                 ],
               ),
@@ -1668,19 +1668,19 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
+                        color: AppColors.border,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.apartment,
-                              size: 10, color: Colors.white.withValues(alpha: 0.4)),
+                              size: 10, color: AppColors.textSecondary),
                           const SizedBox(width: 4),
                           Flexible(
                             child: Text(propertyName,
                                 style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.45),
+                                  color: AppColors.textSecondary,
                                   fontSize: 9,
                                 ),
                                 overflow: TextOverflow.ellipsis),

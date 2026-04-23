@@ -91,7 +91,7 @@ class _LandlordDashboardScreenState extends ConsumerState<LandlordDashboardScree
                     Text(
                       'Mülklerim',
                       style: TextStyle(
-                        color: AppColors.textBody.withValues(alpha:0.6),
+                        color: AppColors.textSecondary.withValues(alpha:0.6),
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                         letterSpacing: 0.5,
@@ -101,7 +101,7 @@ class _LandlordDashboardScreenState extends ConsumerState<LandlordDashboardScree
                     Text(
                       'Ev Sahibi Paneli',
                       style: TextStyle(
-                        color: AppColors.textHeader,
+                        color: AppColors.charcoal,
                         fontSize: 26,
                         fontWeight: FontWeight.bold,
                         letterSpacing: -0.5,
@@ -218,7 +218,7 @@ class _LandlordDashboardScreenState extends ConsumerState<LandlordDashboardScree
         indicatorPadding: const EdgeInsets.all(4),
         dividerColor: Colors.transparent,
         labelColor: const Color(0xFFD4A574),
-        unselectedLabelColor: AppColors.textBody.withValues(alpha:0.5),
+        unselectedLabelColor: AppColors.textSecondary.withValues(alpha:0.5),
         labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
         unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 12),
         tabs: List.generate(5, (i) => Tab(
@@ -258,7 +258,7 @@ class _LandlordDashboardScreenState extends ConsumerState<LandlordDashboardScree
           backgroundColor: Colors.transparent,
           elevation: 0,
           selectedItemColor: const Color(0xFFD4A574),
-          unselectedItemColor: AppColors.textBody.withValues(alpha:0.4),
+          unselectedItemColor: AppColors.textSecondary.withValues(alpha:0.4),
           showUnselectedLabels: false,
           selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
           items: const [
@@ -392,7 +392,7 @@ class _OverviewTab extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: TextStyle(color: AppColors.textBody.withValues(alpha:0.6), fontSize: 11)),
+                Text(label, style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.6), fontSize: 11)),
                 const SizedBox(height: 4),
                 Text(
                   value,
@@ -415,7 +415,7 @@ class _OverviewTab extends StatelessWidget {
     return Text(
       title,
       style: TextStyle(
-        color: AppColors.textHeader,
+        color: AppColors.charcoal,
         fontSize: 17,
         fontWeight: FontWeight.bold,
         letterSpacing: 0.3,
@@ -448,11 +448,11 @@ class _OverviewTab extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(prop.propertyName, style: const TextStyle(color: AppColors.textHeader, fontSize: 15, fontWeight: FontWeight.bold)),
+                Text(prop.propertyName, style: const TextStyle(color: AppColors.charcoal, fontSize: 15, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 Text(
                   '${prop.ownedUnits} birim • ${prop.occupancyRate.toStringAsFixed(0)}% dolu',
-                  style: TextStyle(color: AppColors.textBody.withValues(alpha:0.6), fontSize: 12),
+                  style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.6), fontSize: 12),
                 ),
               ],
             ),
@@ -503,12 +503,12 @@ class _OverviewTab extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(tenant.tenantName ?? 'Kiracı', style: const TextStyle(color: AppColors.textHeader, fontSize: 14, fontWeight: FontWeight.w600)),
-                Text('${tenant.propertyName} • ${tenant.doorNumber}', style: TextStyle(color: AppColors.textBody.withValues(alpha:0.6), fontSize: 12)),
+                Text(tenant.tenantName ?? 'Kiracı', style: const TextStyle(color: AppColors.charcoal, fontSize: 14, fontWeight: FontWeight.w600)),
+                Text('${tenant.propertyName} • ${tenant.doorNumber}', style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.6), fontSize: 12)),
               ],
             ),
           ),
-          Text('₺${_fmt(tenant.rentAmount)}', style: const TextStyle(color: AppColors.textHeader, fontWeight: FontWeight.bold, fontSize: 14)),
+          Text('₺${_fmt(tenant.rentAmount)}', style: const TextStyle(color: AppColors.charcoal, fontWeight: FontWeight.bold, fontSize: 14)),
         ],
       ),
     );
@@ -520,11 +520,11 @@ class _OverviewTab extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const SizedBox(height: 40),
-          Icon(Icons.home_work_outlined, size: 56, color: AppColors.textBody.withValues(alpha:0.2)),
+          Icon(Icons.home_work_outlined, size: 56, color: AppColors.textSecondary.withValues(alpha:0.2)),
           const SizedBox(height: 16),
-          const Text('Henüz mülk bağlantısı yok', style: TextStyle(color: AppColors.textBody, fontSize: 15)),
+          const Text('Henüz mülk bağlantısı yok', style: TextStyle(color: AppColors.textSecondary, fontSize: 15)),
           const SizedBox(height: 8),
-          Text('Emlakçınız sizi mülkünüze davet ettiğinde burada görünür', style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 12), textAlign: TextAlign.center),
+          Text('Emlakçınız sizi mülkünüze davet ettiğinde burada görünür', style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.5), fontSize: 12), textAlign: TextAlign.center),
         ],
       ),
     );

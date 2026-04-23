@@ -218,7 +218,7 @@ class _BIAnalyticsScreenState extends ConsumerState<BIAnalyticsScreen>
                       SizedBox(
                         width: 48, height: 48,
                         child: CircularProgressIndicator(
-                          color: AppColors.accent,
+                          color: AppColors.charcoal,
                           strokeWidth: 2.5,
                         ),
                       ),

@@ -29,8 +29,7 @@ class UserResponse(BaseModel):
     email: Optional[str]
     role: str
     
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 class LoginResponse(BaseModel):
     success: bool

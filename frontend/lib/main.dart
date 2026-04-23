@@ -9,6 +9,7 @@ import 'core/offline/offline_storage.dart';
 import 'core/offline/connectivity_service.dart';
 import 'core/offline/sync_service.dart';
 import 'core/notifications/fcm_service.dart';
+import 'core/network/api_client.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingCallback() async {
@@ -49,6 +50,12 @@ void main() async {
   debugPrint('[App] SyncService initialized');
   // ─────────────────────────────────────────────────────────────
 
+  // ── Token Geri Yükleme ─────────────────────────────────────────
+  // Sayfa yenilendiğinde (F5) kaydedilmiş auth token'ı geri yükle
+  await ApiClient.restoreToken();
+  debugPrint('[App] Auth token restored');
+  // ─────────────────────────────────────────────────────────────
+
   runApp(const ProviderScope(child: EmlakdefterApp()));
 }
 
@@ -60,7 +67,7 @@ class EmlakdefterApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'Emlakdefter',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
       routerConfig: appRouter,
     );
   }

@@ -63,7 +63,7 @@ class _FinanceTabState extends ConsumerState<FinanceTab>
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.accent.withValues(alpha: 0.15),
+                                  color: AppColors.charcoal.withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: const Row(
@@ -71,14 +71,14 @@ class _FinanceTabState extends ConsumerState<FinanceTab>
                                   children: [
                                     Icon(
                                       Icons.auto_awesome,
-                                      color: AppColors.accent,
+                                      color: AppColors.charcoal,
                                       size: 12,
                                     ),
                                     SizedBox(width: 4),
                                     Text(
                                       'GEMINI AI',
                                       style: TextStyle(
-                                        color: AppColors.accent,
+                                        color: AppColors.charcoal,
                                         fontSize: 9,
                                         fontWeight: FontWeight.w900,
                                         letterSpacing: 1.2,
@@ -95,7 +95,7 @@ class _FinanceTabState extends ConsumerState<FinanceTab>
                             style: TextStyle(
                               fontSize: 26,
                               fontWeight: FontWeight.w800,
-                              color: AppColors.textHeader,
+                              color: AppColors.textPrimary,
                               height: 1.15,
                               letterSpacing: -0.5,
                             ),
@@ -121,7 +121,7 @@ class _FinanceTabState extends ConsumerState<FinanceTab>
                         ),
                         child: const Icon(
                           Icons.bar_chart_rounded,
-                          color: AppColors.accent,
+                          color: AppColors.charcoal,
                           size: 20,
                         ),
                       ),
@@ -137,7 +137,7 @@ class _FinanceTabState extends ConsumerState<FinanceTab>
                       child: _ActionButton(
                         icon: Icons.cloud_upload_outlined,
                         label: 'Ekstre Yükle',
-                        color: AppColors.accent,
+                        color: AppColors.charcoal,
                         isLoading: financeState is AsyncLoading,
                         onTap: () => notifier.uploadBankStatement(),
                       ),
@@ -192,11 +192,11 @@ class _FinanceTabState extends ConsumerState<FinanceTab>
               child: TabBar(
                 controller: _tabController,
                 isScrollable: true,
-                indicatorColor: AppColors.accent,
+                indicatorColor: AppColors.charcoal,
                 indicatorSize: TabBarIndicatorSize.label,
                 indicatorWeight: 3,
-                labelColor: AppColors.accent,
-                unselectedLabelColor: AppColors.textBody,
+                labelColor: AppColors.charcoal,
+                unselectedLabelColor: AppColors.textSecondary,
                 dividerColor: Colors.transparent,
                 labelStyle: const TextStyle(
                   fontWeight: FontWeight.w700,
@@ -322,12 +322,12 @@ class _FinanceTabState extends ConsumerState<FinanceTab>
                 child: Container(
                   padding: const EdgeInsets.all(28),
                   decoration: BoxDecoration(
-                    color: AppColors.accent.withValues(alpha: 0.08),
+                    color: AppColors.charcoal.withValues(alpha: 0.08),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
                     Icons.auto_awesome,
-                    color: AppColors.accent,
+                    color: AppColors.charcoal,
                     size: 48,
                   ),
                 ),
@@ -338,7 +338,7 @@ class _FinanceTabState extends ConsumerState<FinanceTab>
           const Text(
             'Gemini 2.5 Flash Analiz Ediyor...',
             style: TextStyle(
-              color: AppColors.textHeader,
+              color: AppColors.textPrimary,
               fontSize: 17,
               fontWeight: FontWeight.w800,
             ),
@@ -347,7 +347,7 @@ class _FinanceTabState extends ConsumerState<FinanceTab>
           Text(
             'Bulanık mantık motoru çalıştırılıyor',
             style: TextStyle(
-              color: AppColors.textBody.withValues(alpha: 0.6),
+              color: AppColors.textSecondary.withValues(alpha: 0.6),
               fontSize: 13,
             ),
           ),
@@ -375,7 +375,7 @@ class _FinanceTabState extends ConsumerState<FinanceTab>
             const Text(
               'Analiz hatası',
               style: TextStyle(
-                color: AppColors.textHeader,
+                color: AppColors.textPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
               ),
@@ -384,7 +384,7 @@ class _FinanceTabState extends ConsumerState<FinanceTab>
             Text(
               err.toString(),
               style: TextStyle(
-                color: AppColors.textBody.withValues(alpha: 0.6),
+                color: AppColors.textSecondary.withValues(alpha: 0.6),
                 fontSize: 12,
               ),
               textAlign: TextAlign.center,
@@ -411,14 +411,14 @@ class _FinanceTabState extends ConsumerState<FinanceTab>
               child: const Icon(
                 Icons.cloud_upload_outlined,
                 size: 48,
-                color: AppColors.textBody,
+                color: AppColors.textSecondary,
               ),
             ),
             const SizedBox(height: 24),
             const Text(
               'Henüz banka ekstresi taranmadı',
               style: TextStyle(
-                color: AppColors.textHeader,
+                color: AppColors.textPrimary,
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
               ),
@@ -427,7 +427,7 @@ class _FinanceTabState extends ConsumerState<FinanceTab>
             Text(
               'Yukarıdaki "Ekstre Yükle" butonuna basarak\nPDF hesap dökümünü yükleyin',
               style: TextStyle(
-                color: AppColors.textBody.withValues(alpha: 0.65),
+                color: AppColors.textSecondary.withValues(alpha: 0.65),
                 fontSize: 13,
               ),
               textAlign: TextAlign.center,
@@ -436,7 +436,7 @@ class _FinanceTabState extends ConsumerState<FinanceTab>
             ElevatedButton.icon(
               onPressed: () => notifier.uploadBankStatement(),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accent,
+                backgroundColor: AppColors.charcoal,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
@@ -476,14 +476,14 @@ class _FinanceTabState extends ConsumerState<FinanceTab>
         ),
         content: const Text(
           'Aktif sekmedeki tüm kiracı ödeme verilerini (Ad, Daire, Bekleyen Tutar, Gecikme Günü) .xlsx formatında indirirsiniz.',
-          style: TextStyle(color: AppColors.textBody, fontSize: 14),
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text(
               'Kapat',
-              style: TextStyle(color: AppColors.textBody),
+              style: TextStyle(color: AppColors.textSecondary),
             ),
           ),
         ],
@@ -657,13 +657,13 @@ class _TransactionList extends ConsumerWidget {
                 color: AppColors.surface.withValues(alpha: 0.5),
                 shape: BoxShape.circle,
               ),
-              child: Icon(emptyIcon, size: 40, color: AppColors.textBody),
+              child: Icon(emptyIcon, size: 40, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 16),
             Text(
               emptyMessage,
               style: TextStyle(
-                color: AppColors.textBody.withValues(alpha: 0.6),
+                color: AppColors.textSecondary.withValues(alpha: 0.6),
                 fontSize: 14,
               ),
             ),
@@ -760,7 +760,7 @@ class _TransactionCard extends ConsumerWidget {
                     Text(
                       trx.senderName,
                       style: const TextStyle(
-                        color: AppColors.textHeader,
+                        color: AppColors.textPrimary,
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
                       ),
@@ -771,7 +771,7 @@ class _TransactionCard extends ConsumerWidget {
                     Text(
                       trx.description,
                       style: TextStyle(
-                        color: AppColors.textBody.withValues(alpha: 0.65),
+                        color: AppColors.textSecondary.withValues(alpha: 0.65),
                         fontSize: 11,
                       ),
                       maxLines: 2,
@@ -882,13 +882,13 @@ class _TransactionCard extends ConsumerWidget {
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.accent.withValues(alpha: 0.10),
+                      color: AppColors.charcoal.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       'Ödemeye ${trx.daysUntilDue} gün var',
                       style: const TextStyle(
-                        color: AppColors.accent,
+                        color: AppColors.charcoal,
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
@@ -898,7 +898,7 @@ class _TransactionCard extends ConsumerWidget {
                 _SmallActionButton(
                   icon: Icons.notifications_outlined,
                   label: 'Hatırlat',
-                  color: AppColors.accent,
+                  color: AppColors.charcoal,
                   onTap: () => notifier.sendReminder(trx.id),
                 ),
               ],
@@ -963,14 +963,14 @@ class _TransactionCard extends ConsumerWidget {
                         const Text(
                           'Beklenen',
                           style: TextStyle(
-                            color: AppColors.textBody,
+                            color: AppColors.textSecondary,
                             fontSize: 10,
                           ),
                         ),
                         Text(
                           '₺${(trx.expectedAmount ?? 0).toStringAsFixed(0)}',
                           style: const TextStyle(
-                            color: AppColors.textHeader,
+                            color: AppColors.textPrimary,
                             fontSize: 14,
                             fontWeight: FontWeight.w800,
                           ),
@@ -1042,9 +1042,9 @@ class _TransactionCard extends ConsumerWidget {
                   child: OutlinedButton(
                     onPressed: () {},
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.textBody,
+                      foregroundColor: AppColors.textSecondary,
                       side: BorderSide(
-                        color: AppColors.textBody.withValues(alpha: 0.2),
+                        color: AppColors.textSecondary.withValues(alpha: 0.2),
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       shape: RoundedRectangleBorder(
@@ -1089,7 +1089,7 @@ class _TransactionCard extends ConsumerWidget {
       case TransactionListType.paid:
         return (AppColors.success, AppColors.success, AppColors.success);
       case TransactionListType.pending:
-        return (AppColors.accent, AppColors.accent, AppColors.accent);
+        return (AppColors.charcoal, AppColors.charcoal, AppColors.charcoal);
       case TransactionListType.overdue:
         return (AppColors.error, AppColors.error, AppColors.error);
       case TransactionListType.partial:
@@ -1223,12 +1223,12 @@ class _FutureNoticeBanner extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppColors.accent.withValues(alpha: 0.08),
+              color: AppColors.charcoal.withValues(alpha: 0.08),
               shape: BoxShape.circle,
             ),
             child: const Icon(
               Icons.rocket_launch,
-              color: AppColors.accent,
+              color: AppColors.charcoal,
               size: 14,
             ),
           ),
@@ -1240,7 +1240,7 @@ class _FutureNoticeBanner extends StatelessWidget {
                 const Text(
                   '🚀 Yakında: Otomatik Banka Entegrasyonu',
                   style: TextStyle(
-                    color: AppColors.textHeader,
+                    color: AppColors.textPrimary,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1249,7 +1249,7 @@ class _FutureNoticeBanner extends StatelessWidget {
                 Text(
                   'Banka API ile manuel PDF yüklemeye gerek kalmadan anlık veri çekimi',
                   style: TextStyle(
-                    color: AppColors.textBody.withValues(alpha: 0.55),
+                    color: AppColors.textSecondary.withValues(alpha: 0.55),
                     fontSize: 10,
                   ),
                 ),

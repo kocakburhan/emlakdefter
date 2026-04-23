@@ -57,6 +57,15 @@ class RedisWebSocketManager:
             self._listener_task = asyncio.create_task(self._redis_listener())
             logger.info("[WebSocket] Redis Pub/Sub başlatıldı")
 
+    def _has_subscriptions(self) -> bool:
+        """Aktif pubsub aboneliklerini kontrol eder."""
+        if self._pubsub is None:
+            return False
+        try:
+            return len(self._pubsub.channels) > 0 or len(self._pubsub.patterns) > 0
+        except Exception:
+            return False
+
     async def close(self):
         """Redis bağlantısını ve listener'ı kapatır."""
         self._running = False
@@ -80,8 +89,9 @@ class RedisWebSocketManager:
         """
         while self._running:
             try:
-                if self._pubsub is None:
-                    break
+                if self._pubsub is None or not self._has_subscriptions():
+                    await asyncio.sleep(0.5)
+                    continue
                 message = await self._pubsub.get_message(
                     ignore_subscribe_messages=True,
                     timeout=1.0
@@ -101,6 +111,11 @@ class RedisWebSocketManager:
             except asyncio.CancelledError:
                 break
             except Exception as e:
+                # Redis PubSub hatası — subscription yoksa normal behavior, sessizce devam et
+                if "pubsub connection not set" in str(e) or "subscribe" in str(e).lower():
+                    logger.debug(f"[WebSocket] Redis henüz abone değil, bekleniyor...")
+                    await asyncio.sleep(1)
+                    continue
                 logger.error(f"[WebSocket] Redis listener hatası: {e}")
                 await asyncio.sleep(1)
 
@@ -126,8 +141,15 @@ class RedisWebSocketManager:
             self._local_connections[conversation_id] = []
             # Yeni bir conversation için Redis'e abone ol
             if self._pubsub:
-                await self._pubsub.subscribe(conversation_id)
-                logger.info(f"[WebSocket] Redis abone oldu: {conversation_id}")
+                try:
+                    await self._pubsub.subscribe(conversation_id)
+                    logger.info(f"[WebSocket] Redis abone oldu: {conversation_id}")
+                except Exception as e:
+                    # Abonelik zaten varsa veya bağlantı sorunu varsa sessizce devam et
+                    if "pubsub connection not set" in str(e) or "subscribe" in str(e).lower():
+                        logger.debug(f"[WebSocket] Redis abonelik hatası (muhtemelen zaten abone): {conversation_id}")
+                    else:
+                        logger.warning(f"[WebSocket] Redis abonelik hatası: {e}")
 
         self._local_connections[conversation_id].append(websocket)
         logger.info(f"[WebSocket] Bağlandı: {conversation_id}, toplam: {len(self._local_connections[conversation_id])}")
@@ -141,8 +163,15 @@ class RedisWebSocketManager:
                 del self._local_connections[conversation_id]
                 # Conversation boşaldığında Redis aboneliğini kaldır
                 if self._pubsub and self._running:
-                    asyncio.create_task(self._pubsub.unsubscribe(conversation_id))
-                logger.info(f"[WebSocket] Abonelik kaldırıldı: {conversation_id}")
+                    try:
+                        asyncio.create_task(self._pubsub.unsubscribe(conversation_id))
+                        logger.info(f"[WebSocket] Abonelik kaldırıldı: {conversation_id}")
+                    except Exception as e:
+                        # Abonelik zaten yoksa sessizce devam et
+                        if "pubsub connection not set" in str(e) or "subscribe" in str(e).lower():
+                            logger.debug(f"[WebSocket] Abonelik zaten yok: {conversation_id}")
+                        else:
+                            logger.warning(f"[WebSocket] Abonelik kaldırma hatası: {e}")
 
     async def broadcast_to_room(self, message_data: dict, conversation_id: str):
         """

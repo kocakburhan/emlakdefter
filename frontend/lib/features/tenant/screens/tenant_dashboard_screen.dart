@@ -44,10 +44,10 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
         decoration: BoxDecoration(
           color: AppColors.background.withValues(alpha:0.9),
           borderRadius: BorderRadius.circular(32),
-          border: Border.all(color: AppColors.accent.withValues(alpha:0.15), width: 1.5),
+          border: Border.all(color: AppColors.charcoal.withValues(alpha:0.15), width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withValues(alpha:0.4),
+              color: AppColors.charcoal.withValues(alpha:0.4),
               blurRadius: 25,
               offset: const Offset(0, 10),
             )
@@ -61,8 +61,8 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
             type: BottomNavigationBarType.fixed,
             backgroundColor: Colors.transparent,
             elevation: 0,
-            selectedItemColor: AppColors.accent,
-            unselectedItemColor: AppColors.textBody.withValues(alpha:0.5),
+            selectedItemColor: AppColors.charcoal,
+            unselectedItemColor: AppColors.textSecondary.withValues(alpha:0.5),
             showUnselectedLabels: false,
             selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
             items: const [

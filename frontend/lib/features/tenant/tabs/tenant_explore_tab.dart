@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/theme/colors.dart';
 import '../providers/tenant_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -8,24 +9,24 @@ import '../providers/tenant_provider.dart';
 // PRD §4.2.6
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Palette
-const _bg = Color(0xFFFAF8F5);          // warm cream
-const _surface = Color(0xFFFFFFFF);
-const _forest = Color(0xFF1B4332);       // deep forest green
-const _gold = Color(0xFFC9963F);          // warm gold accent
-const _textDark = Color(0xFF1A1A1A);
-const _textMid = Color(0xFF6B6560);
-const _textLight = Color(0xFFB0A89E);
-const _divider = Color(0xFFE8E3DC);
-const _cardShadow = Color(0xFF1A1A1A);
+// Palette — mapped to AppColors Modern Minimalist
+const _bg = AppColors.background;
+const _surface = AppColors.surface;
+const _forest = AppColors.charcoal;
+const _gold = AppColors.charcoalLight;
+const _textDark = AppColors.charcoal;
+const _textMid = AppColors.textSecondary;
+const _textLight = AppColors.textTertiary;
+const _divider = AppColors.border;
+const _cardShadow = AppColors.shadow;
 
 // Property type gradient palettes (used for image placeholders)
 const _propertyGradients = [
-  [Color(0xFF1B4332), Color(0xFF2D6A4F)],
-  [Color(0xFF1B3A4B), Color(0xFF2C5364)],
-  [Color(0xFF3D2B1F), Color(0xFF6B4423)],
-  [Color(0xFF1B1B2F), Color(0xFF3D2B4A)],
-  [Color(0xFF1F4037), Color(0xFF3D6A4A)],
+  [AppColors.charcoal, AppColors.charcoalLight],
+  [AppColors.slateGray, AppColors.slateGrayLight],
+  [AppColors.charcoalDark, AppColors.charcoal],
+  [AppColors.slateGrayDark, AppColors.charcoal],
+  [AppColors.charcoalLight, AppColors.slateGray],
 ];
 
 // Room count options

@@ -167,6 +167,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
       if (response.statusCode == 201) {
         _showSuccess('Kiracı oluşturuldu');
         _clearTenantForm();
+        if (!mounted) return;
         Navigator.pop(context);
         await _fetchAll();
       }
@@ -198,6 +199,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
       if (response.statusCode == 201) {
         _showSuccess('Ev sahibi oluşturuldu');
         _clearLandlordForm();
+        if (!mounted) return;
         Navigator.pop(context);
         await _fetchAll();
       }
@@ -289,7 +291,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                       Text(
                         'Davet Hazır',
                         style: TextStyle(
-                          color: AppColors.textHeader,
+                          color: AppColors.charcoal,
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
                         ),
@@ -297,7 +299,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                       Text(
                         'Bağlantıyı paylaşmak için seçin',
                         style: TextStyle(
-                          color: AppColors.textBody,
+                          color: AppColors.textSecondary,
                           fontSize: 12,
                         ),
                       ),
@@ -324,7 +326,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                   Text(
                     message,
                     style: TextStyle(
-                      color: AppColors.textBody.withValues(alpha: 0.8),
+                      color: AppColors.textSecondary.withValues(alpha: 0.8),
                       fontSize: 13,
                       height: 1.5,
                     ),
@@ -334,7 +336,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: AppColors.accent.withValues(alpha: 0.10),
+                      color: AppColors.charcoal.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -342,7 +344,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                       children: [
                         const Icon(
                           Icons.link,
-                          color: AppColors.accent,
+                          color: AppColors.charcoal,
                           size: 12,
                         ),
                         const SizedBox(width: 5),
@@ -350,7 +352,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                           child: Text(
                             inviteUrl,
                             style: TextStyle(
-                              color: AppColors.accent.withValues(alpha: 0.8),
+                              color: AppColors.charcoal.withValues(alpha: 0.8),
                               fontSize: 10,
                               fontFamily: 'monospace',
                             ),
@@ -382,8 +384,8 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                       style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.accent,
-                      side: const BorderSide(color: AppColors.accent),
+                      foregroundColor: AppColors.charcoal,
+                      side: const BorderSide(color: AppColors.charcoal),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
@@ -459,13 +461,13 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
         ),
         content: const Text(
           'Kiracı pasif hale getirilecek ve birim "Boş/Müsait" olarak işaretlenecek. Bu işlem geri alınabilir.',
-          style: TextStyle(color: AppColors.textBody, fontSize: 14),
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('İptal',
-                style: TextStyle(color: AppColors.textBody)),
+                style: TextStyle(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -529,7 +531,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
             const Text(
               'Kiracı Düzenle',
               style: TextStyle(
-                color: AppColors.textHeader,
+                color: AppColors.charcoal,
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
               ),
@@ -540,7 +542,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 labelText: 'Ad Soyad',
-                labelStyle: const TextStyle(color: AppColors.textBody),
+                labelStyle: const TextStyle(color: AppColors.textSecondary),
                 filled: true,
                 fillColor: AppColors.background,
                 border: OutlineInputBorder(
@@ -556,7 +558,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
               keyboardType: TextInputType.phone,
               decoration: InputDecoration(
                 labelText: 'Telefon',
-                labelStyle: const TextStyle(color: AppColors.textBody),
+                labelStyle: const TextStyle(color: AppColors.textSecondary),
                 filled: true,
                 fillColor: AppColors.background,
                 border: OutlineInputBorder(
@@ -572,7 +574,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
                 labelText: 'Kira Bedeli (₺)',
-                labelStyle: const TextStyle(color: AppColors.textBody),
+                labelStyle: const TextStyle(color: AppColors.textSecondary),
                 filled: true,
                 fillColor: AppColors.background,
                 border: OutlineInputBorder(
@@ -588,8 +590,8 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(ctx, false),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.textBody,
-                      side: const BorderSide(color: AppColors.textBody),
+                      foregroundColor: AppColors.textSecondary,
+                      side: const BorderSide(color: AppColors.textSecondary),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
@@ -603,7 +605,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                   child: ElevatedButton(
                     onPressed: () => Navigator.pop(ctx, true),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accent,
+                      backgroundColor: AppColors.charcoal,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
@@ -654,12 +656,12 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
         ),
         content: const Text(
           'Kiracı silinecek ve birim boş olarak işaretlenecek. Bu işlem geri alınamaz.',
-          style: TextStyle(color: AppColors.textBody, fontSize: 14),
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('İptal', style: TextStyle(color: AppColors.textBody)),
+            child: const Text('İptal', style: TextStyle(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -720,7 +722,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
             const Text(
               'Ev Sahibini Düzenle',
               style: TextStyle(
-                color: AppColors.textHeader,
+                color: AppColors.charcoal,
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
               ),
@@ -731,7 +733,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 labelText: 'Ad Soyad',
-                labelStyle: const TextStyle(color: AppColors.textBody),
+                labelStyle: const TextStyle(color: AppColors.textSecondary),
                 filled: true,
                 fillColor: AppColors.background,
                 border: OutlineInputBorder(
@@ -747,7 +749,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
               keyboardType: TextInputType.phone,
               decoration: InputDecoration(
                 labelText: 'Telefon',
-                labelStyle: const TextStyle(color: AppColors.textBody),
+                labelStyle: const TextStyle(color: AppColors.textSecondary),
                 filled: true,
                 fillColor: AppColors.background,
                 border: OutlineInputBorder(
@@ -763,7 +765,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
                 labelText: 'Mülkiyet Payı (%)',
-                labelStyle: const TextStyle(color: AppColors.textBody),
+                labelStyle: const TextStyle(color: AppColors.textSecondary),
                 filled: true,
                 fillColor: AppColors.background,
                 border: OutlineInputBorder(
@@ -779,8 +781,8 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(ctx, false),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.textBody,
-                      side: const BorderSide(color: AppColors.textBody),
+                      foregroundColor: AppColors.textSecondary,
+                      side: const BorderSide(color: AppColors.textSecondary),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
@@ -794,7 +796,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                   child: ElevatedButton(
                     onPressed: () => Navigator.pop(ctx, true),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accent,
+                      backgroundColor: AppColors.charcoal,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
@@ -845,12 +847,12 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
         ),
         content: const Text(
           'Ev sahibi silinecek. Bu işlem geri alınamaz.',
-          style: TextStyle(color: AppColors.textBody, fontSize: 14),
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('İptal', style: TextStyle(color: AppColors.textBody)),
+            child: const Text('İptal', style: TextStyle(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -1021,7 +1023,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
           // ── SLIVER APP BAR ──────────────────────────────────────────
           SliverAppBar(
             backgroundColor: AppColors.background,
-            foregroundColor: AppColors.textHeader,
+            foregroundColor: AppColors.charcoal,
             pinned: true,
             expandedHeight: 130,
             leading: SlideTransition(
@@ -1055,7 +1057,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                       const Text(
                         'Kiracı & Ev Sahibi',
                         style: TextStyle(
-                          color: AppColors.textHeader,
+                          color: AppColors.charcoal,
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.3,
@@ -1064,7 +1066,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                       Text(
                         '${_tenants.where((t) => t['is_active'] == true).length} Aktif Kiracı · ${_landlords.length} Ev Sahibi',
                         style: TextStyle(
-                          color: AppColors.textBody.withValues(alpha: 0.65),
+                          color: AppColors.textSecondary.withValues(alpha: 0.65),
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
                         ),
@@ -1097,11 +1099,11 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                 color: AppColors.background,
                 child: TabBar(
                   controller: _tabController,
-                  indicatorColor: AppColors.accent,
+                  indicatorColor: AppColors.charcoal,
                   indicatorSize: TabBarIndicatorSize.label,
                   indicatorWeight: 3,
-                  labelColor: AppColors.accent,
-                  unselectedLabelColor: AppColors.textBody,
+                  labelColor: AppColors.charcoal,
+                  unselectedLabelColor: AppColors.textSecondary,
                   labelStyle: const TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
@@ -1139,7 +1141,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
           if (_isLoading)
             const SliverFillRemaining(
               child: Center(
-                child: CircularProgressIndicator(color: AppColors.accent),
+                child: CircularProgressIndicator(color: AppColors.charcoal),
               ),
             )
           else if (_error != null)
@@ -1162,7 +1164,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
         scale: _fabScale,
         child: FloatingActionButton.extended(
           onPressed: () => _showCreateBottomSheet(context),
-          backgroundColor: AppColors.accent,
+          backgroundColor: AppColors.charcoal,
           foregroundColor: Colors.white,
           elevation: 4,
           icon: const Icon(Icons.person_add, size: 20),
@@ -1194,7 +1196,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
             const Text(
               'Veri yüklenemedi',
               style: TextStyle(
-                color: AppColors.textHeader,
+                color: AppColors.charcoal,
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
               ),
@@ -1203,7 +1205,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
             Text(
               _error ?? 'Bilinmeyen hata',
               style: TextStyle(
-                color: AppColors.textBody.withValues(alpha: 0.6),
+                color: AppColors.textSecondary.withValues(alpha: 0.6),
                 fontSize: 12,
               ),
               textAlign: TextAlign.center,
@@ -1212,7 +1214,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
             ElevatedButton.icon(
               onPressed: _fetchAll,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accent,
+                backgroundColor: AppColors.charcoal,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 shape: RoundedRectangleBorder(
@@ -1241,7 +1243,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
 
     return RefreshIndicator(
       onRefresh: _fetchAll,
-      color: AppColors.accent,
+      color: AppColors.charcoal,
       backgroundColor: AppColors.surface,
       child: ListView.separated(
         physics: const BouncingScrollPhysics(),
@@ -1272,7 +1274,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
 
   Widget _buildTenantCard(Map<String, dynamic> tenant) {
     final isActive = tenant['is_active'] == true;
-    final statusColor = isActive ? AppColors.success : AppColors.textBody;
+    final statusColor = isActive ? AppColors.success : AppColors.textSecondary;
     final statusLabel = isActive ? 'Aktif' : 'Pasif';
 
     return Container(
@@ -1320,7 +1322,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                     Text(
                       tenant['temp_name'] ?? 'İsimsiz Kiracı',
                       style: const TextStyle(
-                        color: AppColors.textHeader,
+                        color: AppColors.charcoal,
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                       ),
@@ -1332,7 +1334,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                       children: [
                         Icon(
                           Icons.location_on_outlined,
-                          color: AppColors.textBody.withValues(alpha: 0.5),
+                          color: AppColors.textSecondary.withValues(alpha: 0.5),
                           size: 12,
                         ),
                         const SizedBox(width: 3),
@@ -1340,7 +1342,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                           child: Text(
                             '${tenant['property_name'] ?? '-'} · Kapı ${tenant['unit_door_number'] ?? '-'}',
                             style: TextStyle(
-                              color: AppColors.textBody.withValues(alpha: 0.65),
+                              color: AppColors.textSecondary.withValues(alpha: 0.65),
                               fontSize: 11,
                             ),
                             maxLines: 1,
@@ -1371,7 +1373,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
               const SizedBox(width: 4),
               // §4.1.4: Düzenle + Sil PopupMenu
               PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert, color: AppColors.textBody.withValues(alpha: 0.6), size: 20),
+                icon: Icon(Icons.more_vert, color: AppColors.textSecondary.withValues(alpha: 0.6), size: 20),
                 tooltip: 'İşlemler',
                 color: AppColors.surface,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -1387,9 +1389,9 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                     value: 'edit',
                     child: Row(
                       children: [
-                        Icon(Icons.edit, size: 18, color: AppColors.accent),
+                        Icon(Icons.edit, size: 18, color: AppColors.charcoal),
                         const SizedBox(width: 8),
-                        const Text('Düzenle', style: TextStyle(color: AppColors.textHeader, fontSize: 14)),
+                        const Text('Düzenle', style: TextStyle(color: AppColors.charcoal, fontSize: 14)),
                       ],
                     ),
                   ),
@@ -1423,13 +1425,13 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
               _buildInfoChip(
                 Icons.calendar_today_outlined,
                 'Gün ${tenant['payment_day'] ?? 1}',
-                AppColors.accent,
+                AppColors.charcoal,
               ),
               if (tenant['temp_phone'] != null && tenant['temp_phone'].toString().isNotEmpty)
                 _buildInfoChip(
                   Icons.phone_outlined,
                   tenant['temp_phone'].toString(),
-                  AppColors.textBody,
+                  AppColors.textSecondary,
                 ),
               if (tenant['contract_document_url'] != null &&
                   tenant['contract_document_url'].toString().isNotEmpty)
@@ -1531,7 +1533,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
 
     return RefreshIndicator(
       onRefresh: _fetchAll,
-      color: AppColors.accent,
+      color: AppColors.charcoal,
       backgroundColor: AppColors.surface,
       child: ListView.separated(
         physics: const BouncingScrollPhysics(),
@@ -1567,7 +1569,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: AppColors.accent.withValues(alpha: 0.25),
+          color: AppColors.charcoal.withValues(alpha: 0.25),
         ),
       ),
       child: Column(
@@ -1585,12 +1587,12 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppColors.accent.withValues(alpha: 0.12),
+                        color: AppColors.charcoal.withValues(alpha: 0.12),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
                         Icons.person_outline,
-                        color: AppColors.accent,
+                        color: AppColors.charcoal,
                         size: 20,
                       ),
                     ),
@@ -1605,7 +1607,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                     Text(
                       landlord['temp_name'] ?? 'İsimsiz Ev Sahibi',
                       style: const TextStyle(
-                        color: AppColors.textHeader,
+                        color: AppColors.charcoal,
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                       ),
@@ -1617,7 +1619,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                       children: [
                         Icon(
                           Icons.location_on_outlined,
-                          color: AppColors.textBody.withValues(alpha: 0.5),
+                          color: AppColors.textSecondary.withValues(alpha: 0.5),
                           size: 12,
                         ),
                         const SizedBox(width: 3),
@@ -1625,7 +1627,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                           child: Text(
                             '${landlord['property_name'] ?? '-'} · Kapı ${landlord['unit_door_number'] ?? '-'}',
                             style: TextStyle(
-                              color: AppColors.textBody.withValues(alpha: 0.65),
+                              color: AppColors.textSecondary.withValues(alpha: 0.65),
                               fontSize: 11,
                             ),
                             maxLines: 1,
@@ -1640,13 +1642,13 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: 0.12),
+                  color: AppColors.charcoal.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   '%${landlord['ownership_share'] ?? 100}',
                   style: const TextStyle(
-                    color: AppColors.accent,
+                    color: AppColors.charcoal,
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                   ),
@@ -1655,7 +1657,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
               const SizedBox(width: 4),
               // §4.1.4: Düzenle + Sil PopupMenu
               PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert, color: AppColors.textBody.withValues(alpha: 0.6), size: 20),
+                icon: Icon(Icons.more_vert, color: AppColors.textSecondary.withValues(alpha: 0.6), size: 20),
                 tooltip: 'İşlemler',
                 color: AppColors.surface,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -1671,9 +1673,9 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                     value: 'edit',
                     child: Row(
                       children: [
-                        Icon(Icons.edit, size: 18, color: AppColors.accent),
+                        Icon(Icons.edit, size: 18, color: AppColors.charcoal),
                         const SizedBox(width: 8),
-                        const Text('Düzenle', style: TextStyle(color: AppColors.textHeader, fontSize: 14)),
+                        const Text('Düzenle', style: TextStyle(color: AppColors.charcoal, fontSize: 14)),
                       ],
                     ),
                   ),
@@ -1697,7 +1699,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
             _buildInfoChip(
               Icons.phone_outlined,
               landlord['temp_phone'].toString(),
-              AppColors.textBody,
+              AppColors.textSecondary,
             ),
           ],
           const SizedBox(height: 14),
@@ -1749,13 +1751,13 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                 color: AppColors.surface.withValues(alpha: 0.5),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 48, color: AppColors.textBody),
+              child: Icon(icon, size: 48, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 24),
             Text(
               title,
               style: const TextStyle(
-                color: AppColors.textHeader,
+                color: AppColors.charcoal,
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
               ),
@@ -1764,7 +1766,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
             Text(
               subtitle,
               style: TextStyle(
-                color: AppColors.textBody.withValues(alpha: 0.65),
+                color: AppColors.textSecondary.withValues(alpha: 0.65),
                 fontSize: 13,
               ),
               textAlign: TextAlign.center,
@@ -1924,10 +1926,10 @@ class _CreatePersonBottomSheetState extends State<_CreatePersonBottomSheet>
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.accent.withValues(alpha: 0.15),
+                    color: AppColors.charcoal.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Icon(Icons.person_add, color: AppColors.accent, size: 22),
+                  child: const Icon(Icons.person_add, color: AppColors.charcoal, size: 22),
                 ),
                 const SizedBox(width: 14),
                 const Expanded(
@@ -1944,13 +1946,13 @@ class _CreatePersonBottomSheetState extends State<_CreatePersonBottomSheet>
                       ),
                       Text(
                         'Kiracı veya ev sahibi oluşturun',
-                        style: TextStyle(color: AppColors.textBody, fontSize: 12),
+                        style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
                       ),
                     ],
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close, color: AppColors.textBody),
+                  icon: const Icon(Icons.close, color: AppColors.textSecondary),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
@@ -1967,10 +1969,10 @@ class _CreatePersonBottomSheetState extends State<_CreatePersonBottomSheet>
               ),
               child: TabBar(
                 controller: _tabController,
-                indicatorColor: AppColors.accent,
+                indicatorColor: AppColors.charcoal,
                 indicatorSize: TabBarIndicatorSize.tab,
-                labelColor: AppColors.accent,
-                unselectedLabelColor: AppColors.textBody,
+                labelColor: AppColors.charcoal,
+                unselectedLabelColor: AppColors.textSecondary,
                 dividerColor: Colors.transparent,
                 labelStyle: const TextStyle(
                   fontWeight: FontWeight.w700,
@@ -2012,7 +2014,7 @@ class _CreatePersonBottomSheetState extends State<_CreatePersonBottomSheet>
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w700,
-              color: AppColors.textBody,
+              color: AppColors.textSecondary,
               letterSpacing: 1.5,
             ),
           ),
@@ -2023,7 +2025,7 @@ class _CreatePersonBottomSheetState extends State<_CreatePersonBottomSheet>
             value: widget.selectedProperty,
             decoration: InputDecoration(
               labelText: 'Mülk Seçin',
-              labelStyle: const TextStyle(color: AppColors.textBody),
+              labelStyle: const TextStyle(color: AppColors.textSecondary),
               filled: true,
               fillColor: AppColors.background,
               border: OutlineInputBorder(
@@ -2032,12 +2034,12 @@ class _CreatePersonBottomSheetState extends State<_CreatePersonBottomSheet>
               ),
             ),
             dropdownColor: AppColors.surface,
-            style: const TextStyle(color: AppColors.textHeader),
-            hint: Text('Mülk seçin', style: TextStyle(color: AppColors.textBody)),
+            style: const TextStyle(color: AppColors.charcoal),
+            hint: Text('Mülk seçin', style: TextStyle(color: AppColors.textSecondary)),
             items: widget.properties.map((p) {
               return DropdownMenuItem(
                 value: p,
-                child: Text(p['name'] ?? '', style: const TextStyle(color: AppColors.textHeader)),
+                child: Text(p['name'] ?? '', style: const TextStyle(color: AppColors.charcoal)),
               );
             }).toList(),
             onChanged: (v) => widget.onPropertyChanged(v),
@@ -2050,7 +2052,7 @@ class _CreatePersonBottomSheetState extends State<_CreatePersonBottomSheet>
             value: widget.selectedUnit,
             decoration: InputDecoration(
               labelText: 'Birim (Kapı) Seçin',
-              labelStyle: const TextStyle(color: AppColors.textBody),
+              labelStyle: const TextStyle(color: AppColors.textSecondary),
               filled: true,
               fillColor: AppColors.background,
               border: OutlineInputBorder(
@@ -2059,19 +2061,19 @@ class _CreatePersonBottomSheetState extends State<_CreatePersonBottomSheet>
               ),
             ),
             dropdownColor: AppColors.surface,
-            style: const TextStyle(color: AppColors.textHeader),
+            style: const TextStyle(color: AppColors.charcoal),
             hint: Text(
               widget.selectedProperty == null
                   ? 'Önce mülk seçin'
                   : 'Birim seçin',
-              style: TextStyle(color: AppColors.textBody),
+              style: TextStyle(color: AppColors.textSecondary),
             ),
             items: widget.availableUnits.map((u) {
               return DropdownMenuItem(
                 value: u,
                 child: Text(
                   'Kapı ${u['door_number'] ?? '-'} · Kat ${u['floor'] ?? '-'}',
-                  style: const TextStyle(color: AppColors.textHeader),
+                  style: const TextStyle(color: AppColors.charcoal),
                 ),
               );
             }).toList(),
@@ -2086,7 +2088,7 @@ class _CreatePersonBottomSheetState extends State<_CreatePersonBottomSheet>
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w700,
-              color: AppColors.textBody,
+              color: AppColors.textSecondary,
               letterSpacing: 1.5,
             ),
           ),
@@ -2130,12 +2132,12 @@ class _CreatePersonBottomSheetState extends State<_CreatePersonBottomSheet>
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: AppColors.accent.withValues(alpha: 0.05),
+              color: AppColors.charcoal.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: _showKvkkError
                     ? AppColors.error.withValues(alpha: 0.5)
-                    : AppColors.accent.withValues(alpha: 0.15),
+                    : AppColors.charcoal.withValues(alpha: 0.15),
               ),
             ),
             child: Column(
@@ -2151,7 +2153,7 @@ class _CreatePersonBottomSheetState extends State<_CreatePersonBottomSheet>
                           if (_kvkkAccepted) _showKvkkError = false;
                         });
                       },
-                      activeColor: AppColors.accent,
+                      activeColor: AppColors.charcoal,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(4),
                       ),
@@ -2160,7 +2162,7 @@ class _CreatePersonBottomSheetState extends State<_CreatePersonBottomSheet>
                       child: Text(
                         'KVKK ve Aydınlatma Metni\'ni onaylıyorum',
                         style: TextStyle(
-                          color: AppColors.textHeader,
+                          color: AppColors.charcoal,
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
@@ -2192,9 +2194,9 @@ class _CreatePersonBottomSheetState extends State<_CreatePersonBottomSheet>
                   ? null
                   : widget.onSaveTenant,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accent,
+                backgroundColor: AppColors.charcoal,
                 foregroundColor: Colors.white,
-                disabledBackgroundColor: AppColors.accent.withValues(alpha: 0.3),
+                disabledBackgroundColor: AppColors.charcoal.withValues(alpha: 0.3),
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -2240,7 +2242,7 @@ class _CreatePersonBottomSheetState extends State<_CreatePersonBottomSheet>
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w700,
-              color: AppColors.textBody,
+              color: AppColors.textSecondary,
               letterSpacing: 1.5,
             ),
           ),
@@ -2278,7 +2280,7 @@ class _CreatePersonBottomSheetState extends State<_CreatePersonBottomSheet>
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w700,
-              color: AppColors.textBody,
+              color: AppColors.textSecondary,
               letterSpacing: 1.5,
             ),
           ),
@@ -2288,7 +2290,7 @@ class _CreatePersonBottomSheetState extends State<_CreatePersonBottomSheet>
             value: widget.selectedProperty,
             decoration: InputDecoration(
               labelText: 'Mülk Seçin',
-              labelStyle: const TextStyle(color: AppColors.textBody),
+              labelStyle: const TextStyle(color: AppColors.textSecondary),
               filled: true,
               fillColor: AppColors.background,
               border: OutlineInputBorder(
@@ -2297,12 +2299,12 @@ class _CreatePersonBottomSheetState extends State<_CreatePersonBottomSheet>
               ),
             ),
             dropdownColor: AppColors.surface,
-            style: const TextStyle(color: AppColors.textHeader),
-            hint: Text('Mülk seçin', style: TextStyle(color: AppColors.textBody)),
+            style: const TextStyle(color: AppColors.charcoal),
+            hint: Text('Mülk seçin', style: TextStyle(color: AppColors.textSecondary)),
             items: widget.properties.map((p) {
               return DropdownMenuItem(
                 value: p,
-                child: Text(p['name'] ?? '', style: const TextStyle(color: AppColors.textHeader)),
+                child: Text(p['name'] ?? '', style: const TextStyle(color: AppColors.charcoal)),
               );
             }).toList(),
             onChanged: (v) {
@@ -2358,12 +2360,12 @@ class _CreatePersonBottomSheetState extends State<_CreatePersonBottomSheet>
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: AppColors.accent.withValues(alpha: 0.05),
+              color: AppColors.charcoal.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: _showKvkkError
                     ? AppColors.error.withValues(alpha: 0.5)
-                    : AppColors.accent.withValues(alpha: 0.15),
+                    : AppColors.charcoal.withValues(alpha: 0.15),
               ),
             ),
             child: Row(
@@ -2376,7 +2378,7 @@ class _CreatePersonBottomSheetState extends State<_CreatePersonBottomSheet>
                       if (_kvkkAccepted) _showKvkkError = false;
                     });
                   },
-                  activeColor: AppColors.accent,
+                  activeColor: AppColors.charcoal,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(4),
                   ),
@@ -2385,7 +2387,7 @@ class _CreatePersonBottomSheetState extends State<_CreatePersonBottomSheet>
                   child: Text(
                     'KVKK ve Aydınlatma Metni\'ni onaylıyorum',
                     style: TextStyle(
-                      color: AppColors.textHeader,
+                      color: AppColors.charcoal,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
@@ -2404,9 +2406,9 @@ class _CreatePersonBottomSheetState extends State<_CreatePersonBottomSheet>
                   ? null
                   : widget.onSaveLandlord,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accent,
+                backgroundColor: AppColors.charcoal,
                 foregroundColor: Colors.white,
-                disabledBackgroundColor: AppColors.accent.withValues(alpha: 0.3),
+                disabledBackgroundColor: AppColors.charcoal.withValues(alpha: 0.3),
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -2454,9 +2456,9 @@ class _CreatePersonBottomSheetState extends State<_CreatePersonBottomSheet>
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        labelStyle: const TextStyle(color: AppColors.textBody),
-        hintStyle: TextStyle(color: AppColors.textBody.withValues(alpha: 0.35)),
-        prefixIcon: Icon(icon, color: AppColors.accent, size: 20),
+        labelStyle: const TextStyle(color: AppColors.textSecondary),
+        hintStyle: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.35)),
+        prefixIcon: Icon(icon, color: AppColors.charcoal, size: 20),
         filled: true,
         fillColor: AppColors.background,
         border: OutlineInputBorder(
@@ -2465,7 +2467,7 @@ class _CreatePersonBottomSheetState extends State<_CreatePersonBottomSheet>
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.accent, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.charcoal, width: 1.5),
         ),
       ),
     );
@@ -2680,7 +2682,7 @@ class _PhoneVerificationSheetState extends State<_PhoneVerificationSheet> {
                       color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800,
                     )),
                     Text('Firebase OTP ile doğrulama', style: TextStyle(
-                      color: AppColors.textBody, fontSize: 12,
+                      color: AppColors.textSecondary, fontSize: 12,
                     )),
                   ],
                 ),
@@ -2753,7 +2755,7 @@ class _PhoneVerificationSheetState extends State<_PhoneVerificationSheet> {
               decoration: InputDecoration(
                 counterText: '',
                 hintText: '------',
-                hintStyle: TextStyle(color: AppColors.textBody.withValues(alpha: 0.3), letterSpacing: 8),
+                hintStyle: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.3), letterSpacing: 8),
                 filled: true,
                 fillColor: AppColors.background,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
@@ -2781,8 +2783,8 @@ class _PhoneVerificationSheetState extends State<_PhoneVerificationSheet> {
                 OutlinedButton(
                   onPressed: _isLoading ? null : _sendOtp,
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.textBody,
-                    side: BorderSide(color: AppColors.textBody.withValues(alpha: 0.3)),
+                    foregroundColor: AppColors.textSecondary,
+                    side: BorderSide(color: AppColors.textSecondary.withValues(alpha: 0.3)),
                     padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
@@ -2799,14 +2801,14 @@ class _PhoneVerificationSheetState extends State<_PhoneVerificationSheet> {
                     children: [
                       CircularProgressIndicator(color: Color(0xFF6B8E6B)),
                       SizedBox(height: 16),
-                      Text('Doğrulama kodu gönderiliyor...', style: TextStyle(color: AppColors.textBody)),
+                      Text('Doğrulama kodu gönderiliyor...', style: TextStyle(color: AppColors.textSecondary)),
                     ],
                   ),
                 ),
               ),
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('İptal', style: TextStyle(color: AppColors.textBody)),
+              child: const Text('İptal', style: TextStyle(color: AppColors.textSecondary)),
             ),
           ],
         ],

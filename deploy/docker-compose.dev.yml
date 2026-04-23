@@ -1,0 +1,80 @@
+# Emlakdefter Development Stack (All-in-Docker)
+# Usage: docker-compose -f docker-compose.dev.yml up -d
+
+name: emlakdefter-dev
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: emlakdefter_db
+    restart: always
+    environment:
+      POSTGRES_USER: emlakdefter_user
+      POSTGRES_PASSWORD: emlakdefter_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db-init.sh:/docker-entrypoint-initdb.d/zz-fix-perms.sh:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U emlakdefter_user -d emlakdefter" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: emlakdefter_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: emlakdefter_backend
+    restart: always
+    ports:
+      - "8000:8000" # FastAPI main
+      - "8001:8001" # WebSocket
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://emlakdefter_user:emlakdefter_password@db:5432/emlakdefter
+      - SYNC_DATABASE_URL=postgresql://emlakdefter_user:emlakdefter_password@db:5432/emlakdefter
+      - REDIS_URL=redis://redis:6379/0
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - DEV_MODE=false
+      - SECRET_KEY=${SECRET_KEY:-dev_secret_key_change_in_production}
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=1440
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-AIzaSyBPxN_uhysd0A293bZGn9nLFhx_ipz3Ljk}
+      - FIREBASE_CREDENTIALS_PATH=${FIREBASE_CREDENTIALS_PATH:-}
+      - FCM_VAPID_KEY=${FCM_VAPID_KEY:-}
+      - HETZNER_ACCESS_KEY=${HETZNER_ACCESS_KEY:-}
+      - HETZNER_SECRET_KEY=${HETZNER_SECRET_KEY:-}
+      - HETZNER_ENDPOINT=${HETZNER_ENDPOINT:-}
+      - HETZNER_BUCKET=${HETZNER_BUCKET:-}
+      - HETZNER_CDN_BASE=${HETZNER_CDN_BASE:-}
+    env_file:
+      - ../backend/.env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    volumes:
+      - ../backend:/app
+    command: [ "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app" ]
+
+volumes:
+  postgres_data:
+  redis_data:

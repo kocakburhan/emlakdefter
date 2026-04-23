@@ -1,13 +1,10 @@
 import 'package:go_router/go_router.dart';
 import '../../features/auth/screens/role_selection_screen.dart';
-import '../../features/auth/screens/simple_login_screen.dart';
-import '../../features/auth/screens/phone_login_screen.dart';
-import '../../features/auth/screens/otp_verification_screen.dart';
+import '../../features/auth/screens/email_login_screen.dart';
 import '../../features/agent/screens/agent_dashboard_screen.dart';
 import '../../features/tenant/screens/tenant_dashboard_screen.dart';
 import '../../features/landlord/screens/landlord_dashboard_screen.dart';
 
-/// Otonom Gezinme Rotası (İleride Riverpod interceptorleri ve JWT bazlı zorlayıcı Guard rotalar buraya eklenecektir.)
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
   routes: [
@@ -19,22 +16,15 @@ final GoRouter appRouter = GoRouter(
       path: '/login',
       builder: (context, state) {
         final role = state.uri.queryParameters['role'] ?? 'agent';
-        return SimpleLoginScreen(role: role);
+        return EmailLoginScreen(role: role);
       },
     ),
     GoRoute(
-      path: '/phone',
-      builder: (context, state) {
-        final role = state.uri.queryParameters['role'] ?? 'agent';
-        return PhoneLoginScreen(role: role);
-      },
-    ),
-    GoRoute(
-      path: '/otp',
+      path: '/register',
       builder: (context, state) {
         final role = state.uri.queryParameters['role'] ?? 'tenant';
-        final phone = state.uri.queryParameters['phone'] ?? '';
-        return OtpVerificationScreen(role: role, phone: phone);
+        final token = state.uri.queryParameters['t'];
+        return EmailLoginScreen(role: role, invitationToken: token);
       },
     ),
     GoRoute(

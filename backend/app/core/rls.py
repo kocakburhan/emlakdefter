@@ -40,6 +40,7 @@ async def set_rls_context(session: AsyncSession, agency_id: UUID) -> None:
         - SET LOCAL değil, set_config() kullanılır çünkü transaction
           içinde bile kalıcı olmalı
     """
+    # Use cast on the database side to handle UUID type conversion properly
     await session.execute(
         text("SELECT set_agency_context(:agency_id)"),
         {"agency_id": str(agency_id)}

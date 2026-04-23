@@ -11,10 +11,11 @@ services:
     container_name: emlakdefter_backend
     restart: always
     ports:
-      - "8000:8000"   # FastAPI
-      - "8001:8001"   # WebSocket (separate port)
+      - "8000:8000" # FastAPI
+      - "8001:8001" # WebSocket (separate port)
     environment:
       - DATABASE_URL=postgresql+asyncpg://emlakdefter_user:emlakdefter_password@db:5432/emlakdefter
+      - SYNC_DATABASE_URL=postgresql+psycopg2://emlakdefter_user:emlakdefter_password@db:5432/emlakdefter
       - REDIS_URL=redis://redis:6379/0
       - ENVIRONMENT=production
     env_file:
@@ -25,7 +26,7 @@ services:
       redis:
         condition: service_started
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -42,11 +43,11 @@ services:
       POSTGRES_PASSWORD: emlakdefter_password
       POSTGRES_DB: emlakdefter
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U emlakdefter_user -d emlakdefter"]
+      test: [ "CMD-SHELL", "pg_isready -U emlakdefter_user -d emlakdefter" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -56,7 +57,7 @@ services:
     container_name: emlakdefter_redis
     restart: always
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../core/theme/colors.dart';
 import '../providers/tenant_provider.dart';
 
 // ──────────────────────────────────────────────
@@ -9,13 +10,13 @@ import '../providers/tenant_provider.dart';
 // PRD §4.2.3
 // ──────────────────────────────────────────────
 
-const _bg = Color(0xFF0C1426);
-const _surface = Color(0xFF12192E);
-const _surface2 = Color(0xFF1A2238);
-const _border = Color(0xFF243050);
-const _cyan = Color(0xFF00B4D8);
-const _white = Color(0xFFF8FAFC);
-const _muted = Color(0xFF8899AA);
+const _bg = AppColors.background;
+const _surface = AppColors.surface;
+const _surface2 = AppColors.surfaceVariant;
+const _border = AppColors.border;
+const _cyan = AppColors.charcoal;
+const _white = AppColors.textOnPrimary;
+const _muted = AppColors.textSecondary;
 
 Color _docColor(String docType) {
   switch (docType) {

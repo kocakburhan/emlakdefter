@@ -441,6 +441,191 @@ async def upload_tenant_contract(
     }
 
 
+# ==================== LANDLORD ENDPOINTS ====================
+
+@router.get("/landlords", response_model=List[LandlordWithDetailsResponse])
+async def get_landlords_list(
+    current_user: User = Depends(deps.get_current_user),
+    agency_id: UUID = Depends(deps.get_current_user_agency_id),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Bu ajansa ait tüm ev sahiplerini listeler (PRD §4.1.4).
+    """
+    stmt = (
+        select(LandlordUnit)
+        .where(LandlordUnit.agency_id == agency_id)
+        .options(selectinload(LandlordUnit.unit).selectinload(PropertyUnit.property))
+    ).order_by(LandlordUnit.created_at.desc())
+    result = await db.execute(stmt)
+    landlords = result.scalars().all()
+
+    response = []
+    for l in landlords:
+        unit = l.unit
+        property_ = unit.property if unit else None
+        response.append(LandlordWithDetailsResponse(
+            id=l.id,
+            agency_id=l.agency_id,
+            unit_id=l.unit_id,
+            user_id=l.user_id,
+            temp_name=l.temp_name,
+            temp_phone=l.temp_phone,
+            ownership_share=l.ownership_share,
+            created_at=l.created_at,
+            unit_door_number=unit.door_number if unit else None,
+            property_name=property_.name if property_ else None,
+            user_full_name=None,
+            user_phone=None
+        ))
+
+    return response
+
+
+@router.post("/landlords", response_model=List[LandlordResponse], status_code=status.HTTP_201_CREATED)
+async def create_landlord(
+    landlord_in: LandlordCreate,
+    current_user: User = Depends(deps.get_current_user),
+    agency_id: UUID = Depends(deps.get_current_user_agency_id),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Yeni ev sahibi oluşturur ve birden fazla birime bağlar (PRD §4.1.4).
+    1-to-Many ilişki: Bir ev sahibi birden fazla birime sahip olabilir.
+    """
+    created_landlords = []
+
+    for unit_id in landlord_in.unit_ids:
+        unit_stmt = select(PropertyUnit).where(
+            PropertyUnit.id == unit_id,
+            PropertyUnit.agency_id == agency_id
+        )
+        unit_result = await db.execute(unit_stmt)
+        unit = unit_result.scalar_one_or_none()
+
+        if not unit:
+            continue
+
+        existing_stmt = select(LandlordUnit).where(
+            LandlordUnit.unit_id == unit_id,
+            LandlordUnit.user_id == landlord_in.user_id
+        )
+        existing_result = await db.execute(existing_stmt)
+        existing = existing_result.scalar_one_or_none()
+
+        if existing:
+            continue
+
+        landlord = LandlordUnit(
+            agency_id=agency_id,
+            unit_id=unit_id,
+            user_id=landlord_in.user_id,
+            temp_name=landlord_in.temp_name,
+            temp_phone=landlord_in.temp_phone,
+            ownership_share=landlord_in.ownership_share
+        )
+        db.add(landlord)
+        created_landlords.append(landlord)
+
+    await db.commit()
+
+    for l in created_landlords:
+        await db.refresh(l)
+
+    return created_landlords
+
+
+@router.get("/landlords/{landlord_id}", response_model=LandlordWithDetailsResponse)
+async def get_landlord(
+    landlord_id: str,
+    current_user: User = Depends(deps.get_current_user),
+    agency_id: UUID = Depends(deps.get_current_user_agency_id),
+    db: AsyncSession = Depends(get_db)
+):
+    """Ev sahibi detayını getirir."""
+    stmt = (
+        select(LandlordUnit)
+        .where(LandlordUnit.id == UUID(landlord_id), LandlordUnit.agency_id == agency_id)
+        .options(selectinload(LandlordUnit.unit).selectinload(PropertyUnit.property))
+    )
+    result = await db.execute(stmt)
+    landlord = result.scalar_one_or_none()
+
+    if not landlord:
+        raise HTTPException(status_code=404, detail="Ev sahibi bulunamadı.")
+
+    unit = landlord.unit
+    property_ = unit.property if unit else None
+
+    return LandlordWithDetailsResponse(
+        id=landlord.id,
+        agency_id=landlord.agency_id,
+        unit_id=landlord.unit_id,
+        user_id=landlord.user_id,
+        temp_name=landlord.temp_name,
+        temp_phone=landlord.temp_phone,
+        ownership_share=landlord.ownership_share,
+        created_at=landlord.created_at,
+        unit_door_number=unit.door_number if unit else None,
+        property_name=property_.name if property_ else None,
+        user_full_name=None,
+        user_phone=None
+    )
+
+
+@router.patch("/landlords/{landlord_id}", response_model=LandlordResponse)
+async def update_landlord(
+    landlord_id: str,
+    landlord_in: LandlordUpdate,
+    current_user: User = Depends(deps.get_current_user),
+    agency_id: UUID = Depends(deps.get_current_user_agency_id),
+    db: AsyncSession = Depends(get_db)
+):
+    """Ev sahibi bilgilerini günceller — PRD §4.1.4"""
+    stmt = select(LandlordUnit).where(
+        LandlordUnit.id == UUID(landlord_id),
+        LandlordUnit.agency_id == agency_id
+    )
+    result = await db.execute(stmt)
+    landlord = result.scalar_one_or_none()
+
+    if not landlord:
+        raise HTTPException(status_code=404, detail="Ev sahibi bulunamadı.")
+
+    update_data = landlord_in.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(landlord, field, value)
+
+    await db.commit()
+    await db.refresh(landlord)
+
+    return landlord
+
+
+@router.delete("/landlords/{landlord_id}", status_code=200)
+async def delete_landlord(
+    landlord_id: str,
+    current_user: User = Depends(deps.get_current_user),
+    agency_id: UUID = Depends(deps.get_current_user_agency_id),
+    db: AsyncSession = Depends(get_db)
+):
+    """Ev sahibini soft-delete olarak siler — PRD §4.1.4"""
+    stmt = select(LandlordUnit).where(
+        LandlordUnit.id == UUID(landlord_id),
+        LandlordUnit.agency_id == agency_id
+    )
+    result = await db.execute(stmt)
+    landlord = result.scalar_one_or_none()
+
+    if not landlord:
+        raise HTTPException(status_code=404, detail="Ev sahibi bulunamadı.")
+
+    landlord.soft_delete()
+    await db.commit()
+
+    return {"success": True, "deleted_landlord_id": str(landlord.id)}
+
+
 @router.get("/{tenant_id}", response_model=TenantWithDetailsResponse)
 async def get_tenant(
     tenant_id: str,
@@ -1021,194 +1206,6 @@ async def get_tenant_vacant_units(
         }
         for u in units
     ]
-
-
-# ==================== LANDLORD ENDPOINTS ====================
-
-@router.get("/landlords", response_model=List[LandlordWithDetailsResponse])
-async def list_landlords(
-    current_user: User = Depends(deps.get_current_user),
-    agency_id: UUID = Depends(deps.get_current_user_agency_id),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Bu ajansa ait tüm ev sahiplerini listeler (PRD §4.1.4).
-    """
-    stmt = (
-        select(LandlordUnit)
-        .where(LandlordUnit.agency_id == agency_id)
-        .options(selectinload(LandlordUnit.unit).selectinload(PropertyUnit.property))
-    ).order_by(LandlordUnit.created_at.desc())
-    result = await db.execute(stmt)
-    landlords = result.scalars().all()
-
-    response = []
-    for l in landlords:
-        unit = l.unit
-        property_ = unit.property if unit else None
-        response.append(LandlordWithDetailsResponse(
-            id=l.id,
-            agency_id=l.agency_id,
-            unit_id=l.unit_id,
-            user_id=l.user_id,
-            temp_name=l.temp_name,
-            temp_phone=l.temp_phone,
-            ownership_share=l.ownership_share,
-            created_at=l.created_at,
-            unit_door_number=unit.door_number if unit else None,
-            property_name=property_.name if property_ else None,
-            user_full_name=None,
-            user_phone=None
-        ))
-
-    return response
-
-
-@router.post("/landlords", response_model=List[LandlordResponse], status_code=status.HTTP_201_CREATED)
-async def create_landlord(
-    landlord_in: LandlordCreate,
-    current_user: User = Depends(deps.get_current_user),
-    agency_id: UUID = Depends(deps.get_current_user_agency_id),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Yeni ev sahibi oluşturur ve birden fazla birime bağlar (PRD §4.1.4).
-    1-to-Many ilişki: Bir ev sahibi birden fazla birime sahip olabilir.
-    """
-    created_landlords = []
-
-    for unit_id in landlord_in.unit_ids:
-        # Birimin bu agency'ye ait olduğunu kontrol et
-        unit_stmt = select(PropertyUnit).where(
-            PropertyUnit.id == unit_id,
-            PropertyUnit.agency_id == agency_id
-        )
-        unit_result = await db.execute(unit_stmt)
-        unit = unit_result.scalar_one_or_none()
-
-        if not unit:
-            continue  # Bu birimi atla
-
-        # Aynı kullanıcı + birim kombinasyonu var mı kontrol et
-        existing_stmt = select(LandlordUnit).where(
-            LandlordUnit.unit_id == unit_id,
-            LandlordUnit.user_id == landlord_in.user_id
-        )
-        existing_result = await db.execute(existing_stmt)
-        existing = existing_result.scalar_one_or_none()
-
-        if existing:
-            continue  # Zaten varsa ekleme
-
-        landlord = LandlordUnit(
-            agency_id=agency_id,
-            unit_id=unit_id,
-            user_id=landlord_in.user_id,
-            temp_name=landlord_in.temp_name,
-            temp_phone=landlord_in.temp_phone,
-            ownership_share=landlord_in.ownership_share
-        )
-        db.add(landlord)
-        created_landlords.append(landlord)
-
-    await db.commit()
-
-    # Refresh all created
-    for l in created_landlords:
-        await db.refresh(l)
-
-    return created_landlords
-
-
-@router.get("/landlords/{landlord_id}", response_model=LandlordWithDetailsResponse)
-async def get_landlord(
-    landlord_id: str,
-    current_user: User = Depends(deps.get_current_user),
-    agency_id: UUID = Depends(deps.get_current_user_agency_id),
-    db: AsyncSession = Depends(get_db)
-):
-    """Ev sahibi detayını getirir."""
-    stmt = (
-        select(LandlordUnit)
-        .where(LandlordUnit.id == UUID(landlord_id), LandlordUnit.agency_id == agency_id)
-        .options(selectinload(LandlordUnit.unit).selectinload(PropertyUnit.property))
-    )
-    result = await db.execute(stmt)
-    landlord = result.scalar_one_or_none()
-
-    if not landlord:
-        raise HTTPException(status_code=404, detail="Ev sahibi bulunamadı.")
-
-    unit = landlord.unit
-    property_ = unit.property if unit else None
-
-    return LandlordWithDetailsResponse(
-        id=landlord.id,
-        agency_id=landlord.agency_id,
-        unit_id=landlord.unit_id,
-        user_id=landlord.user_id,
-        temp_name=landlord.temp_name,
-        temp_phone=landlord.temp_phone,
-        ownership_share=landlord.ownership_share,
-        created_at=landlord.created_at,
-        unit_door_number=unit.door_number if unit else None,
-        property_name=property_.name if property_ else None,
-        user_full_name=None,
-        user_phone=None
-    )
-
-
-@router.patch("/landlords/{landlord_id}", response_model=LandlordResponse)
-async def update_landlord(
-    landlord_id: str,
-    landlord_in: LandlordUpdate,
-    current_user: User = Depends(deps.get_current_user),
-    agency_id: UUID = Depends(deps.get_current_user_agency_id),
-    db: AsyncSession = Depends(get_db)
-):
-    """Ev sahibi bilgilerini günceller — PRD §4.1.4"""
-    stmt = select(LandlordUnit).where(
-        LandlordUnit.id == UUID(landlord_id),
-        LandlordUnit.agency_id == agency_id
-    )
-    result = await db.execute(stmt)
-    landlord = result.scalar_one_or_none()
-
-    if not landlord:
-        raise HTTPException(status_code=404, detail="Ev sahibi bulunamadı.")
-
-    update_data = landlord_in.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(landlord, field, value)
-
-    await db.commit()
-    await db.refresh(landlord)
-
-    return landlord
-
-
-@router.delete("/landlords/{landlord_id}", status_code=200)
-async def delete_landlord(
-    landlord_id: str,
-    current_user: User = Depends(deps.get_current_user),
-    agency_id: UUID = Depends(deps.get_current_user_agency_id),
-    db: AsyncSession = Depends(get_db)
-):
-    """Ev sahibini soft-delete olarak siler — PRD §4.1.4"""
-    stmt = select(LandlordUnit).where(
-        LandlordUnit.id == UUID(landlord_id),
-        LandlordUnit.agency_id == agency_id
-    )
-    result = await db.execute(stmt)
-    landlord = result.scalar_one_or_none()
-
-    if not landlord:
-        raise HTTPException(status_code=404, detail="Ev sahibi bulunamadı.")
-
-    landlord.soft_delete()
-    await db.commit()
-
-    return {"success": True, "deleted_landlord_id": str(landlord.id)}
 
 
 @router.delete("/{tenant_id}", status_code=200)

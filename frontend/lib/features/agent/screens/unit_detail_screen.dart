@@ -210,7 +210,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
   }
 
   Color get _statusColor {
-    if (_unit == null) return AppColors.textBody;
+    if (_unit == null) return AppColors.textSecondary;
     switch (_unit!['status']) {
       case 'occupied':
         return AppColors.success;
@@ -219,7 +219,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
       case 'maintenance':
         return AppColors.error;
       default:
-        return AppColors.textBody;
+        return AppColors.textSecondary;
     }
   }
 
@@ -291,7 +291,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
           // ── SLIVER APP BAR ──────────────────────────────────────────
           SliverAppBar(
             backgroundColor: AppColors.background,
-            foregroundColor: AppColors.textHeader,
+            foregroundColor: AppColors.charcoal,
             pinned: true,
             expandedHeight: 140,
             leading: SlideTransition(
@@ -325,7 +325,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
                       Text(
                         'Kapı ${_unit?['door_number'] ?? '...'}',
                         style: const TextStyle(
-                          color: AppColors.textHeader,
+                          color: AppColors.charcoal,
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.3,
@@ -335,7 +335,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
                       Text(
                         widget.propertyName,
                         style: TextStyle(
-                          color: AppColors.textBody.withValues(alpha: 0.7),
+                          color: AppColors.textSecondary.withValues(alpha: 0.7),
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
                         ),
@@ -357,7 +357,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
                             child: Text(
                               'İptal',
                               style: TextStyle(
-                                color: AppColors.textBody.withValues(alpha: 0.7),
+                                color: AppColors.textSecondary.withValues(alpha: 0.7),
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -368,7 +368,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
                             child: ElevatedButton(
                               onPressed: _isSaving ? null : _saveChanges,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.accent,
+                                backgroundColor: AppColors.charcoal,
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 16,
@@ -425,7 +425,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
           if (_isLoading)
             const SliverFillRemaining(
               child: Center(
-                child: CircularProgressIndicator(color: AppColors.accent),
+                child: CircularProgressIndicator(color: AppColors.charcoal),
               ),
             )
           else if (_error != null)
@@ -546,7 +546,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
                 Text(
                   'Kapı $door · Kat $floor',
                   style: const TextStyle(
-                    color: AppColors.textHeader,
+                    color: AppColors.charcoal,
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.5,
@@ -556,7 +556,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
                 Text(
                   widget.propertyName,
                   style: TextStyle(
-                    color: AppColors.textBody.withValues(alpha: 0.65),
+                    color: AppColors.textSecondary.withValues(alpha: 0.65),
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
@@ -596,13 +596,13 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: AppColors.accent.withValues(alpha: 0.15),
+            color: AppColors.charcoal.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(6),
           ),
           child: Text(
             badge,
             style: const TextStyle(
-              color: AppColors.accent,
+              color: AppColors.charcoal,
               fontSize: 10,
               fontWeight: FontWeight.w900,
               letterSpacing: 1,
@@ -613,7 +613,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
         Text(
           title,
           style: const TextStyle(
-            color: AppColors.textHeader,
+            color: AppColors.charcoal,
             fontSize: 15,
             fontWeight: FontWeight.w800,
             letterSpacing: 0.3,
@@ -714,7 +714,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
             suffix: '%',
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             enabled: _isEditing,
-            accentColor: AppColors.accent,
+            accentColor: AppColors.charcoal,
           ),
 
           Divider(
@@ -757,12 +757,12 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: 0.12),
+                  color: AppColors.charcoal.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
                   Icons.checklist_rounded,
-                  color: AppColors.accent,
+                  color: AppColors.charcoal,
                   size: 18,
                 ),
               ),
@@ -774,7 +774,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
                     Text(
                       'Bina Özellikleri',
                       style: TextStyle(
-                        color: AppColors.textHeader,
+                        color: AppColors.charcoal,
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                       ),
@@ -782,7 +782,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
                     Text(
                       'Mülk genelinde tanımlı teknik olanaklar',
                       style: TextStyle(
-                        color: AppColors.textBody,
+                        color: AppColors.textSecondary,
                         fontSize: 11,
                       ),
                     ),
@@ -792,13 +792,13 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: 0.10),
+                  color: AppColors.charcoal.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   '${features.length} özellik',
                   style: const TextStyle(
-                    color: AppColors.accent,
+                    color: AppColors.charcoal,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
@@ -818,14 +818,14 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
                 children: [
                   Icon(
                     Icons.info_outline,
-                    color: AppColors.textBody.withValues(alpha: 0.4),
+                    color: AppColors.textSecondary.withValues(alpha: 0.4),
                     size: 18,
                   ),
                   const SizedBox(width: 10),
                   Text(
                     'Bu mülkte henüz özellik tanımlanmamış',
                     style: TextStyle(
-                      color: AppColors.textBody.withValues(alpha: 0.6),
+                      color: AppColors.textSecondary.withValues(alpha: 0.6),
                       fontSize: 13,
                     ),
                   ),
@@ -861,10 +861,10 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.accent.withValues(alpha: 0.10),
+                      color: AppColors.charcoal.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: AppColors.accent.withValues(alpha: 0.20),
+                        color: AppColors.charcoal.withValues(alpha: 0.20),
                       ),
                     ),
                     child: Row(
@@ -872,14 +872,14 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
                       children: [
                         Icon(
                           feature['icon'] as IconData,
-                          color: AppColors.accent,
+                          color: AppColors.charcoal,
                           size: 14,
                         ),
                         const SizedBox(width: 6),
                         Text(
                           feature['label'] as String,
                           style: const TextStyle(
-                            color: AppColors.textHeader,
+                            color: AppColors.charcoal,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -924,12 +924,12 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: 0.12),
+                  color: AppColors.charcoal.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
                   Icons.photo_library_outlined,
-                  color: AppColors.accent,
+                  color: AppColors.charcoal,
                   size: 18,
                 ),
               ),
@@ -941,7 +941,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
                     Text(
                       'Fotoğraf Galerisi',
                       style: TextStyle(
-                        color: AppColors.textHeader,
+                        color: AppColors.charcoal,
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                       ),
@@ -949,7 +949,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
                     Text(
                       'Kronolojik sırayla eklenmiş görseller',
                       style: TextStyle(
-                        color: AppColors.textBody,
+                        color: AppColors.textSecondary,
                         fontSize: 11,
                       ),
                     ),
@@ -959,13 +959,13 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: 0.10),
+                  color: AppColors.charcoal.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   '${mediaItems.length} görsel',
                   style: const TextStyle(
-                    color: AppColors.accent,
+                    color: AppColors.charcoal,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
@@ -993,7 +993,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
                     ),
                     child: Icon(
                       Icons.add_photo_alternate_outlined,
-                      color: AppColors.textBody.withValues(alpha: 0.4),
+                      color: AppColors.textSecondary.withValues(alpha: 0.4),
                       size: 28,
                     ),
                   ),
@@ -1001,7 +1001,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
                   Text(
                     'Henüz fotoğraf eklenmemiş',
                     style: TextStyle(
-                      color: AppColors.textBody.withValues(alpha: 0.6),
+                      color: AppColors.textSecondary.withValues(alpha: 0.6),
                       fontSize: 13,
                     ),
                   ),
@@ -1009,7 +1009,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
                   Text(
                     'Fotoğraf yüklemek için medya upload kullanın',
                     style: TextStyle(
-                      color: AppColors.textBody.withValues(alpha: 0.4),
+                      color: AppColors.textSecondary.withValues(alpha: 0.4),
                       fontSize: 11,
                     ),
                   ),
@@ -1058,7 +1058,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
                                 color: AppColors.background,
                                 child: Icon(
                                   Icons.image,
-                                  color: AppColors.textBody.withValues(alpha: 0.3),
+                                  color: AppColors.textSecondary.withValues(alpha: 0.3),
                                   size: 32,
                                 ),
                               ),
@@ -1130,7 +1130,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
                     ),
                     child: const Icon(
                       Icons.image,
-                      color: AppColors.textBody,
+                      color: AppColors.textSecondary,
                       size: 64,
                     ),
                   ),
@@ -1139,7 +1139,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
                     onPressed: () => Navigator.pop(ctx),
                     child: const Text(
                       'Kapat',
-                      style: TextStyle(color: AppColors.textBody),
+                      style: TextStyle(color: AppColors.textSecondary),
                     ),
                   ),
                 ],
@@ -1172,7 +1172,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
           const Text(
             'Veri yüklenemedi',
             style: TextStyle(
-              color: AppColors.textHeader,
+              color: AppColors.charcoal,
               fontSize: 18,
               fontWeight: FontWeight.w700,
             ),
@@ -1181,7 +1181,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
           Text(
             _error ?? 'Bilinmeyen hata',
             style: TextStyle(
-              color: AppColors.textBody.withValues(alpha: 0.6),
+              color: AppColors.textSecondary.withValues(alpha: 0.6),
               fontSize: 12,
             ),
             textAlign: TextAlign.center,
@@ -1190,7 +1190,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
           ElevatedButton.icon(
             onPressed: _fetchUnit,
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.accent,
+              backgroundColor: AppColors.charcoal,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(
                 horizontal: 20,
@@ -1222,7 +1222,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
     bool enabled = true,
     Color? accentColor,
   }) {
-    final color = accentColor ?? AppColors.accent;
+    final color = accentColor ?? AppColors.charcoal;
 
     return Row(
       children: [
@@ -1242,7 +1242,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
               Text(
                 label,
                 style: TextStyle(
-                  color: AppColors.textBody.withValues(alpha: 0.7),
+                  color: AppColors.textSecondary.withValues(alpha: 0.7),
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.3,
@@ -1254,7 +1254,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
                       controller: controller,
                       keyboardType: keyboardType,
                       style: TextStyle(
-                        color: AppColors.textHeader,
+                        color: AppColors.charcoal,
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                       ),
@@ -1264,18 +1264,18 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
                         border: InputBorder.none,
                         hintText: hint,
                         hintStyle: TextStyle(
-                          color: AppColors.textBody.withValues(alpha: 0.35),
+                          color: AppColors.textSecondary.withValues(alpha: 0.35),
                           fontSize: 15,
                         ),
                         prefixText: prefix,
                         prefixStyle: TextStyle(
-                          color: AppColors.textBody,
+                          color: AppColors.textSecondary,
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),
                         suffixText: suffix,
                         suffixStyle: TextStyle(
-                          color: AppColors.textBody,
+                          color: AppColors.textSecondary,
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                         ),
@@ -1284,7 +1284,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
                   : Text(
                       '${prefix ?? ''}${controller.text}${suffix ?? ''}',
                       style: TextStyle(
-                        color: AppColors.textHeader,
+                        color: AppColors.charcoal,
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                       ),
@@ -1296,12 +1296,12 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
           Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: AppColors.accent.withValues(alpha: 0.15),
+              color: AppColors.charcoal.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
               Icons.edit,
-              color: AppColors.accent.withValues(alpha: 0.7),
+              color: AppColors.charcoal.withValues(alpha: 0.7),
               size: 12,
             ),
           ),
@@ -1332,7 +1332,7 @@ class _InlineYoutubePlayer extends StatelessWidget {
         const Text(
           'Video Görüntüleyici',
           style: TextStyle(
-            color: AppColors.textHeader,
+            color: AppColors.charcoal,
             fontSize: 14,
             fontWeight: FontWeight.w700,
           ),
@@ -1400,7 +1400,7 @@ class _InlineYoutubePlayer extends StatelessWidget {
                 child: Text(
                   youtubeUrl,
                   style: TextStyle(
-                    color: AppColors.textBody.withValues(alpha: 0.6),
+                    color: AppColors.textSecondary.withValues(alpha: 0.6),
                     fontSize: 10,
                     fontFamily: 'monospace',
                   ),
@@ -1470,7 +1470,7 @@ class _VideoPreviewDialog extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
           child: const Text(
             'Kapat',
-            style: TextStyle(color: AppColors.textBody),
+            style: TextStyle(color: AppColors.textSecondary),
           ),
         ),
       ],

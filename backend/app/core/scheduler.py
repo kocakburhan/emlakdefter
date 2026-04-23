@@ -14,6 +14,8 @@ from app.core.firebase import send_fcm_notification_to_tokens
 
 logger = logging.getLogger(__name__)
 
+_scheduler_started = False
+
 # Tüm Asenkron görevleri takvime bağlayan yönetici (Manager) nesnesi
 scheduler = AsyncIOScheduler()
 
@@ -155,6 +157,11 @@ async def _get_user_fcm_tokens(db: AsyncSession, tenant_id: str) -> list[str]:
 
 def start_scheduler():
     """FastAPI OnStartup listesinde çağırılacak ateşleme butonu."""
+    global _scheduler_started
+    if _scheduler_started:
+        logger.info("[INFO] Scheduler zaten çalışıyor, yeniden başlatma atlanıyor.")
+        return
+    _scheduler_started = True
     # PRD §3.3: Her ay otonom payment_schedules üretimi
     scheduler.add_job(generate_monthly_dues, CronTrigger(hour=1, minute=0))
     # PRD §3.3: FCM bildirimleri — her gün saat 09:00'da

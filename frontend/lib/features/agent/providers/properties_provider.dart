@@ -108,6 +108,7 @@ class PropertiesNotifier extends StateNotifier<AsyncValue<List<PropertyModel>>> 
   /// Yeni apartman/mülk oluşturur: POST /api/v1/properties
   /// PRD Madde 4.1.2-B: Otonom Üretim Motoru tetiklenir
   /// Returns total_units created by the server, or null on failure.
+  /// floor_config: Her kat için detaylı birim yapılandırması (varsa uniform döngü yerine kullanılır)
   Future<int?> createProperty({
     required String name,
     required String type,
@@ -118,20 +119,30 @@ class PropertiesNotifier extends StateNotifier<AsyncValue<List<PropertyModel>>> 
     int? startFloor,
     int? endFloor,
     int? unitsPerFloor,
+    // Esnek kat yapılandırması (her kat için birim sayısı)
+    List<Map<String, dynamic>>? floorConfig,
   }) async {
     final currentList = state.value ?? [];
 
     try {
-      final response = await ApiClient.dio.post('/properties', data: {
+      final Map<String, dynamic> payload = {
         'name': name,
         'type': type,
         'address': address,
         'central_dues': centralDues,
         'features': features ?? {},
-        'start_floor': startFloor,
-        'end_floor': endFloor,
-        'units_per_floor': unitsPerFloor,
-      });
+      };
+
+      // floor_config varsa esnek üretim kullan, yoksa uniform döngü parametreleri
+      if (floorConfig != null && floorConfig.isNotEmpty) {
+        payload['floor_config'] = floorConfig;
+      } else {
+        payload['start_floor'] = startFloor;
+        payload['end_floor'] = endFloor;
+        payload['units_per_floor'] = unitsPerFloor;
+      }
+
+      final response = await ApiClient.dio.post('/properties', data: payload);
 
       if (response.statusCode == 201 && response.data != null) {
         final newProp = PropertyModel.fromJson(response.data);

@@ -66,7 +66,7 @@ class _TicketChatBottomSheetState extends ConsumerState<TicketChatBottomSheet> {
                               children: [
                                  Text(ticket.title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 18), maxLines: 1),
                                  const SizedBox(height: 4),
-                                 Text("${ticket.tenantName ?? 'Kiracı'} • ${ticket.location ?? ''}", style: const TextStyle(color: AppColors.textBody, fontSize: 13)),
+                                 Text("${ticket.tenantName ?? 'Kiracı'} • ${ticket.location ?? ''}", style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
                               ]
                            )
                         ),
@@ -100,23 +100,23 @@ class _TicketChatBottomSheetState extends ConsumerState<TicketChatBottomSheet> {
                                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75), // Baloncukların genişliği ekranı kaplamasın! Oranlı dursun
                                  padding: const EdgeInsets.all(14),
                                  decoration: BoxDecoration(
-                                    color: msg.isMe ? AppColors.accent.withValues(alpha:0.2) : AppColors.surface, // Ben yolladımsa Camgöbeği/Mavi
+                                    color: msg.isMe ? AppColors.charcoal.withValues(alpha:0.2) : AppColors.surface, // Ben yolladımsa Camgöbeği/Mavi
                                     borderRadius: BorderRadius.only(
                                        topLeft: const Radius.circular(16),
                                        topRight: const Radius.circular(16),
                                        bottomLeft: msg.isMe ? const Radius.circular(16) : const Radius.circular(4),  // Sola baloncuk sivrisi
                                        bottomRight: msg.isMe ? const Radius.circular(4) : const Radius.circular(16), // Sağa baloncuk sivrisi
                                     ),
-                                    border: Border.all(color: msg.isMe ? AppColors.accent.withValues(alpha:0.5) : Colors.white12)
+                                    border: Border.all(color: msg.isMe ? AppColors.charcoal.withValues(alpha:0.5) : Colors.white12)
                                  ),
                                  child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                       if (!msg.isMe) Text(ticket.tenantName ?? 'Kiracı', style: const TextStyle(color: AppColors.accent, fontSize: 11, fontWeight: FontWeight.bold)),
+                                       if (!msg.isMe) Text(ticket.tenantName ?? 'Kiracı', style: const TextStyle(color: AppColors.charcoal, fontSize: 11, fontWeight: FontWeight.bold)),
                                        if (!msg.isMe) const SizedBox(height: 4),
                                        Text(msg.text, style: const TextStyle(color: Colors.white, fontSize: 14)),
                                        const SizedBox(height: 6),
-                                       Align(alignment: Alignment.centerRight, child: Text('${msg.time.hour.toString().padLeft(2,'0')}:${msg.time.minute.toString().padLeft(2,'0')}', style: const TextStyle(color: AppColors.textBody, fontSize: 10))),
+                                       Align(alignment: Alignment.centerRight, child: Text('${msg.time.hour.toString().padLeft(2,'0')}:${msg.time.minute.toString().padLeft(2,'0')}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 10))),
                                     ],
                                  )
                               )
@@ -148,7 +148,7 @@ class _TicketChatBottomSheetState extends ConsumerState<TicketChatBottomSheet> {
                            onTap: _sendMsg,
                            child: Container(
                               padding: const EdgeInsets.all(14),
-                              decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
+                              decoration: const BoxDecoration(color: AppColors.charcoal, shape: BoxShape.circle),
                               child: const Icon(Icons.send, color: Colors.white, size: 20),
                            ),
                         )

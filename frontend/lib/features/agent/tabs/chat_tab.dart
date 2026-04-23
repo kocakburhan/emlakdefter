@@ -51,14 +51,14 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
-        backgroundColor: AppColors.textHeader,
+        backgroundColor: AppColors.charcoal,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         duration: const Duration(seconds: 5),
         action: SnackBarAction(
           label: 'Geri Al',
-          textColor: AppColors.accent,
+          textColor: AppColors.charcoal,
           onPressed: onUndo,
         ),
       ),
@@ -82,19 +82,21 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
       convs = convs.where((c) => !c.isArchived).toList();
     }
 
-    return SafeArea(
-      child: Column(
-        children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
             child: Row(
               children: [
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Emlakdefter', style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 14, color: AppColors.accent)),
+                      Text('Emlakdefter', style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 14, color: AppColors.charcoal)),
                       const SizedBox(height: 2),
                       Text('Sohbetlerim', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 24)),
                     ],
@@ -116,14 +118,14 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
           // Conversation List
           Expanded(
             child: state.isLoadingConversations
-                ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+                ? const Center(child: CircularProgressIndicator(color: AppColors.charcoal))
                 : convs.isEmpty
                     ? _buildEmptyState()
                     : FadeTransition(
                         opacity: _listFadeAnim,
                         child: RefreshIndicator(
                           onRefresh: () => notifier.fetchConversations(),
-                          color: AppColors.accent,
+                          color: AppColors.charcoal,
                           child: ListView.builder(
                             physics: const BouncingScrollPhysics(),
                             padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
@@ -135,6 +137,7 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
           ),
         ],
       ),
+    ),
     );
   }
 
@@ -145,10 +148,10 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: _showArchived ? AppColors.accent.withValues(alpha:0.15) : AppColors.surface,
+          color: _showArchived ? AppColors.charcoal.withValues(alpha:0.15) : AppColors.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: _showArchived ? AppColors.accent : Colors.white.withValues(alpha:0.05),
+            color: _showArchived ? AppColors.charcoal : AppColors.border,
           ),
         ),
         child: Row(
@@ -157,13 +160,13 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
             Icon(
               _showArchived ? Icons.archive : Icons.archive_outlined,
               size: 18,
-              color: _showArchived ? AppColors.accent : AppColors.textBody,
+              color: _showArchived ? AppColors.charcoal : AppColors.textSecondary,
             ),
             const SizedBox(width: 4),
             Text(
               _showArchived ? 'Arşiv' : '',
               style: TextStyle(
-                color: _showArchived ? AppColors.accent : AppColors.textBody,
+                color: _showArchived ? AppColors.charcoal : AppColors.textSecondary,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -178,13 +181,13 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.accent, AppColors.accent.withValues(alpha:0.75)],
+          colors: [AppColors.charcoal, AppColors.charcoal.withValues(alpha:0.75)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
-          BoxShadow(color: AppColors.accent.withValues(alpha:0.3), blurRadius: 8, offset: const Offset(0, 4)),
+          BoxShadow(color: AppColors.charcoal.withValues(alpha:0.3), blurRadius: 8, offset: const Offset(0, 4)),
         ],
       ),
       child: Material(
@@ -206,19 +209,19 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha:0.05)),
+        border: Border.all(color: AppColors.border),
       ),
       child: TextField(
         controller: _searchController,
         onChanged: (v) => setState(() => _searchQuery = v),
-        style: const TextStyle(color: AppColors.textHeader),
+        style: const TextStyle(color: AppColors.charcoal),
         decoration: InputDecoration(
           hintText: 'Sohbet ara...',
-          hintStyle: TextStyle(color: AppColors.textBody.withValues(alpha:0.5)),
-          prefixIcon: Icon(Icons.search, color: AppColors.textBody.withValues(alpha:0.4)),
+          hintStyle: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.5)),
+          prefixIcon: Icon(Icons.search, color: AppColors.textSecondary.withValues(alpha:0.4)),
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
-                  icon: Icon(Icons.clear, color: AppColors.textBody.withValues(alpha:0.4)),
+                  icon: Icon(Icons.clear, color: AppColors.textSecondary.withValues(alpha:0.4)),
                   onPressed: () {
                     _searchController.clear();
                     setState(() => _searchQuery = '');
@@ -240,26 +243,26 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: AppColors.accent.withValues(alpha:0.08),
+              color: AppColors.charcoal.withValues(alpha:0.08),
               shape: BoxShape.circle,
             ),
             child: Icon(
               _showArchived ? Icons.archive_outlined : Icons.chat_bubble_outline,
               size: 56,
-              color: AppColors.accent.withValues(alpha:0.4),
+              color: AppColors.charcoal.withValues(alpha:0.4),
             ),
           ),
           const SizedBox(height: 20),
           Text(
             _showArchived ? 'Arşivlenmiş sohbet yok' : 'Henüz sohbet başlatılmamış',
-            style: const TextStyle(color: AppColors.textHeader, fontSize: 18, fontWeight: FontWeight.w600),
+            style: const TextStyle(color: AppColors.charcoal, fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           Text(
             _showArchived
                 ? 'Arşivlenen sohbetler burada görünür'
                 : 'Kiracınız veya ev sahibinizle sohbet başlatın',
-            style: TextStyle(color: AppColors.textBody.withValues(alpha:0.6), fontSize: 14),
+            style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.6), fontSize: 14),
             textAlign: TextAlign.center,
           ),
         ],
@@ -312,7 +315,7 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: Colors.white.withValues(alpha:0.05)),
+                  border: Border.all(color: AppColors.border),
                 ),
                 child: Row(
                   children: [
@@ -332,7 +335,7 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
                                 child: Text(
                                   conv.clientName ?? 'Bilinmeyen',
                                   style: const TextStyle(
-                                    color: AppColors.textHeader,
+                                    color: AppColors.charcoal,
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                     letterSpacing: -0.2,
@@ -345,7 +348,7 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
                                 Text(
                                   _formatTime(conv.lastMessageAt!),
                                   style: TextStyle(
-                                    color: AppColors.textBody.withValues(alpha:0.5),
+                                    color: AppColors.textSecondary.withValues(alpha:0.5),
                                     fontSize: 11,
                                   ),
                                 ),
@@ -378,7 +381,7 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
                                   child: Text(
                                     conv.propertyName!,
                                     style: TextStyle(
-                                      color: AppColors.textBody.withValues(alpha:0.6),
+                                      color: AppColors.textSecondary.withValues(alpha:0.6),
                                       fontSize: 12,
                                     ),
                                     maxLines: 1,
@@ -392,7 +395,7 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
                             Text(
                               conv.lastMessage!,
                               style: TextStyle(
-                                color: AppColors.textBody.withValues(alpha:0.7),
+                                color: AppColors.textSecondary.withValues(alpha:0.7),
                                 fontSize: 13,
                               ),
                               maxLines: 1,
@@ -426,7 +429,7 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
                       ),
                       const SizedBox(width: 4),
                     ],
-                    Icon(Icons.chevron_right, color: AppColors.textBody.withValues(alpha:0.3), size: 20),
+                    Icon(Icons.chevron_right, color: AppColors.textSecondary.withValues(alpha:0.3), size: 20),
                   ],
                 ),
               ),
@@ -441,7 +444,7 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
     final name = conv.clientName ?? '?';
     final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
     final colors = [
-      AppColors.accent,
+      AppColors.charcoal,
       AppColors.success,
       AppColors.warning,
       const Color(0xFF7B61FF),
@@ -591,9 +594,9 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
   Widget build(BuildContext context) {
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
-      decoration: const BoxDecoration(
-        color: Color(0xFF0F0F18),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Column(
         children: [
@@ -603,7 +606,7 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
             child: Container(
               width: 40, height: 4,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.12),
+                color: AppColors.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -614,18 +617,18 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text('Yeni Sohbet',
-                    style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                    style: TextStyle(color: AppColors.charcoal, fontSize: 22, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 16),
                 // Search
                 TextField(
                   onChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: AppColors.charcoal),
                   decoration: InputDecoration(
                     hintText: 'Kiracı veya daire ara...',
-                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.25)),
-                    prefixIcon: Icon(Icons.search, color: Colors.white.withValues(alpha: 0.3)),
+                    hintStyle: TextStyle(color: AppColors.textTertiary),
+                    prefixIcon: Icon(Icons.search, color: AppColors.textTertiary),
                     filled: true,
-                    fillColor: Colors.white.withValues(alpha: 0.05),
+                    fillColor: AppColors.background,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   ),
@@ -635,7 +638,7 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
           ),
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+                ? const Center(child: CircularProgressIndicator(color: AppColors.charcoal))
                 : _error != null
                     ? Center(child: Text('Hata: $_error', style: const TextStyle(color: AppColors.error)))
                     : _buildUserList(),
@@ -662,10 +665,10 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off, size: 48, color: Colors.white.withValues(alpha: 0.15)),
+            Icon(Icons.search_off, size: 48, color: AppColors.textTertiary),
             const SizedBox(height: 12),
             Text('Sonuç bulunamadı',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.3))),
+                style: TextStyle(color: AppColors.textSecondary)),
           ],
         ),
       );
@@ -679,7 +682,7 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
             child: Text('KİRACILAR',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.4),
+                style: TextStyle(color: AppColors.textSecondary,
                     fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
           ),
           ...filteredTenants.map((t) => _buildUserTile(
@@ -694,7 +697,7 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
             child: Text('EV SAHİPLERİ',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.4),
+                style: TextStyle(color: AppColors.textSecondary,
                     fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
           ),
           ...filteredLandlords.map((l) => _buildUserTile(
@@ -725,19 +728,19 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
             Container(
               width: 44, height: 44,
               decoration: BoxDecoration(
-                color: AppColors.accent.withValues(alpha: 0.15),
+                color: AppColors.charcoal.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Icon(icon, color: AppColors.accent, size: 20),
+              child: Icon(icon, color: AppColors.charcoal, size: 20),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(name, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+                  Text(name, style: const TextStyle(color: AppColors.charcoal, fontSize: 15, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 2),
-                  Text(subtitle, style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12)),
+                  Text(subtitle, style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                 ],
               ),
             ),
@@ -745,8 +748,8 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: role == 'Kiracı'
-                    ? AppColors.success.withValues(alpha: 0.12)
-                    : AppColors.warning.withValues(alpha: 0.12),
+                    ? AppColors.success.withValues(alpha: 0.1)
+                    : AppColors.warning.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
@@ -758,7 +761,7 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
               ),
             ),
             const SizedBox(width: 8),
-            Icon(Icons.chat_bubble_outline, color: AppColors.accent.withValues(alpha: 0.5), size: 20),
+            Icon(Icons.chat_bubble_outline, color: AppColors.charcoal.withValues(alpha: 0.5), size: 20),
           ],
         ),
       ),

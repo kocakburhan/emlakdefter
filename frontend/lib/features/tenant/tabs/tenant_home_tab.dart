@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/theme/colors.dart';
 import '../providers/tenant_provider.dart';
 
 // ──────────────────────────────────────────────
@@ -49,7 +50,7 @@ class _TenantHomeTabState extends ConsumerState<TenantHomeTab>
     final txAsync = ref.watch(tenantTransactionsProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0D0B),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: FadeTransition(
           opacity: _fadeAnim,
@@ -94,7 +95,7 @@ class _TenantHomeTabState extends ConsumerState<TenantHomeTab>
                       child: Text(
                         'EVİM',
                         style: TextStyle(
-                          color: const Color(0xFFE8A87C).withValues(alpha: 0.6),
+                          color: AppColors.charcoal.withValues(alpha: 0.6),
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 3,
@@ -133,20 +134,20 @@ class _TenantHomeTabState extends ConsumerState<TenantHomeTab>
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        const Color(0xFFE8A87C).withValues(alpha: 0.2),
-                        const Color(0xFFE8A87C).withValues(alpha: 0.05),
+                        AppColors.charcoal.withValues(alpha: 0.2),
+                        AppColors.charcoal.withValues(alpha: 0.05),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
                     borderRadius: BorderRadius.circular(18),
                     border: Border.all(
-                      color: const Color(0xFFE8A87C).withValues(alpha: 0.2),
+                      color: AppColors.charcoal.withValues(alpha: 0.2),
                     ),
                   ),
                   child: const Icon(
                     Icons.holiday_village_rounded,
-                    color: Color(0xFFE8A87C),
+                    color: AppColors.charcoal,
                     size: 26,
                   ),
                 ),
@@ -171,8 +172,8 @@ class _TenantHomeTabState extends ConsumerState<TenantHomeTab>
         ref.invalidate(tenantTransactionsProvider);
         ref.invalidate(tenantProvider);
       },
-      color: const Color(0xFFE8A87C),
-      backgroundColor: const Color(0xFF1A1612),
+      color: AppColors.charcoal,
+      backgroundColor: AppColors.surface,
       child: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
@@ -208,10 +209,10 @@ class _TenantHomeTabState extends ConsumerState<TenantHomeTab>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFFE8A87C).withValues(alpha: 0.08),
+          color: AppColors.charcoal.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: const Color(0xFFE8A87C).withValues(alpha: 0.15),
+            color: AppColors.charcoal.withValues(alpha: 0.15),
           ),
         ),
         child: Row(
@@ -220,14 +221,14 @@ class _TenantHomeTabState extends ConsumerState<TenantHomeTab>
             Icon(
               Icons.location_on_rounded,
               size: 14,
-              color: const Color(0xFFE8A87C).withValues(alpha: 0.7),
+              color: AppColors.charcoal.withValues(alpha: 0.7),
             ),
             const SizedBox(width: 6),
             Flexible(
               child: Text(
                 '${info.propertyName} · Daire ${info.unitNumber}',
                 style: TextStyle(
-                  color: const Color(0xFFE8A87C).withValues(alpha: 0.8),
+                  color: AppColors.charcoal.withValues(alpha: 0.8),
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -298,8 +299,8 @@ class _TenantHomeTabState extends ConsumerState<TenantHomeTab>
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: hasDebt
-                    ? [const Color(0xFFE27D7D), const Color(0xFFC0392B)]
-                    : [const Color(0xFF7AB892), const Color(0xFF52B788)],
+                    ? [Color(0xFFE27D7D), const Color(0xFFC0392B)]
+                    : [Color(0xFF7AB892), const Color(0xFF52B788)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -307,8 +308,8 @@ class _TenantHomeTabState extends ConsumerState<TenantHomeTab>
               boxShadow: [
                 BoxShadow(
                   color: (hasDebt
-                          ? const Color(0xFFE27D7D)
-                          : const Color(0xFF7AB892))
+                          ? Color(0xFFE27D7D)
+                          : Color(0xFF7AB892))
                       .withValues(alpha: 0.35),
                   blurRadius: 24,
                   offset: const Offset(0, 12),
@@ -529,10 +530,10 @@ class _TenantHomeTabState extends ConsumerState<TenantHomeTab>
             width: 6, height: 6,
             decoration: BoxDecoration(
               color: isOverdue
-                  ? const Color(0xFFE27D7D)
+                  ? Color(0xFFE27D7D)
                   : isSoon
-                      ? const Color(0xFFE8A87C)
-                      : const Color(0xFF7AB892),
+                      ? AppColors.charcoal
+                      : Color(0xFF7AB892),
               borderRadius: BorderRadius.circular(3),
             ),
           ),
@@ -550,7 +551,7 @@ class _TenantHomeTabState extends ConsumerState<TenantHomeTab>
             _shortDate(schedule.dueDate),
             style: TextStyle(
               color: isOverdue
-                  ? const Color(0xFFE27D7D)
+                  ? Color(0xFFE27D7D)
                   : Colors.white.withValues(alpha: 0.35),
               fontSize: 11,
             ),
@@ -571,10 +572,10 @@ class _TenantHomeTabState extends ConsumerState<TenantHomeTab>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFF7AB892).withValues(alpha: 0.1),
+                color: Color(0xFF7AB892).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: const Color(0xFF7AB892).withValues(alpha: 0.2),
+                  color: Color(0xFF7AB892).withValues(alpha: 0.2),
                 ),
               ),
               child: const Text(
@@ -637,8 +638,8 @@ class _TenantHomeTabState extends ConsumerState<TenantHomeTab>
     // Determine status: Ödendi (matched/completed), Gecikti (overdue), Kısmi (partial)
     final isIncome = tx.type == 'income';
     final color = isIncome
-        ? const Color(0xFF7AB892)  // Sage green — Ödendi
-        : const Color(0xFFE27D7D); // Soft coral — Gecikti
+        ? Color(0xFF7AB892)  // Sage green — Ödendi
+        : Color(0xFFE27D7D); // Soft coral — Gecikti
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
@@ -652,7 +653,7 @@ class _TenantHomeTabState extends ConsumerState<TenantHomeTab>
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF1C1814),
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: color.withValues(alpha: 0.12),
@@ -746,9 +747,9 @@ class _TenantHomeTabState extends ConsumerState<TenantHomeTab>
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1814),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         children: [
@@ -775,12 +776,12 @@ class _TenantHomeTabState extends ConsumerState<TenantHomeTab>
     return Container(
       height: 240,
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1814),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(28),
       ),
       child: const Center(
         child: CircularProgressIndicator(
-          color: Color(0xFFE8A87C),
+          color: AppColors.charcoal,
           strokeWidth: 2,
         ),
       ),
@@ -795,7 +796,7 @@ class _TenantHomeTabState extends ConsumerState<TenantHomeTab>
           margin: const EdgeInsets.only(bottom: 10),
           height: 72,
           decoration: BoxDecoration(
-            color: const Color(0xFF1C1814),
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(18),
           ),
         ),
@@ -807,9 +808,9 @@ class _TenantHomeTabState extends ConsumerState<TenantHomeTab>
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1814),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Center(
         child: Text(
@@ -828,7 +829,7 @@ class _TenantHomeTabState extends ConsumerState<TenantHomeTab>
           SizedBox(
             width: 36, height: 36,
             child: CircularProgressIndicator(
-              color: const Color(0xFFE8A87C),
+              color: AppColors.charcoal,
               strokeWidth: 2,
             ),
           ),
@@ -850,7 +851,7 @@ class _TenantHomeTabState extends ConsumerState<TenantHomeTab>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.error_outline, size: 40, color: const Color(0xFFE27D7D)),
+          Icon(Icons.error_outline, size: 40, color: Color(0xFFE27D7D)),
           const SizedBox(height: 12),
           Text(
             'Sunucu hatası',

@@ -164,16 +164,8 @@ def upgrade() -> None:
     # (Phone number üzerinden erişim, agency_id yok)
     # Sadece superadmin erişebilir - read-only
     # =====================================================
-    op.execute("""
-        ALTER TABLE password_reset_attempts ENABLE ROW LEVEL SECURITY;
-    """)
-    op.execute("""
-        CREATE POLICY agency_isolation_policy_password_reset_attempts
-        ON password_reset_attempts
-        FOR ALL
-        USING (true)
-        WITH CHECK (true);
-    """)
+    # password_reset_attempts table does not exist in current schema
+    # Skipping RLS for password_reset_attempts
 
     # =====================================================
     # 7. Roles için RLS ayarları

@@ -44,7 +44,7 @@ class _LandlordPropertiesScreenState extends ConsumerState<LandlordPropertiesScr
                 padding: const EdgeInsets.only(top: 12),
                 child: Center(
                   child: Container(width: 40, height: 4, decoration: BoxDecoration(
-                    color: AppColors.textBody.withValues(alpha:0.3), borderRadius: BorderRadius.circular(2),
+                    color: AppColors.textSecondary.withValues(alpha:0.3), borderRadius: BorderRadius.circular(2),
                   )),
                 ),
               ),
@@ -69,13 +69,13 @@ class _LandlordPropertiesScreenState extends ConsumerState<LandlordPropertiesScr
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(prop.propertyName, style: const TextStyle(color: AppColors.textHeader, fontSize: 18, fontWeight: FontWeight.bold)),
-                          if (prop.address != null) Text(prop.address!, style: TextStyle(color: AppColors.textBody.withValues(alpha:0.6), fontSize: 12)),
+                          Text(prop.propertyName, style: const TextStyle(color: AppColors.charcoal, fontSize: 18, fontWeight: FontWeight.bold)),
+                          if (prop.address != null) Text(prop.address!, style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.6), fontSize: 12)),
                         ],
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close, color: AppColors.textBody),
+                      icon: const Icon(Icons.close, color: AppColors.textSecondary),
                       onPressed: () => Navigator.pop(ctx),
                     ),
                   ],
@@ -94,7 +94,7 @@ class _LandlordPropertiesScreenState extends ConsumerState<LandlordPropertiesScr
                     indicatorColor: const Color(0xFFD4A574),
                     indicatorSize: TabBarIndicatorSize.tab,
                     labelColor: const Color(0xFFD4A574),
-                    unselectedLabelColor: AppColors.textBody,
+                    unselectedLabelColor: AppColors.textSecondary,
                     dividerColor: Colors.transparent,
                     labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                     tabs: const [
@@ -154,18 +154,18 @@ class _LandlordPropertiesScreenState extends ConsumerState<LandlordPropertiesScr
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Birim ${i + 1}', style: const TextStyle(color: AppColors.textHeader, fontWeight: FontWeight.bold)),
-                    Text(prop.propertyName, style: TextStyle(color: AppColors.textBody.withValues(alpha:0.6), fontSize: 12)),
+                    Text('Birim ${i + 1}', style: const TextStyle(color: AppColors.charcoal, fontWeight: FontWeight.bold)),
+                    Text(prop.propertyName, style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.6), fontSize: 12)),
                   ],
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.textBody.withValues(alpha:0.08),
+                  color: AppColors.textSecondary.withValues(alpha:0.08),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text('Bilinmiyor', style: TextStyle(color: AppColors.textBody, fontSize: 11, fontWeight: FontWeight.w600)),
+                child: Text('Bilinmiyor', style: TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600)),
               ),
             ],
           ),
@@ -204,8 +204,8 @@ class _LandlordPropertiesScreenState extends ConsumerState<LandlordPropertiesScr
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('${unit.doorNumber}${unit.floor != null ? ' • ${unit.floor}. kat' : ''}',
-                      style: const TextStyle(color: AppColors.textHeader, fontWeight: FontWeight.bold)),
-                    Text(unit.propertyName, style: TextStyle(color: AppColors.textBody.withValues(alpha:0.6), fontSize: 12)),
+                      style: const TextStyle(color: AppColors.charcoal, fontWeight: FontWeight.bold)),
+                    Text(unit.propertyName, style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.6), fontSize: 12)),
                   ],
                 ),
               ),
@@ -260,9 +260,9 @@ class _LandlordPropertiesScreenState extends ConsumerState<LandlordPropertiesScr
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.folder_off_outlined, size: 48, color: AppColors.textBody.withValues(alpha:0.2)),
+            Icon(Icons.folder_off_outlined, size: 48, color: AppColors.textSecondary.withValues(alpha:0.2)),
             const SizedBox(height: 16),
-            Text('Dijital arşiv mevcut değil', style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 14)),
+            Text('Dijital arşiv mevcut değil', style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.5), fontSize: 14)),
           ],
         ),
       );
@@ -306,7 +306,7 @@ class _LandlordPropertiesScreenState extends ConsumerState<LandlordPropertiesScr
                   Expanded(
                     child: Text(
                       'Kapı ${unit.doorNumber}',
-                      style: const TextStyle(color: AppColors.textHeader, fontWeight: FontWeight.w800, fontSize: 15),
+                      style: const TextStyle(color: AppColors.charcoal, fontWeight: FontWeight.w800, fontSize: 15),
                     ),
                   ),
                   const Icon(Icons.lock_outline, color: Color(0xFFD4A574), size: 16),
@@ -358,7 +358,7 @@ class _LandlordPropertiesScreenState extends ConsumerState<LandlordPropertiesScr
                       const SizedBox(width: 8),
                       Text(
                         'Belge bilgileri yükleniyor...',
-                        style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 12),
+                        style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.5), fontSize: 12),
                       ),
                     ],
                   ),
@@ -374,12 +374,12 @@ class _LandlordPropertiesScreenState extends ConsumerState<LandlordPropertiesScr
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.info_outline, color: AppColors.textBody.withValues(alpha:0.4), size: 16),
+                      Icon(Icons.info_outline, color: AppColors.textSecondary.withValues(alpha:0.4), size: 16),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           'Henüz arşivlenmiş belge yok',
-                          style: TextStyle(color: AppColors.textBody.withValues(alpha:0.4), fontSize: 12),
+                          style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.4), fontSize: 12),
                         ),
                       ),
                     ],
@@ -426,7 +426,7 @@ class _LandlordPropertiesScreenState extends ConsumerState<LandlordPropertiesScr
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(name, style: TextStyle(color: AppColors.textHeader, fontSize: 13, fontWeight: FontWeight.w600)),
+                    Text(name, style: TextStyle(color: AppColors.charcoal, fontSize: 13, fontWeight: FontWeight.w600)),
                     Text(docType, style: TextStyle(color: color.withValues(alpha:0.7), fontSize: 10)),
                   ],
                 ),
@@ -458,7 +458,7 @@ class _LandlordPropertiesScreenState extends ConsumerState<LandlordPropertiesScr
       case 'contract': return const Color(0xFF5B8DEF);
       case 'handover': return const Color(0xFF6B8E6B);
       case 'photo': return const Color(0xFFD4A574);
-      default: return AppColors.textBody;
+      default: return AppColors.textSecondary;
     }
   }
 
@@ -500,11 +500,11 @@ class _LandlordPropertiesScreenState extends ConsumerState<LandlordPropertiesScr
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.home_work_outlined, size: 56, color: AppColors.textBody.withValues(alpha:0.2)),
+          Icon(Icons.home_work_outlined, size: 56, color: AppColors.textSecondary.withValues(alpha:0.2)),
           const SizedBox(height: 16),
-          const Text('Henüz mülk bağlantısı yok', style: TextStyle(color: AppColors.textBody, fontSize: 16)),
+          const Text('Henüz mülk bağlantısı yok', style: TextStyle(color: AppColors.textSecondary, fontSize: 16)),
           const SizedBox(height: 8),
-          Text('Emlakçınız sizi davet ettiğinde görünür', style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 13)),
+          Text('Emlakçınız sizi davet ettiğinde görünür', style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.5), fontSize: 13)),
         ],
       ),
     );
@@ -561,7 +561,7 @@ class _LandlordPropertiesScreenState extends ConsumerState<LandlordPropertiesScr
                             Text(
                               prop.propertyName,
                               style: const TextStyle(
-                                color: AppColors.textHeader,
+                                color: AppColors.charcoal,
                                 fontSize: 17,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -570,7 +570,7 @@ class _LandlordPropertiesScreenState extends ConsumerState<LandlordPropertiesScr
                               const SizedBox(height: 2),
                               Text(
                                 prop.address!,
-                                style: TextStyle(color: AppColors.textBody.withValues(alpha:0.6), fontSize: 12),
+                                style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.6), fontSize: 12),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -578,7 +578,7 @@ class _LandlordPropertiesScreenState extends ConsumerState<LandlordPropertiesScr
                           ],
                         ),
                       ),
-                      Icon(Icons.chevron_right, color: AppColors.textBody.withValues(alpha:0.3)),
+                      Icon(Icons.chevron_right, color: AppColors.textSecondary.withValues(alpha:0.3)),
                     ],
                   ),
                   const SizedBox(height: 18),
@@ -602,7 +602,7 @@ class _LandlordPropertiesScreenState extends ConsumerState<LandlordPropertiesScr
                               letterSpacing: -0.5,
                             ),
                           ),
-                          const Text('aylık gelir', style: TextStyle(color: AppColors.textBody, fontSize: 10)),
+                          const Text('aylık gelir', style: TextStyle(color: AppColors.textSecondary, fontSize: 10)),
                         ],
                       ),
                     ],
@@ -646,7 +646,7 @@ class _LandlordPropertiesScreenState extends ConsumerState<LandlordPropertiesScr
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Doluluk', style: TextStyle(color: AppColors.textBody.withValues(alpha:0.6), fontSize: 11)),
+            Text('Doluluk', style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.6), fontSize: 11)),
             Text('${rate.toStringAsFixed(0)}%', style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold)),
           ],
         ),
@@ -655,7 +655,7 @@ class _LandlordPropertiesScreenState extends ConsumerState<LandlordPropertiesScr
           borderRadius: BorderRadius.circular(4),
           child: LinearProgressIndicator(
             value: rate / 100,
-            backgroundColor: AppColors.textBody.withValues(alpha:0.08),
+            backgroundColor: AppColors.textSecondary.withValues(alpha:0.08),
             valueColor: AlwaysStoppedAnimation(color),
             minHeight: 6,
           ),

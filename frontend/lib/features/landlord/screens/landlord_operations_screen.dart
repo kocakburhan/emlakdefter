@@ -112,11 +112,11 @@ class LandlordOperationsScreen extends ConsumerWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.engineering_outlined, size: 56, color: AppColors.textBody.withValues(alpha:0.2)),
+          Icon(Icons.engineering_outlined, size: 56, color: AppColors.textSecondary.withValues(alpha:0.2)),
           const SizedBox(height: 16),
-          const Text('Operasyon kaydı yok', style: TextStyle(color: AppColors.textBody, fontSize: 16)),
+          const Text('Operasyon kaydı yok', style: TextStyle(color: AppColors.textSecondary, fontSize: 16)),
           const SizedBox(height: 8),
-          Text('Bina harcamaları burada şeffaf görünür', style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 13)),
+          Text('Bina harcamaları burada şeffaf görünür', style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.5), fontSize: 13)),
         ],
       ),
     );
@@ -194,7 +194,7 @@ class LandlordOperationsScreen extends ConsumerWidget {
                     Text(
                       op.title,
                       style: const TextStyle(
-                        color: AppColors.textHeader,
+                        color: AppColors.charcoal,
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
                       ),
@@ -202,9 +202,9 @@ class LandlordOperationsScreen extends ConsumerWidget {
                     const SizedBox(height: 2),
                     Row(
                       children: [
-                        Text(op.propertyName, style: TextStyle(color: AppColors.textBody.withValues(alpha:0.6), fontSize: 11)),
+                        Text(op.propertyName, style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.6), fontSize: 11)),
                         const SizedBox(width: 8),
-                        Text(dateStr, style: TextStyle(color: AppColors.textBody.withValues(alpha:0.5), fontSize: 11)),
+                        Text(dateStr, style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.5), fontSize: 11)),
                       ],
                     ),
                   ],
@@ -216,7 +216,7 @@ class LandlordOperationsScreen extends ConsumerWidget {
                   Text(
                     '₺${_fmt(op.cost)}',
                     style: const TextStyle(
-                      color: AppColors.textHeader,
+                      color: AppColors.charcoal,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
@@ -247,7 +247,7 @@ class LandlordOperationsScreen extends ConsumerWidget {
             const SizedBox(height: 12),
             Text(
               op.description!,
-              style: TextStyle(color: AppColors.textBody.withValues(alpha:0.7), fontSize: 13, height: 1.4),
+              style: TextStyle(color: AppColors.textSecondary.withValues(alpha:0.7), fontSize: 13, height: 1.4),
             ),
           ],
         ],
@@ -359,7 +359,7 @@ class _ExpandableTicketCardState extends State<_ExpandableTicketCard> {
                             Text(
                               widget.ticket.title,
                               style: const TextStyle(
-                                color: AppColors.textHeader,
+                                color: AppColors.charcoal,
                                 fontSize: 15,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -367,11 +367,11 @@ class _ExpandableTicketCardState extends State<_ExpandableTicketCard> {
                             const SizedBox(height: 2),
                             Row(
                               children: [
-                                Text(widget.ticket.propertyName, style: TextStyle(color: AppColors.textBody.withValues(alpha: 0.6), fontSize: 11)),
+                                Text(widget.ticket.propertyName, style: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.6), fontSize: 11)),
                                 const SizedBox(width: 6),
-                                Text('• Kapı ${widget.ticket.unitDoor}', style: TextStyle(color: AppColors.textBody.withValues(alpha: 0.5), fontSize: 11)),
+                                Text('• Kapı ${widget.ticket.unitDoor}', style: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.5), fontSize: 11)),
                                 const SizedBox(width: 6),
-                                Text(widget.dateStr, style: TextStyle(color: AppColors.textBody.withValues(alpha: 0.5), fontSize: 11)),
+                                Text(widget.dateStr, style: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.5), fontSize: 11)),
                               ],
                             ),
                           ],
@@ -379,7 +379,7 @@ class _ExpandableTicketCardState extends State<_ExpandableTicketCard> {
                       ),
                       Icon(
                         _expanded ? Icons.expand_less : Icons.expand_more,
-                        color: AppColors.textBody.withValues(alpha: 0.4),
+                        color: AppColors.textSecondary.withValues(alpha: 0.4),
                       ),
                     ],
                   ),
@@ -398,14 +398,14 @@ class _ExpandableTicketCardState extends State<_ExpandableTicketCard> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Icon(Icons.message_outlined, size: 12, color: AppColors.textBody.withValues(alpha: 0.4)),
+                      Icon(Icons.message_outlined, size: 12, color: AppColors.textSecondary.withValues(alpha: 0.4)),
                       const SizedBox(width: 3),
-                      Text('${widget.ticket.messageCount}', style: TextStyle(color: AppColors.textBody.withValues(alpha: 0.5), fontSize: 11)),
+                      Text('${widget.ticket.messageCount}', style: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.5), fontSize: 11)),
                       if (widget.ticket.agentReplyCount > 0) ...[
                         const SizedBox(width: 6),
-                        Icon(Icons.verified_outlined, size: 12, color: AppColors.textBody.withValues(alpha: 0.4)),
+                        Icon(Icons.verified_outlined, size: 12, color: AppColors.textSecondary.withValues(alpha: 0.4)),
                         const SizedBox(width: 3),
-                        Text('${widget.ticket.agentReplyCount}', style: TextStyle(color: AppColors.textBody.withValues(alpha: 0.5), fontSize: 11)),
+                        Text('${widget.ticket.agentReplyCount}', style: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.5), fontSize: 11)),
                       ],
                     ],
                   ),
@@ -420,7 +420,7 @@ class _ExpandableTicketCardState extends State<_ExpandableTicketCard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Divider(color: AppColors.textBody.withValues(alpha: 0.08)),
+                  Divider(color: AppColors.textSecondary.withValues(alpha: 0.08)),
                   const SizedBox(height: 8),
                   ...widget.ticket.messages.map((msg) => _buildTimelineMessage(msg)),
                 ],
@@ -477,14 +477,14 @@ class _ExpandableTicketCardState extends State<_ExpandableTicketCard> {
                       const Spacer(),
                       Text(
                         _formatTime(msg.createdAt),
-                        style: TextStyle(color: AppColors.textBody.withValues(alpha: 0.4), fontSize: 10),
+                        style: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.4), fontSize: 10),
                       ),
                     ],
                   ),
                   const SizedBox(height: 2),
                   Text(
                     msg.content,
-                    style: TextStyle(color: AppColors.textBody.withValues(alpha: 0.8), fontSize: 12),
+                    style: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.8), fontSize: 12),
                   ),
                 ],
               ),

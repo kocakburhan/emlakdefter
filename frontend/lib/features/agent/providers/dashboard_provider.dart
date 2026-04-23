@@ -68,7 +68,8 @@ class DashboardNotifier extends StateNotifier<AsyncValue<DashboardMetrics>> {
         state = AsyncValue.data(DashboardMetrics());
       }
     } catch (e) {
-      // ignore error
+      // Network/server error — show empty metrics instead of hanging on loading
+      state = AsyncValue.data(DashboardMetrics());
     }
   }
 

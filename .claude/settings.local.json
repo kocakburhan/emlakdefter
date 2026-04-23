@@ -32,7 +32,8 @@
       "Bash(curl -s http://127.0.0.1:8000/api/v1/properties -H \"Authorization: Bearer mock_test_token\")",
       "Bash(curl -s -w \"\\\\nHTTP Status: %{http_code}\\\\n\" http://127.0.0.1:8000/api/v1/properties -H \"Authorization: Bearer mock_test_token\")",
       "Bash(curl -s -L -w \"\\\\nHTTP Status: %{http_code}\\\\n\" http://127.0.0.1:8000/api/v1/properties/ -H \"Authorization: Bearer mock_test_token\")",
-      "Bash(curl -s -X POST http://127.0.0.1:8000/api/v1/properties/ -H \"Authorization: Bearer mock_test_token\" -H \"Content-Type: application/json\" -d \"{\\\\\"name\\\\\": \\\\\"Güneş Apt\\\\\", \\\\\"type\\\\\": \\\\\"apartment_complex\\\\\", \\\\\"address\\\\\": \\\\\"Atatürk Cad. No:1 Kadıköy/İstanbul\\\\\", \\\\\"total_floors\\\\\": 5, \\\\\"units_per_floor\\\\\": 2, \\\\\"monthly_dues\\\\\": 1500}\")"
+      "Bash(curl -s -X POST http://127.0.0.1:8000/api/v1/properties/ -H \"Authorization: Bearer mock_test_token\" -H \"Content-Type: application/json\" -d \"{\\\\\"name\\\\\": \\\\\"Güneş Apt\\\\\", \\\\\"type\\\\\": \\\\\"apartment_complex\\\\\", \\\\\"address\\\\\": \\\\\"Atatürk Cad. No:1 Kadıköy/İstanbul\\\\\", \\\\\"total_floors\\\\\": 5, \\\\\"units_per_floor\\\\\": 2, \\\\\"monthly_dues\\\\\": 1500}\")",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }

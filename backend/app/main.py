@@ -4,8 +4,8 @@ from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 import os
 
-# .env dosyasını yükle (DEV_MODE, DEV_AGENCY_ID vb. için)
-load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+# .env dosyasını yükle (backend klasöründen çalıştırıldığında .env burada olur)
+load_dotenv(override=True)
 
 from app.api.api import api_router
 from app.core.firebase import init_firebase

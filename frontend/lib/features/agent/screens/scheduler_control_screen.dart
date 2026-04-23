@@ -125,13 +125,13 @@ class _SchedulerControlScreenState extends State<SchedulerControlScreen>
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: AppColors.accent),
+            icon: const Icon(Icons.refresh, color: AppColors.charcoal),
             onPressed: _isLoading ? null : _loadSchedulerData,
           ),
         ],
       ),
       body: _isLoading && _stats == null
-          ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+          ? const Center(child: CircularProgressIndicator(color: AppColors.charcoal))
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -169,7 +169,7 @@ class _SchedulerControlScreenState extends State<SchedulerControlScreen>
       decoration: BoxDecoration(
         color: AppColors.surface,
         border: Border.all(
-          color: _schedulerRunning ? AppColors.accent.withValues(alpha: 0.5) : Colors.red.withValues(alpha: 0.5),
+          color: _schedulerRunning ? AppColors.charcoal.withValues(alpha: 0.5) : Colors.red.withValues(alpha: 0.5),
           width: 1,
         ),
         borderRadius: BorderRadius.circular(4),
@@ -186,11 +186,11 @@ class _SchedulerControlScreenState extends State<SchedulerControlScreen>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: _schedulerRunning
-                      ? AppColors.accent.withValues(alpha: _pulseAnimation.value)
+                      ? AppColors.charcoal.withValues(alpha: _pulseAnimation.value)
                       : Colors.red.withValues(alpha: _pulseAnimation.value),
                   boxShadow: [
                     BoxShadow(
-                      color: (_schedulerRunning ? AppColors.accent : Colors.red)
+                      color: (_schedulerRunning ? AppColors.charcoal : Colors.red)
                           .withValues(alpha: 0.5),
                       blurRadius: 10,
                       spreadRadius: 2,
@@ -243,7 +243,7 @@ class _SchedulerControlScreenState extends State<SchedulerControlScreen>
           style: TextStyle(
             fontFamily: 'monospace',
             fontSize: 12,
-            color: AppColors.accent,
+            color: AppColors.charcoal,
             fontWeight: FontWeight.bold,
             letterSpacing: 1,
           ),
@@ -251,7 +251,7 @@ class _SchedulerControlScreenState extends State<SchedulerControlScreen>
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: _buildStatCard('AKTİF KİRACILAR', '${_stats!.totalActiveTenants}', AppColors.accent)),
+            Expanded(child: _buildStatCard('AKTİF KİRACILAR', '${_stats!.totalActiveTenants}', AppColors.charcoal)),
             const SizedBox(width: 12),
             Expanded(child: _buildStatCard('BU AY BEKLEYEN', '${_stats!.pendingSchedulesThisMonth}', Colors.orange)),
           ],
@@ -314,7 +314,7 @@ class _SchedulerControlScreenState extends State<SchedulerControlScreen>
           style: TextStyle(
             fontFamily: 'monospace',
             fontSize: 12,
-            color: AppColors.accent,
+            color: AppColors.charcoal,
             fontWeight: FontWeight.bold,
             letterSpacing: 1,
           ),
@@ -360,10 +360,10 @@ class _SchedulerControlScreenState extends State<SchedulerControlScreen>
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: AppColors.accent.withValues(alpha: 0.1),
+              color: AppColors.charcoal.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(4),
             ),
-            child: Icon(icon, color: AppColors.accent, size: 20),
+            child: Icon(icon, color: AppColors.charcoal, size: 20),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -395,7 +395,7 @@ class _SchedulerControlScreenState extends State<SchedulerControlScreen>
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: job.active
-                  ? AppColors.accent.withValues(alpha: 0.2)
+                  ? AppColors.charcoal.withValues(alpha: 0.2)
                   : Colors.red.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(2),
             ),
@@ -405,7 +405,7 @@ class _SchedulerControlScreenState extends State<SchedulerControlScreen>
                 fontFamily: 'monospace',
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
-                color: job.active ? AppColors.accent : Colors.red,
+                color: job.active ? AppColors.charcoal : Colors.red,
               ),
             ),
           ),
@@ -423,7 +423,7 @@ class _SchedulerControlScreenState extends State<SchedulerControlScreen>
           style: TextStyle(
             fontFamily: 'monospace',
             fontSize: 12,
-            color: AppColors.accent,
+            color: AppColors.charcoal,
             fontWeight: FontWeight.bold,
             letterSpacing: 1,
           ),
@@ -502,13 +502,13 @@ class _SchedulerControlScreenState extends State<SchedulerControlScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.accent.withValues(alpha: 0.1),
-        border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
+        color: AppColors.charcoal.withValues(alpha: 0.1),
+        border: Border.all(color: AppColors.charcoal.withValues(alpha: 0.3)),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
         children: [
-          const Icon(Icons.check_circle, color: AppColors.accent, size: 20),
+          const Icon(Icons.check_circle, color: AppColors.charcoal, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -516,7 +516,7 @@ class _SchedulerControlScreenState extends State<SchedulerControlScreen>
               style: const TextStyle(
                 fontFamily: 'monospace',
                 fontSize: 12,
-                color: AppColors.accent,
+                color: AppColors.charcoal,
               ),
             ),
           ),

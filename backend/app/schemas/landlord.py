@@ -17,8 +17,7 @@ class LandlordUnitResponse(BaseModel):
     contract_status: str
     is_active: bool
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class LandlordPropertySummary(BaseModel):
@@ -95,8 +94,7 @@ class LandlordOperationItem(BaseModel):
     is_reflected_to_finance: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class LandlordVacantUnit(BaseModel):
@@ -111,8 +109,7 @@ class LandlordVacantUnit(BaseModel):
     dues_amount: int
     features: Optional[Dict[str, Any]]
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class LandlordInterestRequest(BaseModel):
@@ -132,8 +129,7 @@ class UnitDocumentItem(BaseModel):
     url: str
     uploaded_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class UnitDocumentsResponse(BaseModel):
@@ -144,5 +140,4 @@ class UnitDocumentsResponse(BaseModel):
     contract_document_url: Optional[str] = None
     documents: List[UnitDocumentItem] = []
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}

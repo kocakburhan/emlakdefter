@@ -5,8 +5,10 @@ from sqlalchemy.orm import relationship
 from .base import BaseModel
 
 class PropertyType(str, enum.Enum):
-    apartment_complex = "apartment_complex"  # Apartman / Site
-    standalone_house = "standalone_house"      # Müstakil / Villa
+    building = "building"                    # Eski: Apartman / Site
+    single = "single"                       # Eski: Müstakil / Villa
+    apartment_complex = "apartment_complex"  # Yeni: Apartman / Site
+    standalone_house = "standalone_house"      # Yeni: Müstakil / Villa
     land = "land"                             # Arsa / Tarla
     commercial = "commercial"                 # Ticari
 

@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 >nul
 echo ========================================
-echo   EmlakDefter Development Starter
+echo   EmlakDefter Docker Full Stack
 echo ========================================
 echo.
 
@@ -10,6 +10,7 @@ setlocal enabledelayedexpansion
 set ROOT_DIR=%~dp0
 set BACKEND_DIR=%ROOT_DIR%backend
 set FRONTEND_DIR=%ROOT_DIR%frontend
+set COMPOSE_FILE=%ROOT_DIR%deploy\docker-compose.dev.yml
 
 REM Check if Docker is running
 echo [-] Docker kontrol ediliyor...
@@ -21,62 +22,53 @@ if errorlevel 1 (
 )
 echo [OK] Docker hazir.
 
-REM Start Docker containers
+REM Stop existing containers (both old and new compose files)
 echo.
-echo [-] Docker konteynerleri baslatiliyor...
-echo    (PostgreSQL:5433 + Redis:6379)
+echo [-] Eski containerlar durduruluyor...
+docker compose -f "%COMPOSE_FILE%" down >nul 2>&1
+echo [OK] Temizlik tamam.
+
+REM Start full Docker stack
 echo.
-docker compose -f "%ROOT_DIR%docker-compose.yml" up -d
+echo [-] Full stack baslatiliyor...
+echo    (db + redis + backend)
+echo.
+docker compose -f "%COMPOSE_FILE%" up -d --build
 
 if errorlevel 1 (
-    echo [HATA] Docker baslatilamadi!
+    echo [HATA] Containerlar baslatilamadi!
+    docker compose -f "%COMPOSE_FILE%" logs
     pause
     exit /b 1
 )
-echo [OK] Docker konteynerleri calisiyor.
+echo [OK] Containerlar ayaga kalkti.
 
-REM Wait for PostgreSQL
+REM Wait for PostgreSQL (with retry loop)
 echo.
 echo [-] PostgreSQL hazirlaniyor...
-timeout /t 5 /nobreak >nul
-
-REM Check PostgreSQL ready
-docker exec emlakdefter_db pg_isready -U emlakdefter_user -d emlakdefter >nul 2>&1
-if errorlevel 1 (
-    echo [UYARI] PostgreSQL henuz hazir degil, bekleniyor...
-    timeout /t 10 /nobreak >nul
+set PG_READY=0
+for %%i in (1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20) do (
+    if "!PG_READY!"=="0" (
+        docker exec emlakdefter_db pg_isready -U emlakdefter_user -d emlakdefter >nul 2>&1
+        if not errorlevel 1 (
+            set PG_READY=1
+        ) else (
+            timeout /t 3 /nobreak >nul
+        )
+    )
 )
-echo [OK] PostgreSQL hazir.
-
-REM Kill existing process on port 8001
-echo.
-echo [-] Port 8001 kontrol ediliyor...
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr :8001 ^| findstr LISTENING') do (
-    taskkill //F //PID %%a >nul 2>&1
+if "!PG_READY!"=="0" (
+    echo [UYARI] PostgreSQL hazir degil, devam ediliyor...
 )
-echo [OK] Port 8001 temizlendi.
+echo [OK] PostgreSQL kontrolu tamam.
 
-REM Start Backend
+REM Wait for backend to be healthy
 echo.
-echo [-] Backend sunucusu baslatiliyor...
-echo    http://localhost:8001
-echo    http://localhost:8001/docs
-echo.
-
-start "" "http://localhost:8001"
-
-if exist "%BACKEND_DIR%\venv\Scripts\python.exe" (
-    start /B cmd /c "cd /d %BACKEND_DIR% && venv\Scripts\activate.bat && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001"
-) else (
-    start /B cmd /c "cd /d %BACKEND_DIR% && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001"
-)
-
-REM Wait for backend (max 30 sec)
-echo [-] Backend hazirlaniyor (max 30 sn)...
+echo [-] Backend hazirlaniyor (max 60 sn)...
 set BACKEND_READY=0
-for %%i in (1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30) do (
+for %%i in (1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60) do (
     if "!BACKEND_READY!"=="0" (
-        curl -s http://localhost:8001/health >nul 2>&1
+        curl -s http://localhost:8000/health >nul 2>&1
         if not errorlevel 1 (
             echo [OK] Backend hazir.
             set BACKEND_READY=1
@@ -85,21 +77,21 @@ for %%i in (1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
         )
     )
 )
-if "%BACKEND_READY%"=="0" (
+if "!BACKEND_READY!"=="0" (
     echo [UYARI] Backend hazirlanmadi, devam ediliyor...
+    echo    Loglari gormek icin: docker compose -f "%COMPOSE_FILE%" logs backend
 )
 
-REM Run Alembic migration
+REM Run Alembic migration inside container
 echo.
 echo [-] Veritabani tablolari olusturuluyor...
-if exist "%BACKEND_DIR%\venv\Scripts\python.exe" (
-    call "%BACKEND_DIR%\venv\Scripts\activate.bat"
-    "%BACKEND_DIR%\venv\Scripts\python.exe" -m alembic upgrade head
-) else (
-    cd /d "%BACKEND_DIR%"
-    python -m alembic upgrade head
-)
+docker exec emlakdefter_backend python -m alembic upgrade head
 echo [OK] Veritabani tablolari hazir.
+
+REM Open browser
+echo.
+start "" "http://localhost:8000"
+start "" "http://localhost:8000/docs"
 
 REM Clean Flutter build
 echo.
@@ -113,8 +105,8 @@ REM Start Flutter
 echo.
 echo ========================================
 echo   Flutter baslatiliyor...
-echo   Backend: http://localhost:8001
-echo   API Docs: http://localhost:8001/docs
+echo   Backend: http://localhost:8000
+echo   API Docs: http://localhost:8000/docs
 echo ========================================
 echo.
 cd /d "%FRONTEND_DIR%"
@@ -125,8 +117,8 @@ echo.
 echo.
 echo ========================================
 echo   Flutter kapandi.
-echo   Backend loglarini gormek icin:
-echo   docker compose -f docker-compose.yml logs -f
+echo   Container loglarini gormek icin:
+echo   docker compose -f "%COMPOSE_FILE%" logs -f
 echo ========================================
 pause
 

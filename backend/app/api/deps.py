@@ -1,8 +1,8 @@
 import os
 from dotenv import load_dotenv
 
-# .env yükle (DEV_MODE, DEV_AGENCY_ID vb. için) — import'tan ÖNCE olmalı
-load_dotenv()
+# .env dosyasını yükle (backend klasöründen çalıştırıldığında .env burada olur)
+load_dotenv(override=True)
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials

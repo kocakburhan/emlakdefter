@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/theme/colors.dart';
 import '../tabs/home_tab.dart';
 import '../tabs/properties_tab.dart';
@@ -14,8 +15,10 @@ class AgentDashboardScreen extends StatefulWidget {
   State<AgentDashboardScreen> createState() => _AgentDashboardScreenState();
 }
 
-class _AgentDashboardScreenState extends State<AgentDashboardScreen> {
+class _AgentDashboardScreenState extends State<AgentDashboardScreen>
+    with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
+  late AnimationController _navController;
 
   final List<Widget> _pages = [
     const HomeTab(),
@@ -27,51 +30,125 @@ class _AgentDashboardScreenState extends State<AgentDashboardScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _navController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+  }
+
+  @override
+  void dispose() {
+    _navController.dispose();
+    super.dispose();
+  }
+
+  void _onTabChanged(int index) {
+    if (index != _currentIndex) {
+      setState(() => _currentIndex = index);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
-        child: _pages[_currentIndex],
+        switchInCurve: Curves.easeOut,
+        switchOutCurve: Curves.easeIn,
+        transitionBuilder: (child, animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.02, 0),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
+              child: child,
+            ),
+          );
+        },
+        child: KeyedSubtree(key: ValueKey(_currentIndex), child: _pages[_currentIndex]),
       ),
-      bottomNavigationBar: Container(
-        margin: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-        decoration: BoxDecoration(
-          color: AppColors.surface.withValues(alpha: 0.8),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.3),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            )
-          ]
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
+      bottomNavigationBar: _buildBottomNav(),
+    );
+  }
+
+  Widget _buildBottomNav() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadowLight,
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: SizedBox(
+          height: 72,
           child: BottomNavigationBar(
             currentIndex: _currentIndex,
-            onTap: (idx) {
-               setState(() { _currentIndex = idx; });
-            },
+            onTap: _onTabChanged,
             type: BottomNavigationBarType.fixed,
             backgroundColor: Colors.transparent,
             elevation: 0,
-            selectedItemColor: AppColors.accent,
-            unselectedItemColor: AppColors.textBody.withValues(alpha: 0.5),
-            showUnselectedLabels: false,
-            selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-            items: const [
-              BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: "Özet"),
-              BottomNavigationBarItem(icon: Icon(Icons.business), label: "Binalarım"),
-              BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet), label: "Finans"),
-              BottomNavigationBarItem(icon: Icon(Icons.confirmation_number), label: "Destek"),
-              BottomNavigationBarItem(icon: Icon(Icons.engineering_outlined), label: "Operasyon"),
-              BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: "Sohbet"),
+            selectedItemColor: AppColors.charcoal,
+            unselectedItemColor: AppColors.textTertiary,
+            showUnselectedLabels: true,
+            selectedLabelStyle: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+            unselectedLabelStyle: Theme.of(context).textTheme.labelSmall,
+            items: [
+              _buildNavItem(Icons.dashboard_outlined, Icons.dashboard, "Özet", 0),
+              _buildNavItem(Icons.business_outlined, Icons.business, "Binalar", 1),
+              _buildNavItem(Icons.account_balance_wallet_outlined, Icons.account_balance_wallet, "Finans", 2),
+              _buildNavItem(Icons.support_agent_outlined, Icons.support_agent, "Destek", 3),
+              _buildNavItem(Icons.engineering_outlined, Icons.engineering, "Operasyon", 4),
+              _buildNavItem(Icons.chat_bubble_outline, Icons.chat_bubble, "Sohbet", 5),
             ],
           ),
         ),
       ),
+    )
+        .animate()
+        .fadeIn(duration: 400.ms)
+        .slideY(begin: 0.1, end: 0, duration: 400.ms, curve: Curves.easeOut);
+  }
+
+  BottomNavigationBarItem _buildNavItem(
+    IconData icon,
+    IconData activeIcon,
+    String label,
+    int index,
+  ) {
+    final isSelected = _currentIndex == index;
+    return BottomNavigationBarItem(
+      icon: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: EdgeInsets.symmetric(
+          horizontal: isSelected ? 12 : 8,
+          vertical: 6,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.charcoal.withValues(alpha: 0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(
+          isSelected ? activeIcon : icon,
+          size: 22,
+        ),
+      ),
+      label: label,
     );
   }
 }

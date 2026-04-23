@@ -23,14 +23,23 @@ async def extract_text_from_pdf(pdf_bytes: bytes) -> str:
 
 async def process_and_match_statement(db: AsyncSession, agency_id: str, pdf_bytes: bytes) -> Dict:
     """PDF -> LLM Analizi -> Makine Öğrenmesi Dışı Difflib İsim Kıyaslaması -> SQL Mühürü"""
-    
+
     # 1. Metin Çıkarımı
     raw_text = await extract_text_from_pdf(pdf_bytes)
-    if len(raw_text) < 20:
-        return {"success": False, "message": "Gönderdiğiniz Dekont okunamıyor veya resim formatında."}
 
-    # 2. LLM Prompting
-    ai_transactions = process_bank_statement(raw_text)
+    # 2. Eğer pdfplumber yeterli text çıkaramadıysa (scanned PDF) → Gemini multimodal dene
+    if len(raw_text) < 20:
+        # Scanned PDF — Gemini PDF bytes'i direkt okuyabilir (multimodal)
+        try:
+            from app.core.llm_processor import process_bank_statement_from_pdf_bytes
+            ai_transactions = process_bank_statement_from_pdf_bytes(pdf_bytes)
+            if not ai_transactions:
+                return {"success": False, "message": "Gemini PDF içeriğini okuyamadı."}
+        except Exception:
+            return {"success": False, "message": "Gönderdiğiniz Dekont okunamıyor veya resim formatında."}
+    else:
+        # Normal text-based PDF
+        ai_transactions = process_bank_statement(raw_text)
     if not ai_transactions:
         return {"success": True, "total_found": 0, "matched_results": []}
 

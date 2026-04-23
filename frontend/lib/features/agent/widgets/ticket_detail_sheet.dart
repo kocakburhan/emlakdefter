@@ -31,7 +31,7 @@ class _TicketDetailSheetState extends ConsumerState<TicketDetailSheet> {
       case TicketStatus.open: return AppColors.error;
       case TicketStatus.inProgress: return AppColors.warning;
       case TicketStatus.resolved: return AppColors.success;
-      case TicketStatus.closed: return AppColors.textBody;
+      case TicketStatus.closed: return AppColors.textSecondary;
     }
   }
 
@@ -191,7 +191,7 @@ class _TicketDetailSheetState extends ConsumerState<TicketDetailSheet> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Bina Operasyonlarına eklendi: ${widget.ticket.title}'),
-              backgroundColor: AppColors.accent,
+              backgroundColor: AppColors.charcoal,
               action: SnackBarAction(
                 label: 'Mali Rapor',
                 textColor: Colors.white,
@@ -351,7 +351,7 @@ class _TicketDetailSheetState extends ConsumerState<TicketDetailSheet> {
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: selected != null
-                                  ? [AppColors.accent, AppColors.accent.withValues(alpha: 0.8)]
+                                  ? [AppColors.charcoal, AppColors.charcoal.withValues(alpha: 0.8)]
                                   : [Colors.grey, Colors.grey],
                             ),
                             borderRadius: BorderRadius.circular(16),
@@ -574,7 +574,7 @@ class _TicketDetailSheetState extends ConsumerState<TicketDetailSheet> {
               Expanded(child: _ActionButton(
                 icon: Icons.chat_bubble_outline,
                 label: 'Yanıt Yaz',
-                color: AppColors.accent,
+                color: AppColors.charcoal,
                 onTap: _openChat,
               )),
               const SizedBox(width: 10),
@@ -700,7 +700,7 @@ class _TicketDetailSheetState extends ConsumerState<TicketDetailSheet> {
               Container(
                 width: 10, height: 10,
                 decoration: BoxDecoration(
-                  color: msg.isMe ? AppColors.accent : AppColors.warning,
+                  color: msg.isMe ? AppColors.charcoal : AppColors.warning,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -721,7 +721,7 @@ class _TicketDetailSheetState extends ConsumerState<TicketDetailSheet> {
                 color: Colors.white.withValues(alpha: 0.04),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: (msg.isMe ? AppColors.accent : AppColors.warning).withValues(alpha: 0.12),
+                  color: (msg.isMe ? AppColors.charcoal : AppColors.warning).withValues(alpha: 0.12),
                 ),
               ),
               child: Column(
@@ -733,7 +733,7 @@ class _TicketDetailSheetState extends ConsumerState<TicketDetailSheet> {
                       Text(
                         msg.isMe ? 'Emlakçı Yanıtı' : (widget.ticket.tenantName ?? 'Kiracı'),
                         style: TextStyle(
-                          color: msg.isMe ? AppColors.accent : AppColors.warning,
+                          color: msg.isMe ? AppColors.charcoal : AppColors.warning,
                           fontSize: 11, fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -797,12 +797,12 @@ class _TicketDetailSheetState extends ConsumerState<TicketDetailSheet> {
                 gradient: LinearGradient(
                   colors: _isReplying
                       ? [Colors.grey, Colors.grey]
-                      : [AppColors.accent.withValues(alpha: 0.85), AppColors.accent],
+                      : [AppColors.charcoal.withValues(alpha: 0.85), AppColors.charcoal],
                 ),
                 shape: BoxShape.circle,
                 boxShadow: _isReplying
                     ? null
-                    : [BoxShadow(color: AppColors.accent.withValues(alpha: 0.3), blurRadius: 8)],
+                    : [BoxShadow(color: AppColors.charcoal.withValues(alpha: 0.3), blurRadius: 8)],
               ),
               child: _isReplying
                   ? const SizedBox(
@@ -952,10 +952,10 @@ class _TicketChatInlineSheetState extends ConsumerState<_TicketChatInlineSheet> 
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppColors.accent.withValues(alpha: 0.15),
+                      color: AppColors.charcoal.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: const Icon(Icons.chat_bubble_outline, color: AppColors.accent, size: 20),
+                    child: const Icon(Icons.chat_bubble_outline, color: AppColors.charcoal, size: 20),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -1005,7 +1005,7 @@ class _TicketChatInlineSheetState extends ConsumerState<_TicketChatInlineSheet> 
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
                               color: msg.isMe
-                                  ? AppColors.accent.withValues(alpha: 0.18)
+                                  ? AppColors.charcoal.withValues(alpha: 0.18)
                                   : Colors.white.withValues(alpha: 0.06),
                               borderRadius: BorderRadius.only(
                                 topLeft: const Radius.circular(16),
@@ -1015,7 +1015,7 @@ class _TicketChatInlineSheetState extends ConsumerState<_TicketChatInlineSheet> 
                               ),
                               border: Border.all(
                                 color: msg.isMe
-                                    ? AppColors.accent.withValues(alpha: 0.3)
+                                    ? AppColors.charcoal.withValues(alpha: 0.3)
                                     : Colors.white.withValues(alpha: 0.08),
                               ),
                             ),
@@ -1028,7 +1028,7 @@ class _TicketChatInlineSheetState extends ConsumerState<_TicketChatInlineSheet> 
                                     child: Text(
                                       widget.ticket.tenantName ?? 'Kiracı',
                                       style: const TextStyle(
-                                        color: AppColors.accent, fontSize: 10,
+                                        color: AppColors.charcoal, fontSize: 10,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
@@ -1082,10 +1082,10 @@ class _TicketChatInlineSheetState extends ConsumerState<_TicketChatInlineSheet> 
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [AppColors.accent.withValues(alpha: 0.85), AppColors.accent],
+                          colors: [AppColors.charcoal.withValues(alpha: 0.85), AppColors.charcoal],
                         ),
                         shape: BoxShape.circle,
-                        boxShadow: [BoxShadow(color: AppColors.accent.withValues(alpha: 0.3), blurRadius: 8)],
+                        boxShadow: [BoxShadow(color: AppColors.charcoal.withValues(alpha: 0.3), blurRadius: 8)],
                       ),
                       child: const Icon(Icons.send, color: Colors.white, size: 20),
                     ),

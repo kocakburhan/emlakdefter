@@ -38,6 +38,12 @@ class PropertyUnitResponse(PropertyUnitBase):
     class Config:
         from_attributes = True
 
+class FloorConfigItem(BaseModel):
+    """Her kat için birim yapılandırması"""
+    floor: int = Field(..., description="Kat numarası (örn: -3, 0, 12)")
+    units: int = Field(..., ge=0, description="Bu kattaki birim sayısı")
+    exclude: bool = Field(False, description="Bu kat hariç tutulacak mı?")
+
 class PropertyCreate(BaseModel):
     """Emlakçının UI formundan doldurup göndereceği paket"""
     name: str = Field(..., description="Mülk Adı (Örn: Güneş Sitesi veya Hobi Bahçesi)")
@@ -50,6 +56,12 @@ class PropertyCreate(BaseModel):
     start_floor: Optional[int] = Field(None, description="Başlangıç katı (Örn: -2 Otopark katları dahil)")
     end_floor: Optional[int] = Field(None, description="Bitiş katı (Örn: 10)")
     units_per_floor: Optional[int] = Field(None, description="Her kattaki daire kapasitesi (Örn: 4)")
+
+    # Yeni esnek kat yapılandırması (floor_config varsa öncelikli)
+    floor_config: Optional[List[FloorConfigItem]] = Field(
+        None,
+        description="Her kat için detaylı birim yapılandırması. Varsayilan uniform üretim yerine bu kullanılırsa esnek kat bazlı üretim yapılır."
+    )
 
 class PropertyResponse(BaseModel):
     """Ana bina listeleme yanıt DTO'su"""
