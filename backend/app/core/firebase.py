@@ -212,37 +212,25 @@ def get_firebase_user_by_phone(phone_number: str) -> dict | None:
         return None
     except Exception:
         return None
-    """
-    Firebase Cloud Messaging üzerinden birden fazla cihaza push notification gönderir.
-    Başarıyla gönderilen token sayısını döner.
-    """
-    if not tokens:
-        return 0
 
+
+def generate_email_verification_link(email: str) -> str:
+    """
+    Firebase Admin SDK ile email verification link oluşturur.
+    Bu link email'e gönderilir ve kullanıcı linke tıkladığında Firebase email'i doğrulanmış olur.
+    PRD §4.4: Email OTP flow.
+    """
     if not os.path.exists(FIREBASE_CREDENTIALS_PATH):
-        logger.warning("[FCM] Firebase credentials yok — çoklu bildirim atlanıyor (mock mod).")
-        return 0
+        logger.warning("[Firebase] Credentials yok — email verification link mock olarak döndürülüyor.")
+        return f"https://app.emlakdefter.com/verify-email?mock=true&email={email}"
 
-    success_count = 0
-    for token in tokens:
-        try:
-            message = fb_messaging.Message(
-                notification=fb_messaging.Notification(title=title, body=body),
-                data=data or {},
-                token=token,
-                android=fb_messaging.AndroidConfig(
-                    priority="high",
-                    notification=fb_messaging.AndroidNotification(
-                        icon="ic_notification",
-                        color="#4CAF50",
-                        channel_id="emlakdefter_alerts",
-                    ),
-                ),
-            )
-            fb_messaging.send(message)
-            success_count += 1
-        except Exception as e:
-            logger.warning(f"[FCM] Token {token[:20]}... gönderilemedi: {e}")
-
-    logger.info(f"[FCM] Çoklu bildirim: {success_count}/{len(tokens)} başarılı.")
-    return success_count
+    try:
+        link = auth.generate_email_verification_link(email)
+        logger.info(f"[Firebase] Email verification link oluşturuldu: {email}")
+        return link
+    except firebase_admin._auth_utils.EmailNotFoundError:
+        logger.error(f"[Firebase] Email bulunamadı: {email}")
+        raise HTTPException(status_code=404, detail="Bu email adresiyle kayıtlı kullanıcı bulunamadı.")
+    except Exception as e:
+        logger.error(f"[Firebase] Email verification link hatası: {e}")
+        raise HTTPException(status_code=500, detail=f"Email doğrulama linki oluşturulamadı: {str(e)}")
