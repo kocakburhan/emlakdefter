@@ -1,4 +1,5 @@
-from pydantic import BaseModel, UUID4, Field, EmailStr, field_validator
+from uuid import UUID
+from pydantic import BaseModel, Field, EmailStr, field_validator
 from typing import Optional
 from datetime import datetime
 from enum import Enum
@@ -15,9 +16,9 @@ class UserRole(str, Enum):
 # === Invitation Schemas ===
 class InviteCreate(BaseModel):
     """Emlakçı bir malik/kiracı kaydetmek istediğinde Body'sinde yollayacağı veriler."""
-    agency_id: UUID4
+    agency_id: UUID
     target_role: str = Field(..., description="Eklenecek hedef kitle: 'tenant', 'landlord', veya 'agent'")
-    related_entity_id: Optional[UUID4] = Field(None, description="İrtibatlanan PropertyUnit ID'si")
+    related_entity_id: Optional[UUID] = Field(None, description="İrtibatlanan PropertyUnit ID'si")
 
 class InviteResponse(BaseModel):
     """Davet başarılı olunca emlakçıya dönülecek WhatsApp fırlatma linki referansları."""
@@ -36,20 +37,28 @@ class LoginRequest(BaseModel):
     @field_validator('email_or_phone')
     @classmethod
     def validate_email_or_phone(cls, v):
-        v = v.strip()
+        v = v.strip().lower()
         if '@' in v:
             # Email format validation
             if len(v) < 5 or '.' not in v:
                 raise ValueError('Geçerli bir email adresi girin')
         else:
-            # Phone format - Turkish phone (10 digits, starting with 5)
+            # Phone format check (must contain only digits/symbols)
             digits = ''.join(filter(str.isdigit, v))
-            if len(digits) != 10 or not digits.startswith('5'):
-                raise ValueError('Geçerli bir telefon numarası girin (5xx xxx xx xx)')
+            # Just stripping down to digits. Turkish format typically starts with '0' -> '5' or just '5'
+            if digits.startswith('0'):
+                digits = digits[1:]
+            if digits.startswith('90'):
+                digits = '90' + digits[2:]  # leave it
+            else:
+                digits = '90' + digits
+            # EmlakDefteri will store +905XXXXXXXXX format 
+            if len(digits) != 12 or not digits.startswith('905'):
+                raise ValueError('Geçerli bir Türkiye telefon numarası girin (5xx xxx xx xx)')
         return v
 
 
-class LoginResponse(BaseModel):
+class AuthLoginResponse(BaseModel):
     """Giriş kontrolü sonrası dönecek yanıt"""
     status: str = Field(..., description="'password_required' | 'otp_required' | 'success'")
     user: Optional["UserResponse"] = None
@@ -58,18 +67,19 @@ class LoginResponse(BaseModel):
 
 
 class VerifyOTPRequest(BaseModel):
-    """OTP doğrulama isteği"""
-    user_id: UUID4
-    code: str = Field(..., min_length=6, max_length=6)
-
+    """Email için 6 haneli OTP veya Telefon için Firebase SMS token doğrulaması"""
+    email_or_phone: str
+    code: Optional[str] = None  # Backend'den yollanan Email OTP için zorunlu
+    firebase_id_token: Optional[str] = None  # Firebase SMS doğrulaması için zorunlu
 
 class SetPasswordRequest(BaseModel):
-    """Şifre belirleme isteği"""
-    user_id: UUID4
-    password: str = Field(..., min_length=8, description="En az 8 karakter")
+    """Şifre belirleme isteği (OTP doğrulamasından sonra gelir veya Şifremi Unuttum)"""
+    user_id: UUID
+    new_password: str = Field(..., min_length=8, description="En az 8 karakter")
     confirm_password: str
+    verification_token: Optional[str] = None # Yetkisiz şifre değiştirmeyi engellemek için
 
-    @field_validator('password')
+    @field_validator('new_password')
     @classmethod
     def validate_password(cls, v):
         if not any(c.isupper() for c in v):
@@ -81,7 +91,7 @@ class SetPasswordRequest(BaseModel):
     @field_validator('confirm_password')
     @classmethod
     def validate_match(cls, v, info):
-        if 'password' in info.data and v != info.data['password']:
+        if 'new_password' in info.data and v != info.data['new_password']:
             raise ValueError('Şifreler uyuşmuyor')
         return v
 
@@ -97,6 +107,32 @@ class ForgotPasswordRequest(BaseModel):
     email_or_phone: str
 
 
+class AdminCreateAgencyBossRequest(BaseModel):
+    """Admin panelinden yeni Emlak Ofisi ve Patron oluşturma isteği"""
+    agency_name: str = Field(..., min_length=1, description="Ofis adı (zorunlu)")
+    agency_address: str = Field(..., min_length=1, description="Adres (zorunlu)")
+
+    boss_full_name: Optional[str] = Field(None, description="Patron Ad Soyad (zorunlu)")
+    boss_email: Optional[str] = None
+    boss_phone_number: Optional[str] = None
+
+    @field_validator('boss_email', 'boss_phone_number')
+    @classmethod
+    def require_at_least_one_contact(cls, v, info):
+        # We will do structural validation where at least one is required
+        return v
+        
+class CreateEmployeeRequest(BaseModel):
+    """Patron tarafından yeni Çalışan (Employee) oluşturma isteği"""
+    full_name: str = Field(..., min_length=1, description="Çalışan Ad Soyad (zorunlu)")
+    email: Optional[str] = None
+    phone_number: Optional[str] = None
+
+    @field_validator('email', 'phone_number')
+    @classmethod
+    def require_at_least_one_contact(cls, v, info):
+        return v
+
 # === User Schemas ===
 
 class UserCreate(BaseModel):
@@ -105,7 +141,7 @@ class UserCreate(BaseModel):
     phone_number: Optional[str] = None
     full_name: str = Field(..., min_length=1)
     role: UserRole
-    agency_id: Optional[UUID4] = None
+    agency_id: Optional[UUID] = None
 
     @field_validator('email', 'phone_number')
     @classmethod
@@ -140,13 +176,13 @@ class UserUpdate(BaseModel):
 
 class UserResponse(BaseModel):
     """Dışarı çıkarılacak güvenli kullanıcı profil iskeleti"""
-    id: UUID4
+    id: UUID
     email: Optional[str]
     phone_number: Optional[str]
     full_name: str
     role: UserRole
     status: str
-    agency_id: Optional[UUID4]
+    agency_id: Optional[UUID]
     created_at: datetime
     last_login_at: Optional[datetime]
 

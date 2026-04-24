@@ -167,6 +167,10 @@
 ## 📋 Yapılacaklar Sıralı Plan (Güncel)
 
 ### Tamamlanan ✅
+- [x] §4.1.4-A — Firebase Email Link Auth (Passwordless) — Frontend Deep Link Yakalama
+- [x] §4.1.4-B — Frontend AuthProvider (AuthNotifier) — `sendOtp`, `verifyOtp`, `loginWithEmailOrPhone` state management
+- [x] §4.1.4-D — Frontend Login UI Flow — LoginScreen -> (Email Link Dialog veya SMS OTP/Password ekranlarına yönlendirme)
+- [x] §4.1.5 — Çalışan Ekleme Arayüzü — Patronların sisteme direkt çalışan eklediği UI akışı (`employees_tab.dart` + `employee_service.dart`)
 - [x] §4.1.4-B — WhatsApp ile Davet (url_launcher) — Modal bottom sheet ile Kopyala + WhatsApp butonları
 - [x] §4.1.6-B — Mali Rapor Yeni İşlem Ekle Formu — Gelir/Gider, kategori seçimi, API'ye POST
 - [x] §4.1.4-C — KVKK Onay Checkbox — KVKK metni dialog, checkbox onayı, OTP akışına entegre

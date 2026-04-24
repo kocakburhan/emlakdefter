@@ -1,4 +1,5 @@
-from pydantic import BaseModel, UUID4, Field, NonNegativeInt
+from uuid import UUID
+from pydantic import BaseModel, Field, NonNegativeInt
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 
@@ -25,9 +26,9 @@ class PropertyUnitUpdate(BaseModel):
     features: Optional[Dict[str, Any]] = Field(None, description="Birime özel özellikler")
 
 class PropertyUnitResponse(PropertyUnitBase):
-    id: UUID4
-    agency_id: UUID4
-    property_id: UUID4
+    id: UUID
+    agency_id: UUID
+    property_id: UUID
     status: str
     vacant_since: Optional[datetime] = None
     created_at: datetime
@@ -65,8 +66,8 @@ class PropertyCreate(BaseModel):
 
 class PropertyResponse(BaseModel):
     """Ana bina listeleme yanıt DTO'su"""
-    id: UUID4
-    agency_id: UUID4
+    id: UUID
+    agency_id: UUID
     name: str
     type: str
     address: Optional[str]

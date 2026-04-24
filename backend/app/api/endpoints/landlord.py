@@ -24,11 +24,14 @@ from app.schemas.landlord import (
 router = APIRouter()
 
 
-def _build_landlord_units_query(user_id: uuid.UUID, db: AsyncSession):
-    """Ev sahibinin tüm birimlerini getirir (join'li)"""
+def _build_landlord_units_query(user_id: uuid.UUID, agency_id: uuid.UUID, db: AsyncSession):
+    """Ev sahibinin tüm birimlerini getirir (join'li) — agency_id izolasyonu ile."""
     stmt = (
         select(LandlordUnit)
-        .where(LandlordUnit.user_id == user_id)
+        .where(
+            LandlordUnit.user_id == user_id,
+            LandlordUnit.agency_id == agency_id,  # ✅ Agency izolasyonu
+        )
         .options(
             selectinload(LandlordUnit.unit)
             .selectinload(PropertyUnit.property),
@@ -37,19 +40,20 @@ def _build_landlord_units_query(user_id: uuid.UUID, db: AsyncSession):
     return stmt
 
 
-async def _get_landlord_units(user_id: uuid.UUID, db: AsyncSession):
-    stmt = _build_landlord_units_query(user_id, db)
+async def _get_landlord_units(user_id: uuid.UUID, agency_id: uuid.UUID, db: AsyncSession):
+    stmt = _build_landlord_units_query(user_id, agency_id, db)
     result = await db.execute(stmt)
     return result.scalars().all()
 
 
-async def _get_tenants_for_units(unit_ids: List[uuid.UUID], db: AsyncSession):
-    """Birim ID'lerine göre aktif kiracıları getirir"""
+async def _get_tenants_for_units(unit_ids: List[uuid.UUID], agency_id: uuid.UUID, db: AsyncSession):
+    """Birim ID'lerine göre aktif kiracıları getirir — agency_id izolasyonu ile."""
     if not unit_ids:
         return []
     stmt = select(Tenant).where(
         Tenant.unit_id.in_(unit_ids),
         Tenant.is_active == True,
+        Tenant.agency_id == agency_id,  # ✅ Agency izolasyonu
     ).options(selectinload(Tenant.unit).selectinload(PropertyUnit.property))
     result = await db.execute(stmt)
     return result.scalars().all()
@@ -65,11 +69,11 @@ async def landlord_dashboard(
     db: AsyncSession = Depends(deps.get_db),
 ):
     """Ev Sahibinin ana paneli — tüm mülklerinin özeti."""
-    landlord_units = await _get_landlord_units(current_user.id, db)
+    landlord_units = await _get_landlord_units(current_user.id, current_user.agency_id if hasattr(current_user, 'agency_id') else None, db)
     unit_ids = [lu.unit_id for lu in landlord_units]
 
     # Aktif kiracıları çek
-    tenants = await _get_tenants_for_units(unit_ids, db)
+    tenants = await _get_tenants_for_units(unit_ids, current_user.agency_id if hasattr(current_user, 'agency_id') else None, db)
     active_tenants = [t for t in tenants if t.is_active]
 
     occupied = sum(1 for lu in landlord_units if lu.unit.status == UnitStatus.occupied)
@@ -136,7 +140,7 @@ async def landlord_properties(
     db: AsyncSession = Depends(deps.get_db),
 ):
     """Ev Sahibinin mülklerini ve her mülkteki birim durumlarını listeler."""
-    landlord_units = await _get_landlord_units(current_user.id, db)
+    landlord_units = await _get_landlord_units(current_user.id, current_user.agency_id if hasattr(current_user, 'agency_id') else None, db)
 
     # Mülk bazında grupla
     prop_map = {}
@@ -183,9 +187,9 @@ async def landlord_units(
     db: AsyncSession = Depends(deps.get_db),
 ):
     """Ev Sahibinin tüm birimlerini detaylı listeler."""
-    landlord_units = await _get_landlord_units(current_user.id, db)
+    landlord_units = await _get_landlord_units(current_user.id, current_user.agency_id if hasattr(current_user, 'agency_id') else None, db)
     unit_ids = [lu.unit_id for lu in landlord_units]
-    tenants = await _get_tenants_for_units(unit_ids, db)
+    tenants = await _get_tenants_for_units(unit_ids, current_user.agency_id if hasattr(current_user, 'agency_id') else None, db)
     tenant_map = {t.unit_id: t for t in tenants}
 
     responses = []
@@ -218,9 +222,9 @@ async def landlord_tenants(
     db: AsyncSession = Depends(deps.get_db),
 ):
     """Ev Sahibinin kiracılarının performansını listeler."""
-    landlord_units = await _get_landlord_units(current_user.id, db)
+    landlord_units = await _get_landlord_units(current_user.id, current_user.agency_id if hasattr(current_user, 'agency_id') else None, db)
     unit_ids = [lu.unit_id for lu in landlord_units]
-    tenants = await _get_tenants_for_units(unit_ids, db)
+    tenants = await _get_tenants_for_units(unit_ids, current_user.agency_id if hasattr(current_user, 'agency_id') else None, db)
 
     from app.models.finance import FinancialTransaction, PaymentSchedule
     from app.models.operations import TicketStatus
@@ -352,7 +356,7 @@ async def landlord_tenant_tickets(
     Ev Sahibinin mülklerindeki kiracı destek biletlerini getirir — PRD §4.3.3 §A.
     Kiracıların açtığı biletler (Açık / İşlemde / Çözüldü) zaman tünelinde görünür.
     """
-    landlord_units = await _get_landlord_units(current_user.id, db)
+    landlord_units = await _get_landlord_units(current_user.id, current_user.agency_id if hasattr(current_user, 'agency_id') else None, db)
     unit_ids = [lu.unit_id for lu in landlord_units]
     property_ids = list(set(lu.unit.property_id for lu in landlord_units))
 
@@ -435,7 +439,7 @@ async def landlord_operations(
     db: AsyncSession = Depends(deps.get_db),
 ):
     """Ev Sahibinin mülklerindeki bina operasyonlarını (şeffaflık modülü) getirir."""
-    landlord_units = await _get_landlord_units(current_user.id, db)
+    landlord_units = await _get_landlord_units(current_user.id, current_user.agency_id if hasattr(current_user, 'agency_id') else None, db)
     property_ids = list(set(lu.unit.property_id for lu in landlord_units))
 
     if not property_ids:
@@ -489,7 +493,7 @@ async def landlord_unit_documents(
     Ev Sahibi salt-okunur erişimdedir.
     """
     # Ev sahibinin bu birime erişim yetkisini doğrula
-    landlord_units = await _get_landlord_units(current_user.id, db)
+    landlord_units = await _get_landlord_units(current_user.id, current_user.agency_id if hasattr(current_user, 'agency_id') else None, db)
     unit_ids = [lu.unit_id for lu in landlord_units]
 
     if unit_id not in unit_ids:
@@ -560,7 +564,7 @@ async def landlord_vacant_units(
     PRD §4.3.4 — #3 kritik hata düzeltmesi.
     """
     # Ev sahibinin birimlerini getir (bu sorgu agency_staff değil, landlords_units üzerinden çalışır)
-    landlord_units = await _get_landlord_units(current_user.id, db)
+    landlord_units = await _get_landlord_units(current_user.id, current_user.agency_id if hasattr(current_user, 'agency_id') else None, db)
     if not landlord_units:
         return []
 
@@ -619,7 +623,7 @@ async def landlord_send_interest(
     Emlakçıyla sohbet başlatır ve ilk mesajı gönderir.
     """
     # Ev sahibinin kendi mülk birimlerini al
-    landlord_units = await _get_landlord_units(current_user.id, db)
+    landlord_units = await _get_landlord_units(current_user.id, current_user.agency_id if hasattr(current_user, 'agency_id') else None, db)
     if not landlord_units:
         raise HTTPException(status_code=403, detail="Bu kullanıcı herhangi bir mülke sahip değil.")
 

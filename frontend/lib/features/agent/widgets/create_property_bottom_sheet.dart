@@ -5,8 +5,8 @@ import '../../../core/theme/colors.dart';
 import '../providers/properties_provider.dart';
 
 enum PropertyFormType {
-  apartment,
-  villa,
+  apartment,  // → apartment_complex
+  villa,       // → standalone_house
   land,
   commercial,
 }
@@ -162,9 +162,9 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
   String get _typeString {
     switch (_selectedType) {
       case PropertyFormType.apartment:
-        return 'apartment';
+        return 'apartment_complex';  // Backend: apartment_complex
       case PropertyFormType.villa:
-        return 'villa';
+        return 'standalone_house';    // Backend: standalone_house
       case PropertyFormType.land:
         return 'land';
       case PropertyFormType.commercial:

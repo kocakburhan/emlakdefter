@@ -23,8 +23,8 @@ class AppTheme {
   static const Duration animNormal = Duration(milliseconds: 300);
   static const Duration animSlow = Duration(milliseconds: 400);
 
-  // Typography - Using centralized typography system
-  static TextStyle get _baseTextStyle => GoogleFonts.sourceCodePro();
+  // Typography - Using Open Sans
+  static TextStyle get _baseTextStyle => GoogleFonts.openSans();
 
   static ThemeData get lightTheme {
     return ThemeData(
@@ -61,7 +61,7 @@ class AppTheme {
         ),
       ),
 
-      // Text Theme - Source Code Pro (DejaVu Sans Mono alternatifi)
+      // Text Theme - Open Sans
       textTheme: TextTheme(
         displayLarge: _baseTextStyle.copyWith(fontSize: 32, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
         displayMedium: _baseTextStyle.copyWith(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.textPrimary),

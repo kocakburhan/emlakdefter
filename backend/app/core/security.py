@@ -1,20 +1,22 @@
 import os
 from datetime import datetime, timedelta, timezone
 from jose import jwt
-from passlib.context import CryptContext
+import bcrypt
 
 # Bcrypt ile tek yönlü (çözülemez) parola özetlemesi
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-# JWT Algoritma Ortam Değişkenleri
-SECRET_KEY = os.getenv("SECRET_KEY", "b2c9a8db422e..._override_in_env_")
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
+# NOT: bcrypt password sınırı 72 bytes - daha uzun şifreler kesilir
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+# JWT Algoritma Ortam Değişkenleri
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY environment variable is required! Set it in your .env file.")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
 
 def create_invitation_token(data: dict, expires_delta: timedelta) -> str:
     """PRD Madde 4.1.4: Akıllı Davet Jetonları için kriptografik string üretir."""
@@ -24,8 +26,10 @@ def create_invitation_token(data: dict, expires_delta: timedelta) -> str:
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-def create_access_token(data: dict, expires_delta: timedelta) -> str:
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     """Backend korumalı rotaları (Kullanıcı Oturumu) için yetki token'ı."""
+    if expires_delta is None:
+        expires_delta = timedelta(minutes=1440)  # Default 24 hours
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + expires_delta
     to_encode.update({"exp": expire, "type": "access"})

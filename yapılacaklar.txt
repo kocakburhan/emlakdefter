@@ -1,0 +1,202 @@
+Projede kayıt olma ve giriş yapma işlemleri tamamen aşağıdaki şartlar doğrultusunda değiştirilecektir. Aşağıda akış detaylı olarak anlatılmıştır. Senden bu akış ile tamamen uyumlu olacak şekilde kod değişikliklerini gerçekleştirmeni istiyorum. Bu işi yapmak için gereken bir plan hazırla bu plan, aşağıdaki akışı adım adım uygulayacak bir plan olmalıdır. Planı hazırlamadan önce kafanda herhangi bir soru işareti varsa bunları bana sor ve netleştir, hiçbir şeyi varsayma, her şeye beraber karar verelim. Sonrasında aşağıdaki akışa %100 uyumlu adım adım oluşturulan bir plan hazırlamalısın.
+
+NOT: Şu anda sistemde StaffRole enum'ında boss vardır --> bu patronu ifade eder. employee vardır --> bu çalışanı ifade eder.
+
+Akış:
+
+Sistemde kullanıcılar için unique değer olarak email ya da telefon numarası kullanılacak.
+
+A: Admin Paneli: Emlak Ofisi ve Patron Kaydı
+
+1. Admin Girişi
+Admin paneline yalnızca yetkili admin hesapları erişebilir. Admin, panel URL'sine girerek kendi kimlik bilgileriyle (email + şifre) sisteme giriş yapar. Admin hesapları sisteme önceden tanımlıdır, panel üzerinden yeni admin oluşturulamaz. --> Admin eklenirken firebase console'dan email+şifre ile yeni kuıllanıcı oluşturulur, bu kullanıcının role değeri admin olarak belirlenir, fastapi bir admin giriş yapacakken her istekte token'dan uid alır, DB'de role kontrolü yapar.
+
+2. Yeni Emlak Ofisi Kaydı Oluşturma
+Admin, panelin sol menüsündeki "Emlak Ofisleri" bölümüne girer ve "Yeni Ofis Ekle" butonuna tıklar.
+Açılan formda admin aşağıdaki bilgileri doldurur:
+Emlak ofisi bilgileri:
+
+Ofis adı (zorunlu)
+Adres (zorunlu)
+
+Patron profili bilgileri:
+
+Ad Soyad (zorunlu)
+Email adresi veya telefon numarası (zorunlu — en az biri girilmek zorundadır, ikisi birden de girilebilir)
+
+
+3. Sistem Kontrolleri (Kaydet Butonuna Basıldığında)
+Admin formu doldurup "Kaydet" butonuna bastığında sistem sırasıyla şu kontrolleri yapar:
+Format kontrolü: Girilen email geçerli bir formatta mı, telefon numarası geçerli bir Türkiye numarası mı? Hatalı formatta bir değer varsa ilgili alan kırmızıya döner, hata mesajı gösterilir ve kayıt işlemi durur.
+Tekil (unique) değer kontrolü: Girilen email veya telefon numarası sistemde başka bir kullanıcıya ait mi? Eğer daha önce kayıtlıysa şu hata gösterilir: "Bu email adresi / telefon numarası sistemde zaten kayıtlı." Kayıt işlemi durur.
+Tüm kontroller geçildiyse kayıt işlemi tamamlanır.
+
+4. Sistemde Oluşturulanlar
+Kayıt başarıyla tamamlandığında sistem otomatik olarak şunları oluşturur:
+
+Girilen bilgilerle bir emlak ofisi kaydı oluşturulur.
+Patron adı, email ve/veya telefon numarasıyla bir patron profili oluşturulur. Bu profil, şifre alanı boş olarak kaydedilir — patron henüz şifre belirlememişdir.
+Patron profili, oluşturulan emlak ofisiyle ilişkilendirilir (patron bu ofise bağlı olur).
+
+
+5. Admin Panelinde Kayıt Sonrası Durum
+Kayıt tamamlandıktan sonra admin, ilgili emlak ofisinin detay sayfasına yönlendirilir. Bu sayfada şunlar görünür:
+
+Ofisin bilgileri
+Patron profilinin bilgileri
+Patron profili durumu: "Şifre belirlenmemiş — İlk giriş bekleniyor"
+
+Admin isterse bu sayfadan patron profilini düzenleyebilir (ad, email, telefon güncelleme), profili pasife alabilir veya silebilir.
+
+
+
+6. Patronun Süreci Devralması
+Bu adımdan itibaren süreç patrona geçer. Patron, mobil ya da web'den uygulamayı açar ve B bölümündeki akışa göre ilk girişini gerçekleştirir.
+
+
+
+---
+
+
+
+B:
+1. Giriş Ekranı (İlk Görünen Ekran)
+Kullanıcı uygulamayı açtığında Hoş geldin mesajı ve tek bir giriş alanı altında "Devam Et" butonu görür.
+
+Alanda placeholder olarak "Email veya telefon numarası" yazar.
+Kullanıcı yazmaya başladığında sistem girilen değeri otomatik algılar: @ karakteri içeriyorsa email, yalnızca rakam içeriyorsa telefon numarası olarak işlenir. Kullanıcıya bu konuda herhangi bir seçim yaptırılmaz.
+Telefon numarası girilmesi durumunda Türkiye ülke kodu +90 prefix olarak gösterilir.
+Kullanıcı "Devam Et"e bastığında önce format doğrulaması yapılır (geçerli bir email formatı mı, geçerli bir telefon numarası mı). Format hatalıysa kullanıcı bir sonraki adıma geçemez, alan kırmızıya döner ve hata mesajı gösterilir.
+Format geçerliyse istek backend'e gönderilir.
+
+
+2. Backend Kontrolü (Kullanıcıya Görünmez)
+Backend gelen email veya telefon numarasını veritabanında arar.
+Burada iki durum söz konusudur:
+Durum A — Kayıt bulunamadı:
+Girilen email veya telefon numarası sistemde kayıtlı değil demektir. Bu kullanıcı sisteme eklenmemiş bir kişidir. Giriş ekranında hata mesajı gösterilir: "Bu bilgilerle kayıtlı bir hesap bulunamadı. EmlakDefter danışmanı ile iletişime geçiniz." Akış ilerlemez.
+Durum B — Kayıt bulundu, şifresi yok:
+Patron sisteme admin tarafından eklenmiş ama henüz ilk girişini yapmamış demektir. Akış 3A'ya gider.
+Durum C — Kayıt bulundu, şifresi var:
+Patron daha önce ilk girişini yapmış ve şifresini belirlemiştir. Akış 3B'ye gider.
+
+3A. İlk Giriş Akışı (Şifresi Henüz Yok)
+Backend OTP gönderir.
+
+Kullanıcı email girdiyse → Girilen email adresine tek kullanımlık doğrulama kodu gönderilir (bu işlem için firebase sendEmailVerification fonksiyonu kullanılır).
+Kullanıcı telefon numarası girdiyse → Firebase Auth üzerinden girilen numaraya SMS ile tek kullanımlık doğrulama kodu gönderilir.
+
+Ekranda OTP giriş alanı açılır. Üstte küçük bir bilgi metni gösterilir: "[email/telefon]'a doğrulama kodu gönderdik."
+
+OTP alanı 6 haneli olup her hane için ayrı bir kutu gösterilir (standart OTP input pattern).
+Kodun geçerlilik süresi 3 dakikadır. Ekranda geri sayım gösterilir.
+Süre dolmadan "Kodu tekrar gönder" linki pasif görünür, süre dolduğunda aktif hale gelir.
+Kullanıcı kodu girer ve "Doğrula"ya basar.
+Kod yanlışsa hata mesajı gösterilir, kullanıcı tekrar deneyebilir. 3 yanlış denemeden sonra yeni kod talep etmesi gerektiğine dair mesaj gösterilir ve OTP alanı bloklanır, "Kodu tekrar gönder" aktif hale gelir.
+Kod doğruysa akış 4. adıma (Şifre Belirleme) geçer.
+
+
+3B. Standart Giriş Akışı (Şifresi Var)
+Ekranda şifre giriş alanı açılır.
+
+Alanın yanında göz ikonu bulunur, patronun şifreyi görmesine olanak tanır.
+Şifre doğruysa "Giriş Yap" butonu ile giriş tamamlanır.
+Şifre yanlışsa hata mesajı gösterilir: "Şifre hatalı." 5 yanlış denemeden sonra hesap geçici olarak kilitlenir ve ekranda şu mesaj gösterilir: "Çok fazla hatalı deneme. Lütfen 15 dakika sonra tekrar deneyin veya EmlakDefter danışmanı ile iletişime geçin."
+Şifre alanının altında "Şifremi unuttum" linki yer alır. Bu linke tıklandığında:
+
+Kullanıcının email veya telefon bilgisi zaten elimizde olduğundan direkt OTP gönderilir, tekrar sorulmaz.
+Akış 3A'daki OTP doğrulama adımına gider.
+OTP doğrulandıktan sonra akış 4. adıma (Şifre Belirleme) geçer. Kullanıcı yeni şifresini belirler ve eski şifresi güncellenir.
+
+
+
+
+4. Şifre Belirleme Ekranı
+Bu ekran iki durumda gösterilir: ilk giriş yapan patron veya şifresini unutan patron.
+
+"Yeni şifrenizi belirleyin" başlıklı ekranda iki alan bulunur: Şifre ve Şifre tekrar.
+Şifre kuralları ekranda açıkça listelenir:
+
+En az 8 karakter
+En az bir büyük harf
+En az bir rakam
+
+
+Kullanıcı yazdıkça kuralların yanında ✓/✗ işaretleri anlık olarak güncellenir.
+İki alan eşleşmiyorsa "Şifreler uyuşmuyor" hatası gösterilir.
+Tüm kurallar sağlandığında "Kaydet ve Devam Et" butonu aktif hale gelir.
+Kullanıcı butona bastığında şifre backend'e gönderilir, hash'lenerek ilgili patron profiline kaydedilir.
+Kayıt başarılıysa kullanıcı direkt olarak ana ekrana yönlendirilir. Ayrıca bir giriş adımı gerekmez, oturum otomatik açılır.
+
+
+5. Sonraki Girişler
+Patron uygulamayı bir sonraki açışında 1. adımdaki aynı ekranı görür.
+
+Email veya telefonunu girer → "Devam Et"e basar.
+Backend şifresi olduğunu görür → Şifre ekranı açılır (3B).
+Şifresini girer → Ana ekrana geçer.
+
+
+
+---
+
+
+C — Çalışan Ekleme ve Giriş Akışı
+
+1. Çalışan Ekleme Ekranına Erişim
+Patron sisteme giriş yaptıktan sonra ana ekranda "Çalışanlar" bölümüne girer ve "Yeni Çalışan Ekle" butonuna tıklar.
+
+2. Çalışan Bilgilerinin Girilmesi
+Açılan formda patron aşağıdaki bilgileri doldurur:
+
+Ad Soyad (zorunlu)
+Email adresi veya telefon numarası (zorunlu — en az biri girilmek zorundadır, ikisi birden de girilebilir)
+
+Patronun sisteme ekleyebileceği çalışan yalnızca kendi ofisine bağlı olur. Patron başka bir ofise çalışan ekleyemez. Çalışan da sadece o ofise ait bir çalışandır.
+
+3. Sistem Kontrolleri (Kaydet Butonuna Basıldığında)
+Patron formu doldurup "Kaydet" butonuna bastığında sistem sırasıyla şu kontrolleri yapar:
+Format kontrolü: Girilen email geçerli bir formatta mı, telefon numarası geçerli bir Türkiye numarası mı? Hatalı formatta bir değer varsa ilgili alan kırmızıya döner, hata mesajı gösterilir ve kayıt işlemi durur.
+Tekil (unique) değer kontrolü: Girilen email veya telefon numarası sistemde başka bir kullanıcıya ait mi? Eğer daha önce kayıtlıysa şu hata gösterilir: "Bu email adresi / telefon numarası sistemde zaten kayıtlı." Kayıt işlemi durur.
+Tüm kontroller geçildiyse kayıt işlemi tamamlanır.
+
+4. Sistemde Oluşturulanlar
+Kayıt başarıyla tamamlandığında sistem otomatik olarak şunları oluşturur:
+
+Girilen ad soyad, email ve/veya telefon numarasıyla bir çalışan profili oluşturulur. Bu profil, şifre alanı boş olarak kaydedilir — çalışan henüz şifre belirlememişdir.
+Çalışan profili, patronun bağlı olduğu emlak ofisiyle ilişkilendirilir.
+Çalışanın rolü "çalışan" olarak atanır. Patron yetkilerine sahip değildir; yalnızca kendi rolüne ait ekranlara ve işlemlere erişebilir.
+
+
+5. Patron Panelinde Kayıt Sonrası Durum
+Kayıt tamamlandıktan sonra çalışan, çalışanlar listesinde görünür hale gelir. Listede her çalışan için şu bilgiler gösterilir:
+
+Ad Soyad
+Email ve/veya telefon numarası
+Durum: "Şifre belirlenmemiş — İlk giriş bekleniyor" (çalışan henüz giriş yapmadıysa) ya da "Aktif" (giriş yapmışsa)
+
+Patron isterse bu sayfadan çalışan profilini düzenleyebilir (ad, email, telefon güncelleme), profili pasife alabilir veya silebilir.
+Çalışan pasife alındığında mevcut oturumu varsa otomatik sonlandırılır ve bir sonraki giriş denemesinde şu mesajla karşılaşır: "Hesabınız devre dışı bırakılmıştır. Lütfen yöneticinizle iletişime geçin."
+
+6. Çalışanın Süreci Devralması
+Bu adımdan itibaren süreç çalışana geçer. Çalışan, mobil ya da web'den uygulamayı açar ve B bölümündeki akışın tamamen aynısını izler:
+
+Email veya telefonunu girer → "Devam Et"e basar.
+Backend kaydı bulur, şifresi olmadığını görür → OTP gönderilir.
+OTP'yi doğrular → Şifre belirleme ekranına geçer.
+Şifresini belirler → Kendi rolüne ait ana ekrana yönlendirilir.
+
+
+7. Çalışanın Sonraki Girişleri
+Çalışan uygulamayı bir sonraki açışında B bölümündeki standart akışı izler:
+
+Email veya telefonunu girer → "Devam Et"e basar.
+Backend şifresi olduğunu görür → Şifre ekranı açılır.
+Şifresini girer → Kendi rolüne ait ana ekrana geçer.
+
+
+8. Patron ve Çalışan Arasındaki Temel Farklar
+
+1- Patronun profilini admin oluşturur, çalışan profilini patron oluşturur.
+2- Patronun bağlı olduğu ofisi admin belirler, çalışan otomatik olarak patronun ofisine bağlanır.
+3- Patron ve çalışanların yetkileri, gördükleri ekranlar vs birebir aynıdır. Aralarında yetki anlamında herhangi bir farklılık yoktur.

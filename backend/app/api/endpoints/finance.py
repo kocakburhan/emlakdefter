@@ -2,18 +2,23 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, func, and_
 from typing import List, Optional
-from datetime import date
+from datetime import date, datetime
 import uuid
 
 from app.api import deps
 from app.models.users import User
-from app.models.finance import FinancialTransaction, PaymentSchedule, TransactionType, TransactionCategory, PaymentStatus
+from app.models.finance import FinancialTransaction, PaymentSchedule, TransactionType, TransactionCategory, PaymentStatus, Expense, ExpenseCategory
 from app.schemas.finance import (
     ParsedStatementResponse,
     ManualTransactionCreate,
     TransactionResponse,
     TransactionListResponse,
     PaymentScheduleResponse,
+    ExpenseCreate,
+    ExpenseUpdate,
+    ExpenseResponse,
+    ExpenseListResponse,
+    ExpenseCategoryEnum,
 )
 from app.services.finance_service import process_and_match_statement
 from app.services.excel_service import export_transactions_to_excel
@@ -227,7 +232,6 @@ async def get_monthly_stats(
     if year is None:
         year = date.today().year
 
-    from datetime import datetime
     start_of_year = date(year, 1, 1)
     end_of_year = date(year, 12, 31)
 
@@ -432,3 +436,126 @@ async def upload_bank_statement(
             status_code=500,
             detail=f"LLM Motorunda veya Veritabanı Tahsilat Eşitlemesinde Kritik Hata: {str(e)}"
         )
+
+
+# ──────────────────────────────────────────────
+# 4. GİDERLER (EXPENSE) — MÜLK BAZLI GİDER TAKİBİ
+# ──────────────────────────────────────────────
+
+@router.get("/expenses/{property_id}", response_model=ExpenseListResponse)
+async def list_expenses(
+    property_id: uuid.UUID,
+    current_user: User = Depends(deps.get_current_user),
+    agency_id: uuid.UUID = Depends(deps.get_current_user_agency_id),
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """Mülk bazlı giderleri listeler."""
+    query = (
+        select(Expense)
+        .where(
+            Expense.agency_id == agency_id,
+            Expense.property_id == property_id,
+            Expense.is_deleted == False,
+        )
+        .order_by(desc(Expense.expense_date))
+    )
+    result = await db.execute(query)
+    expenses = result.scalars().all()
+
+    total_amount = sum(e.amount for e in expenses)
+    paid_amount = sum(e.amount for e in expenses if e.is_paid)
+    unpaid_amount = total_amount - paid_amount
+
+    return ExpenseListResponse(
+        expenses=[ExpenseResponse.model_validate(e) for e in expenses],
+        total_amount=total_amount,
+        paid_amount=paid_amount,
+        unpaid_amount=unpaid_amount,
+        count=len(expenses),
+    )
+
+
+@router.post("/expenses", response_model=ExpenseResponse, status_code=201)
+async def create_expense(
+    data: ExpenseCreate,
+    current_user: User = Depends(deps.get_current_user),
+    agency_id: uuid.UUID = Depends(deps.get_current_user_agency_id),
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """Yeni gider kaydı ekler."""
+    new_expense = Expense(
+        agency_id=agency_id,
+        property_id=data.property_id,
+        unit_id=data.unit_id,
+        title=data.title,
+        amount=int(data.amount * 100),  # kuruş cinsinden
+        expense_date=data.expense_date,
+        category=data.category,
+        receipt_url=data.receipt_url,
+        notes=data.notes,
+    )
+    db.add(new_expense)
+    await db.commit()
+    await db.refresh(new_expense)
+    return ExpenseResponse.model_validate(new_expense)
+
+
+@router.patch("/expenses/{expense_id}", response_model=ExpenseResponse)
+async def update_expense(
+    expense_id: uuid.UUID,
+    data: ExpenseUpdate,
+    current_user: User = Depends(deps.get_current_user),
+    agency_id: uuid.UUID = Depends(deps.get_current_user_agency_id),
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """Gider kaydını günceller (ödendi/ödmedi, tutar, tarih, vs)."""
+    stmt = select(Expense).where(
+        Expense.id == expense_id,
+        Expense.agency_id == agency_id,
+        Expense.is_deleted == False,
+    )
+    result = await db.execute(stmt)
+    expense = result.scalar_one_or_none()
+
+    if not expense:
+        raise HTTPException(status_code=404, detail="Gider bulunamadı.")
+
+    # Alanları güncelle
+    update_data = data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        if field == "amount" and value is not None:
+            setattr(expense, field, int(value * 100))
+        elif field == "is_paid" and value is True and expense.paid_date is None:
+            expense.paid_date = date.today()
+        elif field == "paid_date" and value is not None:
+            expense.paid_date = value
+        else:
+            setattr(expense, field, value)
+
+    await db.commit()
+    await db.refresh(expense)
+    return ExpenseResponse.model_validate(expense)
+
+
+@router.delete("/expenses/{expense_id}", status_code=204)
+async def delete_expense(
+    expense_id: uuid.UUID,
+    current_user: User = Depends(deps.get_current_user),
+    agency_id: uuid.UUID = Depends(deps.get_current_user_agency_id),
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """Gider kaydını siler (soft delete)."""
+    stmt = select(Expense).where(
+        Expense.id == expense_id,
+        Expense.agency_id == agency_id,
+    )
+    result = await db.execute(stmt)
+    expense = result.scalar_one_or_none()
+
+    if not expense:
+        raise HTTPException(status_code=404, detail="Gider bulunamadı.")
+
+    expense.is_deleted = True
+    expense.deleted_at = datetime.now()
+    await db.commit()
+    return None

@@ -1,4 +1,5 @@
-from pydantic import BaseModel, UUID4
+from uuid import UUID
+from pydantic import BaseModel
 from typing import List, Optional
 from datetime import date
 
@@ -8,7 +9,7 @@ from datetime import date
 
 class OccupancyRateItem(BaseModel):
     """Tek bir mülkün doluluk oranı"""
-    property_id: UUID4
+    property_id: UUID
     property_name: str
     total_units: int
     occupied_units: int
@@ -22,8 +23,8 @@ class OccupancyTrendItem(BaseModel):
 
 class VacantAgingItem(BaseModel):
     """Boş daire yaşlandırma — ne kadar süredir boş"""
-    unit_id: UUID4
-    property_id: UUID4
+    unit_id: UUID
+    property_id: UUID
     property_name: str
     door_number: str
     vacant_since_days: int

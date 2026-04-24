@@ -19,7 +19,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.models.base import Base
-from app.models.users import User, Agency, AgencyStaff, GlobalUserRole, StaffRole
+from app.models.users import User, Agency, AgencyStaff, GlobalUserRole, StaffRole, UserRole
 from app.models.tenants import Tenant, ContractStatus
 from app.models.properties import Property, PropertyUnit
 from app.models.finance import PaymentSchedule, PaymentStatus, TransactionCategory
@@ -66,7 +66,7 @@ async def seed():
                 id=DEV_USER_ID,
                 phone_number="+905551234567",
                 full_name="Test Emlakçı",
-                role=GlobalUserRole.standard,
+                role=UserRole.boss,
                 status="active",
             )
             db.add(user)
@@ -87,7 +87,7 @@ async def seed():
             staff = AgencyStaff(
                 agency_id=DEV_AGENCY_ID,
                 user_id=user.id,
-                role=StaffRole.admin,
+                role=StaffRole.boss,
             )
             db.add(staff)
             await db.flush()

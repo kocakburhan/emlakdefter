@@ -1404,8 +1404,8 @@ extension _DetailSheet on _BuildingOperationsTabState {
                         isReflectedToFinance: true,
                       );
                   if (ctx.mounted) Navigator.pop(ctx);
-                  if (success && mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                  if (success && ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
                       SnackBar(
                         content: const Text('Finansa yansıtıldı'),
                         backgroundColor: AppColors.success,

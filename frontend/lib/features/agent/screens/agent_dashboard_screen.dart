@@ -7,6 +7,7 @@ import '../tabs/finance_tab.dart';
 import '../tabs/support_tab.dart';
 import '../tabs/building_operations_tab.dart';
 import '../tabs/chat_tab.dart';
+import '../tabs/employees_tab.dart';
 
 class AgentDashboardScreen extends StatefulWidget {
   const AgentDashboardScreen({Key? key}) : super(key: key);
@@ -26,6 +27,7 @@ class _AgentDashboardScreenState extends State<AgentDashboardScreen>
     const FinanceTab(),
     const SupportTab(),
     const BuildingOperationsTab(),
+    const EmployeesTab(), // Yerine Çalışanlar Sekmesi (veya Sohbet'in yanında)
     const ChatTab(),
   ];
 
@@ -62,15 +64,21 @@ class _AgentDashboardScreenState extends State<AgentDashboardScreen>
           return FadeTransition(
             opacity: animation,
             child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0.02, 0),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
+              position:
+                  Tween<Offset>(
+                    begin: const Offset(0.02, 0),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(parent: animation, curve: Curves.easeOut),
+                  ),
               child: child,
             ),
           );
         },
-        child: KeyedSubtree(key: ValueKey(_currentIndex), child: _pages[_currentIndex]),
+        child: KeyedSubtree(
+          key: ValueKey(_currentIndex),
+          child: _pages[_currentIndex],
+        ),
       ),
       bottomNavigationBar: _buildBottomNav(),
     );
@@ -78,48 +86,84 @@ class _AgentDashboardScreenState extends State<AgentDashboardScreen>
 
   Widget _buildBottomNav() {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadowLight,
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: SizedBox(
-          height: 72,
-          child: BottomNavigationBar(
-            currentIndex: _currentIndex,
-            onTap: _onTabChanged,
-            type: BottomNavigationBarType.fixed,
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            selectedItemColor: AppColors.charcoal,
-            unselectedItemColor: AppColors.textTertiary,
-            showUnselectedLabels: true,
-            selectedLabelStyle: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-            unselectedLabelStyle: Theme.of(context).textTheme.labelSmall,
-            items: [
-              _buildNavItem(Icons.dashboard_outlined, Icons.dashboard, "Özet", 0),
-              _buildNavItem(Icons.business_outlined, Icons.business, "Binalar", 1),
-              _buildNavItem(Icons.account_balance_wallet_outlined, Icons.account_balance_wallet, "Finans", 2),
-              _buildNavItem(Icons.support_agent_outlined, Icons.support_agent, "Destek", 3),
-              _buildNavItem(Icons.engineering_outlined, Icons.engineering, "Operasyon", 4),
-              _buildNavItem(Icons.chat_bubble_outline, Icons.chat_bubble, "Sohbet", 5),
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.border),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.shadowLight,
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
             ],
           ),
-        ),
-      ),
-    )
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: SizedBox(
+              height: 72,
+              child: BottomNavigationBar(
+                currentIndex: _currentIndex,
+                onTap: _onTabChanged,
+                type: BottomNavigationBarType.fixed,
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                selectedItemColor: AppColors.charcoal,
+                unselectedItemColor: AppColors.textTertiary,
+                showUnselectedLabels: true,
+                selectedLabelStyle: Theme.of(
+                  context,
+                ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600),
+                unselectedLabelStyle: Theme.of(context).textTheme.labelSmall,
+                items: [
+                  _buildNavItem(
+                    Icons.dashboard_outlined,
+                    Icons.dashboard,
+                    "Özet",
+                    0,
+                  ),
+                  _buildNavItem(
+                    Icons.business_outlined,
+                    Icons.business,
+                    "Binalar",
+                    1,
+                  ),
+                  _buildNavItem(
+                    Icons.account_balance_wallet_outlined,
+                    Icons.account_balance_wallet,
+                    "Finans",
+                    2,
+                  ),
+                  _buildNavItem(
+                    Icons.support_agent_outlined,
+                    Icons.support_agent,
+                    "Destek",
+                    3,
+                  ),
+                  _buildNavItem(
+                    Icons.engineering_outlined,
+                    Icons.engineering,
+                    "Operasyon",
+                    4,
+                  ),
+                  _buildNavItem(
+                    Icons.people_outline,
+                    Icons.people,
+                    "Çalışanlar",
+                    5,
+                  ),
+                  _buildNavItem(
+                    Icons.chat_bubble_outline,
+                    Icons.chat_bubble,
+                    "Sohbet",
+                    6,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        )
         .animate()
         .fadeIn(duration: 400.ms)
         .slideY(begin: 0.1, end: 0, duration: 400.ms, curve: Curves.easeOut);
@@ -140,13 +184,12 @@ class _AgentDashboardScreenState extends State<AgentDashboardScreen>
           vertical: 6,
         ),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.charcoal.withValues(alpha: 0.1) : Colors.transparent,
+          color: isSelected
+              ? AppColors.charcoal.withValues(alpha: 0.1)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(
-          isSelected ? activeIcon : icon,
-          size: 22,
-        ),
+        child: Icon(isSelected ? activeIcon : icon, size: 22),
       ),
       label: label,
     );

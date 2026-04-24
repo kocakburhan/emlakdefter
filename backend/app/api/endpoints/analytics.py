@@ -9,7 +9,7 @@ from uuid import UUID
 import uuid
 
 from app.api import deps
-from app.models.users import User, AgencyStaff, Agency
+from app.models.users import User, Agency
 from app.models.properties import Property, PropertyUnit
 from app.models.tenants import Tenant, LandlordUnit
 from app.models.finance import FinancialTransaction, PaymentSchedule, TransactionType, TransactionCategory, PaymentStatus
@@ -374,20 +374,8 @@ async def get_bi_analytics_dashboard(
     tüm stratejik metriklerini bir arada döner.
     PRD §4.1.10
     """
-    # ✅ EKLENDI — Admin rolü kontrolü (PRD §4.1.10-E)
-    staff_stmt = select(AgencyStaff).where(
-        AgencyStaff.user_id == current_user.id,
-        AgencyStaff.agency_id == agency_id,
-    )
-    staff_result = await db.execute(staff_stmt)
-    staff_record = staff_result.scalar_one_or_none()
-
-    if not staff_record or staff_record.role != "admin":
-        from fastapi import HTTPException
-        raise HTTPException(
-            status_code=403,
-            detail="Bu sayfaya yalnızca Admin erişebilir."
-        )
+    # ✅ Boss rolü kontrolü — merkezi decorator
+    await deps.require_boss_role()(current_user=current_user, db=db, agency_id=agency_id)
 
     portfolio = await _build_portfolio_performance(db, agency_id)
     tenant_churn = await _build_tenant_churn(db, agency_id)
@@ -410,17 +398,9 @@ async def download_bi_pdf(
 ):
     """
     BI Analytics PDF raporu indirir — PRD §4.1.10-E.
-    Logo, tarihli, profesyonel format. Yalnızca Admin erişimli.
+    Logo, tarihli, profesyonel format. Yalnızca Boss erişimli.
     """
-    # Admin kontrolü
-    staff_stmt = select(AgencyStaff).where(
-        AgencyStaff.user_id == current_user.id,
-        AgencyStaff.agency_id == agency_id,
-    )
-    staff_result = await db.execute(staff_stmt)
-    staff_record = staff_result.scalar_one_or_none()
-    if not staff_record or staff_record.role != "admin":
-        raise HTTPException(status_code=403, detail="Bu sayfaya yalnızca Admin erişebilir.")
+    await deps.require_boss_role()(current_user=current_user, db=db, agency_id=agency_id)
 
     portfolio = await _build_portfolio_performance(db, agency_id)
     tenant_churn = await _build_tenant_churn(db, agency_id)
@@ -471,17 +451,9 @@ async def export_bi_analytics(
 ):
     """
     BI Analytics verilerini .xlsx olarak dışa aktarır — PRD §4.1.10-E.
-    Yalnızca Admin rolü erişebilir.
+    Yalnızca Boss rolü erişebilir.
     """
-    # Admin kontrolü
-    staff_stmt = select(AgencyStaff).where(
-        AgencyStaff.user_id == current_user.id,
-        AgencyStaff.agency_id == agency_id,
-    )
-    staff_result = await db.execute(staff_stmt)
-    staff_record = staff_result.scalar_one_or_none()
-    if not staff_record or staff_record.role != "admin":
-        raise HTTPException(status_code=403, detail="Bu sayfaya yalnızca Admin erişebilir.")
+    await deps.require_boss_role()(current_user=current_user, db=db, agency_id=agency_id)
 
     portfolio = await _build_portfolio_performance(db, agency_id)
     tenant_churn = await _build_tenant_churn(db, agency_id)

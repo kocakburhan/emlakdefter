@@ -9,6 +9,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 FIREBASE_CREDENTIALS_PATH = os.getenv("FIREBASE_CREDENTIALS_PATH", "firebase-adminsdk.json")
+DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
+DEV_FIREBASE_MOCK_TOKEN = os.getenv("DEV_FIREBASE_MOCK_TOKEN", "")  # GÜVENLIK: Hardcoded bypass KALDIRILDI
 
 def init_firebase():
     """FastAPI başlatıldığında çalışan, Firebase'i sisteme kitleyen fonksiyon."""
@@ -27,11 +29,11 @@ async def verify_firebase_token(id_token: str) -> dict:
     """
     Kullanıcının mobil uygulamasından API'ye gönderdiği ID Token'ı (Google Firebase) doğrular.
     Herhangi bir hile/suistimal durumunda anında 401 Unauthorized basıp isteği keser.
-
-    Geliştirme modunda: id_token = "mock_test_token" ile bypass edilebilir.
     """
-    # Geliştirme/a test için mock token bypass
-    if id_token == "mock_test_token":
+    # GELISTIRME/TEST İÇİN MOCK BYPASS
+    # GÜVENLIK: Hardcoded "mock_test_token" bypass KALDIRILDI (security report C-1)
+    # Sadece .env'de DEV_FIREBASE_MOCK_TOKEN ayarli ise bypass aktif
+    if DEV_MODE and DEV_FIREBASE_MOCK_TOKEN and id_token == DEV_FIREBASE_MOCK_TOKEN:
         return {"uid": "mock_uid_12345", "phone_number": "+905551234567"}
 
     if not os.path.exists(FIREBASE_CREDENTIALS_PATH):
@@ -209,6 +211,27 @@ def get_firebase_user_by_phone(phone_number: str) -> dict | None:
             "disabled": user.disabled,
         }
     except firebase_admin._auth_utils.UserNotFoundError:
+        return None
+    except Exception:
+        return None
+
+
+def get_firebase_user_by_email(email: str) -> dict | None:
+    """Email'e göre Firebase kullanıcı bilgisini döner."""
+    if not os.path.exists(FIREBASE_CREDENTIALS_PATH):
+        return None
+
+    try:
+        user = auth.get_user_by_email(email)
+        return {
+            "uid": user.uid,
+            "phone_number": user.phone_number,
+            "email": user.email,
+            "display_name": user.display_name,
+            "disabled": user.disabled,
+            "email_verified": user.email_verified,
+        }
+    except firebase_admin._auth_utils.EmailNotFoundError:
         return None
     except Exception:
         return None

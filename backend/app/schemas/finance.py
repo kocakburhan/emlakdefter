@@ -1,4 +1,4 @@
-from pydantic import BaseModel, UUID4, Field
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import date
 from enum import Enum
@@ -95,3 +95,70 @@ class TenantFinanceSummary(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ExpenseCategoryEnum(str, Enum):
+    """Gider kategorileri"""
+    electricity = "electricity"
+    water = "water"
+    gas = "gas"
+    cleaning = "cleaning"
+    repair = "repair"
+    elevator_maintenance = "elevator_maintenance"
+    security = "security"
+    landscaping = "landscaping"
+    insurance = "insurance"
+    property_tax = "property_tax"
+    other = "other"
+
+
+class ExpenseCreate(BaseModel):
+    """Gider ekleme DTO'su"""
+    property_id: UUID
+    unit_id: Optional[UUID] = None
+    title: str
+    amount: float
+    expense_date: date
+    category: ExpenseCategoryEnum
+    receipt_url: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class ExpenseUpdate(BaseModel):
+    """Gider güncelleme DTO'su"""
+    title: Optional[str] = None
+    amount: Optional[float] = None
+    expense_date: Optional[date] = None
+    category: Optional[ExpenseCategoryEnum] = None
+    is_paid: Optional[bool] = None
+    paid_date: Optional[date] = None
+    receipt_url: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class ExpenseResponse(BaseModel):
+    """Gider yanıt DTO'su"""
+    id: UUID
+    agency_id: UUID
+    property_id: UUID
+    unit_id: Optional[UUID] = None
+    title: str
+    amount: float
+    currency: str
+    expense_date: date
+    category: ExpenseCategoryEnum
+    is_paid: bool
+    paid_date: Optional[date] = None
+    receipt_url: Optional[str] = None
+    notes: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ExpenseListResponse(BaseModel):
+    expenses: List[ExpenseResponse]
+    total_amount: float
+    paid_amount: float
+    unpaid_amount: float
+    count: int

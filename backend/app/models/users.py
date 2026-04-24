@@ -1,6 +1,6 @@
 import enum
 from datetime import datetime
-from sqlalchemy import Column, String, ForeignKey, Enum, Boolean, DateTime
+from sqlalchemy import Column, String, ForeignKey, Enum, Boolean, DateTime, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from .base import Base, BaseModel
@@ -34,11 +34,11 @@ class Agency(BaseModel):
     __tablename__ = "agencies"
 
     name = Column(String, nullable=False)
+    address = Column(String, nullable=True)
     subscription_status = Column(Enum(SubscriptionStatus), default=SubscriptionStatus.trial, nullable=False)
 
-    staff = relationship("AgencyStaff", back_populates="agency")
     properties = relationship("Property", back_populates="agency")
-    invitations = relationship("Invitation", back_populates="invitations")
+    invitations = relationship("Invitation", back_populates="agency")
 
 class User(BaseModel):
     __tablename__ = "users"
@@ -64,22 +64,15 @@ class User(BaseModel):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login_at = Column(DateTime, nullable=True)
 
+    # Brute-force & Lockout
+    failed_login_attempts = Column(Integer, default=0, nullable=False)
+    locked_until = Column(DateTime, nullable=True)
+
     # Soft delete
     is_deleted = Column(Boolean, default=False)
     deleted_at = Column(DateTime, nullable=True)
 
-    staff_profiles = relationship("AgencyStaff", back_populates="user")
     device_tokens = relationship("UserDeviceToken", back_populates="user")
-
-class AgencyStaff(BaseModel):
-    __tablename__ = "agency_staff"
-    
-    agency_id = Column(UUID(as_uuid=True), ForeignKey("agencies.id", ondelete="CASCADE"), nullable=False, index=True)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    role = Column(Enum(StaffRole), default=StaffRole.employee, nullable=False)
-    
-    agency = relationship("Agency", back_populates="staff")
-    user = relationship("User", back_populates="staff_profiles")
 
 class Invitation(BaseModel):
     __tablename__ = "invitations"
@@ -104,6 +97,17 @@ class UserDeviceToken(BaseModel):
     user = relationship("User", back_populates="device_tokens")
 
 
+class AgencyStaff(BaseModel):
+    __tablename__ = "agency_staff"
+
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    agency_id = Column(UUID(as_uuid=True), ForeignKey("agencies.id", ondelete="CASCADE"), nullable=False, index=True)
+    role = Column(Enum(StaffRole), nullable=False, default=StaffRole.employee)
+
+    user = relationship("User")
+    agency = relationship("Agency")
+
+
 class PasswordResetAttempt(BaseModel):
     """OTP şifre sıfırlama talebi takibi — SMS Pumping koruması"""
     __tablename__ = "password_reset_attempts"
@@ -111,3 +115,18 @@ class PasswordResetAttempt(BaseModel):
     phone_number = Column(String, nullable=False, index=True)
     attempted_at = Column(DateTime, nullable=False)
     ip_address = Column(String, nullable=True)
+
+
+class EmailVerificationCode(BaseModel):
+    """
+    Email OTP doğrulama kodu takibi.
+    Kullanıcı email giriş yaptığında, email'e gönderilen 6 haneli kodu saklar ve doğrular.
+    """
+    __tablename__ = "email_verification_codes"
+
+    email = Column(String, nullable=False, index=True)
+    code = Column(String, nullable=False)  # 6 haneli kod
+    expires_at = Column(DateTime, nullable=False)
+    attempts = Column(Integer, nullable=False, default=0)  # Yanlış deneme sayısı
+    verified = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

@@ -404,12 +404,13 @@ class _PropertiesTabState extends ConsumerState<PropertiesTab> {
 
   IconData _getPropertyIcon(String type) {
     switch (type) {
-      case 'villa':
+      case 'standalone_house':  // Backend: standalone_house
         return Icons.villa;
       case 'land':
         return Icons.landscape;
       case 'commercial':
         return Icons.storefront;
+      case 'apartment_complex':  // Backend: apartment_complex
       default:
         return Icons.apartment;
     }
@@ -417,12 +418,13 @@ class _PropertiesTabState extends ConsumerState<PropertiesTab> {
 
   String _getPropertyTypeLabel(String type) {
     switch (type) {
-      case 'villa':
+      case 'standalone_house':  // Backend: standalone_house
         return "Müstakil Ev / Villa";
       case 'land':
         return "Arsa / Tarla";
       case 'commercial':
         return "Dükkan / Ticari";
+      case 'apartment_complex':  // Backend: apartment_complex
       default:
         return "Apartman / Site";
     }

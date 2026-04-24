@@ -1,6 +1,12 @@
 # EmlakDefteri Auth & Admin Panel Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+**skill:** frontend geliştirmeleri için frontend-design skilli kullanılmalıdır. tasarım sade minimalist tutulmalıdır. Color Palette:
+Charcoal: #36454f - Primary dark color
+Slate Gray: #708090 - Medium gray for accents
+Light Gray: #d3d3d3 - Backgrounds and dividers
+White: #ffffff - Text and clean backgrounds:
+
+not: placeholder rengi ile backgrround color karışmamalıdır. textinputa yazılan yazının rengi ile backgrounda color karışmamalıdır.
 
 **Goal:** EmlakDefteri platformu için yeni auth sistemi ve admin paneli inşa etmek
 
@@ -764,13 +770,13 @@ flutter run
 - [x] Task 2: User Schemas Güncelleme
 - [x] Task 3: Auth Endpoint'leri Yazma
 - [x] Task 4: Firebase Entegrasyonu Güncelleme
-- [ ] Task 5: Auth Provider Güncelleme
-- [ ] Task 6: Yeni Login Screen
-- [ ] Task 7: Admin Endpoint'leri Yazma
-- [ ] Task 8: Patron Çalışan Ekleme Endpoint'i
-- [ ] Task 9: Admin Provider ve API Servisleri
-- [ ] Task 10: Admin Panel UI Screens
-- [ ] Task 11: Patron Çalışan Ekleme UI
+- [x] Task 5: Auth Provider Güncelleme
+- [x] Task 6: Yeni Login Screen
+- [x] Task 7: Admin Endpoint'leri Yazma
+- [x] Task 8: Patron Çalışan Ekleme Endpoint'i
+- [x] Task 9: Admin Provider ve API Servisleri
+- [x] Task 10: Admin Panel UI Screens
+- [x] Task 11: Patron Çalışan Ekleme UI
 - [ ] Task 12: Eski Kod Temizliği
 
 ---

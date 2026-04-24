@@ -1,5 +1,5 @@
 import enum
-from sqlalchemy import Column, Integer, Date, ForeignKey, String, Enum, Boolean, Float
+from sqlalchemy import Column, Integer, Date, ForeignKey, String, Enum, Boolean, Float, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from .base import BaseModel
@@ -67,3 +67,40 @@ class PaymentSchedule(BaseModel):
     transaction_id = Column(UUID(as_uuid=True), ForeignKey("financial_transactions.id", ondelete="SET NULL"), nullable=True)  # PRD §6.D — Ödeme yapıldıysa referans
 
     tenant = relationship("Tenant")
+
+
+class ExpenseCategory(str, enum.Enum):
+    """Gider kategorileri — apartman/arsa/commercial gibi mülk tiplerine göre"""
+    electricity = "electricity"
+    water = "water"
+    gas = "gas"
+    cleaning = "cleaning"
+    repair = "repair"
+    elevator_maintenance = "elevator_maintenance"
+    security = "security"
+    landscaping = "landscaping"
+    insurance = "insurance"
+    property_tax = "property_tax"
+    other = "other"
+
+
+class Expense(BaseModel):
+    """Mülk bazlı gider takip tablosu — apartman aidat giderleri, arsa bakım, ticari giderler"""
+    __tablename__ = "expenses"
+
+    agency_id = Column(UUID(as_uuid=True), ForeignKey("agencies.id", ondelete="CASCADE"), nullable=False, index=True)
+    property_id = Column(UUID(as_uuid=True), ForeignKey("properties.id", ondelete="CASCADE"), nullable=False, index=True)
+    unit_id = Column(UUID(as_uuid=True), ForeignKey("property_units.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    title = Column(String, nullable=False)          # "Elektrik faturası", "Yüksek asansör bakımı"
+    amount = Column(Integer, nullable=False)         # Tutar (kuruş cinsinden)
+    currency = Column(String, default="TRY")
+    expense_date = Column(Date, nullable=False)     # Gider tarihi
+    category = Column(Enum(ExpenseCategory), nullable=False)
+    is_paid = Column(Boolean, default=False, nullable=False)
+    paid_date = Column(Date, nullable=True)
+    receipt_url = Column(String, nullable=True)    # Makbuz fotoğrafı URL
+    notes = Column(Text, nullable=True)             # Ek notlar
+
+    property = relationship("Property", backref="expenses")
+    unit = relationship("PropertyUnit", backref="expenses")

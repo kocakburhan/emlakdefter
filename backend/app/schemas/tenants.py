@@ -1,4 +1,5 @@
-from pydantic import BaseModel, UUID4, Field
+from uuid import UUID
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import date, datetime
 from enum import Enum
@@ -32,8 +33,8 @@ class ContractStatusEnum(str, Enum):
 
 class TenantBase(BaseModel):
     """Kiracı temel şeması"""
-    unit_id: UUID4
-    user_id: Optional[UUID4] = None
+    unit_id: UUID
+    user_id: Optional[UUID] = None
     temp_name: Optional[str] = None
     temp_phone: Optional[str] = None
     rent_amount: int = Field(..., description="Kira bedeli")
@@ -58,8 +59,8 @@ class TenantUpdate(BaseModel):
 
 class TenantResponse(TenantBase):
     """Kiracı yanıt şeması"""
-    id: UUID4
-    agency_id: UUID4
+    id: UUID
+    agency_id: UUID
     status: str
     actual_end_date: Optional[date] = None
     is_active: bool
@@ -85,7 +86,7 @@ class LandlordBase(BaseModel):
 
 class LandlordCreate(BaseModel):
     """Yeni ev sahibi oluşturma (PRD §4.1.4)"""
-    unit_ids: list[UUID4] = Field(..., description="Ev sahibine bağlanacak birim ID'leri")
+    unit_ids: list[UUID] = Field(..., description="Ev sahibine bağlanacak birim ID'leri")
     temp_name: Optional[str] = None
     temp_phone: Optional[str] = None
     ownership_share: int = Field(100, description="Mülkiyet payı (%)")
@@ -93,10 +94,10 @@ class LandlordCreate(BaseModel):
 
 class LandlordResponse(BaseModel):
     """Ev sahibi yanıt şeması"""
-    id: UUID4
-    agency_id: UUID4
-    unit_id: UUID4
-    user_id: Optional[UUID4] = None
+    id: UUID
+    agency_id: UUID
+    unit_id: UUID
+    user_id: Optional[UUID] = None
     temp_name: Optional[str] = None
     temp_phone: Optional[str] = None
     ownership_share: int
@@ -126,8 +127,8 @@ class LandlordWithDetailsResponse(LandlordResponse):
 # ──────────────────────────────────────────────
 
 class TenantTicketMessageResponse(BaseModel):
-    id: UUID4
-    sender_user_id: Optional[UUID4]
+    id: UUID
+    sender_user_id: Optional[UUID]
     sender_name: Optional[str] = None
     message: str
     attachment_url: Optional[str] = None
@@ -148,7 +149,7 @@ class TenantTicketCreate(BaseModel):
 
 class TenantTicketResponse(BaseModel):
     """Kiracının kendi bileti — PRD §4.2.2"""
-    id: UUID4
+    id: UUID
     title: str
     description: Optional[str]
     priority: TicketPriority

@@ -1,12 +1,13 @@
-from pydantic import BaseModel, UUID4
+from uuid import UUID
+from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from datetime import date, datetime
 
 
 class LandlordUnitResponse(BaseModel):
     """Ev Sahibinin tek bir birimine ait bilgi"""
-    id: UUID4
-    unit_id: UUID4
+    id: UUID
+    unit_id: UUID
     property_name: str
     door_number: str
     floor: Optional[str]
@@ -22,7 +23,7 @@ class LandlordUnitResponse(BaseModel):
 
 class LandlordPropertySummary(BaseModel):
     """Bir mülkteki tüm birimlerin özeti"""
-    property_id: UUID4
+    property_id: UUID
     property_name: str
     address: Optional[str]
     total_units: int
@@ -62,8 +63,8 @@ class PaymentMonthItem(BaseModel):
 
 class LandlordTenantPerformance(BaseModel):
     """Kiracı performans bilgisi (ödeme geçmişi vb.)"""
-    tenant_id: UUID4
-    unit_id: UUID4
+    tenant_id: UUID
+    unit_id: UUID
     property_name: str
     door_number: str
     tenant_name: Optional[str]
@@ -85,8 +86,8 @@ class LandlordTenantPerformance(BaseModel):
 
 class LandlordOperationItem(BaseModel):
     """Ev Sahibinin mülkündeki operasyonlar"""
-    id: UUID4
-    property_id: UUID4
+    id: UUID
+    property_id: UUID
     property_name: str
     title: str
     description: Optional[str]
@@ -99,8 +100,8 @@ class LandlordOperationItem(BaseModel):
 
 class LandlordVacantUnit(BaseModel):
     """Portföy Vitrini — Boş birim bilgisi (Ev Sahibi için yatırım fırsatları)"""
-    unit_id: UUID4
-    property_id: UUID4
+    unit_id: UUID
+    property_id: UUID
     property_name: str
     address: Optional[str]
     door_number: str
@@ -114,7 +115,7 @@ class LandlordVacantUnit(BaseModel):
 
 class LandlordInterestRequest(BaseModel):
     """§4.3.4 — Ev Sahibinin yatırım ilgisi bildirmesi (Bilgi Al)"""
-    property_id: Optional[UUID4] = None
+    property_id: Optional[UUID] = None
     initial_message: str = "Bu mülk hakkında bilgi almak istiyorum."
 
 
@@ -134,7 +135,7 @@ class UnitDocumentItem(BaseModel):
 
 class UnitDocumentsResponse(BaseModel):
     """Birime ait tüm dijital arşiv belgeleri — PRD §4.3.2-C"""
-    unit_id: UUID4
+    unit_id: UUID
     property_name: str
     door_number: str
     contract_document_url: Optional[str] = None

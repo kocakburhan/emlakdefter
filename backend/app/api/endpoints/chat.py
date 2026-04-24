@@ -21,6 +21,14 @@ from app.core.websocket_manager import ws_manager
 router = APIRouter()
 
 
+def escape_like(text: str) -> str:
+    """
+    SQL LIKE joker karakterlerini kaçır.
+    LIKE sorgularında SQL injection koruması için kullanılır.
+    """
+    return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 async def get_user_from_token_for_ws(token: str) -> User:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -93,7 +101,7 @@ async def list_conversations(
             from app.models.properties import PropertyUnit
             unit_stmt = select(PropertyUnit).where(
                 PropertyUnit.property_id == conv.property_id,
-                PropertyUnit.door_number.ilike(f"%{search}%"),
+                PropertyUnit.door_number.ilike(f"%{escape_like(search)}%"),
             )
             unit_res = await db.execute(unit_stmt)
             unit = unit_res.scalar_one_or_none()

@@ -22,7 +22,7 @@ class PropertyModel {
   PropertyModel({
     required this.id,
     required this.name,
-    this.type = 'building',
+    this.type = 'apartment_complex',  // Backend: apartment_complex
     this.address,
     required this.totalUnits,
     this.centralDues = 0,
@@ -36,7 +36,7 @@ class PropertyModel {
     return PropertyModel(
       id: json['id'] ?? '',
       name: json['name'] ?? '',
-      type: json['type'] ?? 'building',
+      type: json['type'] ?? 'apartment_complex',  // Backend: apartment_complex
       address: json['address'],
       totalUnits: json['total_units'] ?? 0,
       centralDues: json['central_dues'] ?? 0,

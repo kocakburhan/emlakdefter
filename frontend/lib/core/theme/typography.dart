@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// Typography System
-/// Centralized font styles using Source Code Pro (DejaVu Sans Mono alternative)
+/// Centralized font styles using Open Sans
 class AppTypography {
-  // Base text style - Source Code Pro
-  static TextStyle get _baseStyle => GoogleFonts.sourceCodePro();
+  // Base text style - Open Sans
+  static TextStyle get _baseStyle => GoogleFonts.openSans();
 
   // Display Styles - Headers
   static TextStyle get displayLarge => _baseStyle.copyWith(
