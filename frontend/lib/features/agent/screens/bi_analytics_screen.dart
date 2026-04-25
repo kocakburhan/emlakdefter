@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
@@ -6,10 +6,13 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:excel/excel.dart' hide Border;
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart' show getTemporaryDirectory;
+import 'dart:io' show File;
 import '../../../core/theme/colors.dart';
 import '../../../core/network/api_client.dart';
+import 'bi_analytics_screen_web_stub.dart'
+    if (dart.library.js_interop) 'bi_analytics_screen_web.dart';
 
 // ──────────────────────────────────────────────
 // PROVIDER
@@ -80,7 +83,7 @@ final biAnalyticsProvider = StateNotifierProvider<BIAnalyticsNotifier, AsyncValu
 // ──────────────────────────────────────────────
 
 class BIAnalyticsScreen extends ConsumerStatefulWidget {
-  const BIAnalyticsScreen({Key? key}) : super(key: key);
+  const BIAnalyticsScreen({super.key});
 
   @override
   ConsumerState<BIAnalyticsScreen> createState() => _BIAnalyticsScreenState();
@@ -145,10 +148,17 @@ class _BIAnalyticsScreenState extends ConsumerState<BIAnalyticsScreen>
           ],
         ),
       );
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/emlakdefter_bi_report.pdf');
-      await file.writeAsBytes(await pdf.save());
-      await Share.shareXFiles([XFile(file.path)], text: 'Emlakdefter BI Raporu');
+      final pdfBytes = await pdf.save();
+      final fileName = 'emlakdefter_bi_report.pdf';
+
+      if (kIsWeb) {
+        triggerWebDownload(pdfBytes, fileName);
+      } else {
+        final dir = await getTemporaryDirectory();
+        final file = File('${dir.path}/$fileName');
+        await file.writeAsBytes(pdfBytes);
+        await Share.shareXFiles([XFile(file.path)], text: 'Emlakdefter BI Raporu');
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -186,10 +196,17 @@ class _BIAnalyticsScreenState extends ConsumerState<BIAnalyticsScreen>
         sheet.cell(CellIndex.indexByString('B10')).value = TextCellValue('${data.financial!['current_year_net']}');
       }
 
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/emlakdefter_bi_report.xlsx');
-      await file.writeAsBytes(excel.encode()!);
-      await Share.shareXFiles([XFile(file.path)], text: 'Emlakdefter BI Raporu');
+      final bytes = excel.encode()!;
+      final fileName = 'emlakdefter_bi_report.xlsx';
+
+      if (kIsWeb) {
+        triggerExcelWebDownload(bytes, fileName);
+      } else {
+        final dir = await getTemporaryDirectory();
+        final file = File('${dir.path}/$fileName');
+        await file.writeAsBytes(bytes);
+        await Share.shareXFiles([XFile(file.path)], text: 'Emlakdefter BI Raporu');
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -197,6 +214,125 @@ class _BIAnalyticsScreenState extends ConsumerState<BIAnalyticsScreen>
         );
       }
     }
+  }
+
+  void _showInfoSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF111827),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00D9FF).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.analytics_rounded, color: Color(0xFF00D9FF), size: 22),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Text(
+                    'İş Zekası Paneli',
+                    style: TextStyle(
+                      color: Colors.white, fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Bu panel, emlak ofisi yöneticisinin (Kurucu Emlakçı / Admin) portföyünün genel sağlık durumunu stratejik düzeyde analiz etmesini sağlar.',
+              style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Bölümler:', style: TextStyle(color: Color(0xFF00D9FF), fontSize: 13, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 10),
+            _infoRow('A', 'Portföy Performansı', 'Doluluk oranı, boş daire yaşlandırma ve mülk bazlı analizler.'),
+            _infoRow('B', 'Kiracı Sirkülasyonu', 'Aylık giriş/çıkış raporu ve kiracı sadakat analizi.'),
+            _infoRow('C', 'Yıllık Finansal Rapor', 'Gelir/gider karşılaştırması, kategori trendleri ve net kar marjı.'),
+            _infoRow('D', 'Tahsilat Performansı', 'Tahsilat oranı, gecikme analizi ve bekleyen alacak takibi.'),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFB800).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFFFB800).withValues(alpha: 0.15)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.admin_panel_settings_outlined, color: Color(0xFFFFB800), size: 18),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Bu panele yalnızca Kurucu Emlakçı (Admin) erişebilir. Danışman/Çalışan rolündeki kullanıcılar bu ekranı göremez.',
+                      style: TextStyle(color: Color(0xFFFFB800), fontSize: 12, height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _infoRow(String code, String title, String desc) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              '§4.1.10-$code',
+              style: const TextStyle(color: Color(0xFF00D9FF), fontSize: 10, fontWeight: FontWeight.w700),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 2),
+                Text(desc, style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -276,15 +412,32 @@ class _BIAnalyticsScreenState extends ConsumerState<BIAnalyticsScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Üst satır: Başlık + Export
+          // Üst satır: Back + Başlık + Export + Info
           Row(
             children: [
+              // Back button
+              FadeTransition(
+                opacity: CurvedAnimation(parent: _headerAnim, curve: const Interval(0, 0.5, curve: Curves.easeOut)),
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                    ),
+                    child: const Icon(Icons.arrow_back_rounded, color: Colors.white70, size: 18),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     FadeTransition(
-                      opacity: CurvedAnimation(parent: _headerAnim, curve: const Interval(0, 0.5, curve: Curves.easeOut)),
+                      opacity: CurvedAnimation(parent: _headerAnim, curve: const Interval(0.05, 0.55, curve: Curves.easeOut)),
                       child: const Text(
                         'ANALYTICS',
                         style: TextStyle(
@@ -311,6 +464,23 @@ class _BIAnalyticsScreenState extends ConsumerState<BIAnalyticsScreen>
                   ],
                 ),
               ),
+              // Info button
+              FadeTransition(
+                opacity: CurvedAnimation(parent: _headerAnim, curve: const Interval(0.2, 0.7, curve: Curves.easeOut)),
+                child: GestureDetector(
+                  onTap: _showInfoSheet,
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF00D9FF).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF00D9FF).withValues(alpha: 0.15)),
+                    ),
+                    child: const Icon(Icons.info_outline_rounded, color: Color(0xFF00D9FF), size: 18),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
               // Export butonları
               FadeTransition(
                 opacity: CurvedAnimation(parent: _headerAnim, curve: const Interval(0.3, 0.8, curve: Curves.easeOut)),

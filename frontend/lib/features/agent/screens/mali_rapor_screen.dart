@@ -1,15 +1,18 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:excel/excel.dart' hide Border;
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:uuid/uuid.dart';
-import 'dart:io';
+import 'package:path_provider/path_provider.dart' show getTemporaryDirectory;
+import 'dart:io' show File;
 import '../../../core/theme/colors.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/offline/connectivity_service.dart';
 import '../../../core/offline/offline_storage.dart';
+import 'mali_rapor_screen_web_stub.dart'
+    if (dart.library.js_interop) 'mali_rapor_screen_web.dart';
 
 /// Mali Rapor Ekranı — PRD §4.1.6
 /// "Refined Ledger" — Premium dark muhasebe teması
@@ -250,11 +253,17 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
         }
       }
 
-      final directory = await getTemporaryDirectory();
+      final bytes = excel.encode()!;
       final fileName = 'emlakdefter_mali_rapor_${DateTime.now().millisecondsSinceEpoch}.xlsx';
-      final file = File('${directory.path}/$fileName');
-      await file.writeAsBytes(excel.encode()!);
-      await Share.shareXFiles([XFile(file.path)], subject: 'Emlakdefter Mali Rapor');
+
+      if (kIsWeb) {
+        triggerMaliRaporWebDownload(bytes, fileName);
+      } else {
+        final directory = await getTemporaryDirectory();
+        final file = File('${directory.path}/$fileName');
+        await file.writeAsBytes(bytes);
+        await Share.shareXFiles([XFile(file.path)], subject: 'Emlakdefter Mali Rapor');
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -465,7 +474,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
                       hintText: 'ör: nakliye, sigorta, temsilci ücreti',
                       hintStyle: TextStyle(color: AppColors.textTertiary),
                       filled: true,
-                      fillColor: AppColors.border,
+                      fillColor: AppColors.charcoal,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
                         borderSide: BorderSide.none,
@@ -514,14 +523,14 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
                 TextField(
                   controller: _formAmountController,
                   keyboardType: TextInputType.number,
-                  style: TextStyle(color: AppColors.charcoal, fontSize: 20, fontWeight: FontWeight.bold),
+                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
                   decoration: InputDecoration(
                     hintText: '0',
                     hintStyle: TextStyle(color: AppColors.textTertiary),
                     prefixText: '₺ ',
                     prefixStyle: const TextStyle(color: Colors.white, fontSize: 20),
                     filled: true,
-                    fillColor: AppColors.border,
+                    fillColor: AppColors.charcoal,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
                       borderSide: BorderSide.none,
@@ -540,7 +549,7 @@ class _MaliRaporScreenState extends ConsumerState<MaliRaporScreen>
                     hintText: 'Açıklama (opsiyonel)',
                     hintStyle: TextStyle(color: AppColors.textTertiary),
                     filled: true,
-                    fillColor: AppColors.border,
+                    fillColor: AppColors.charcoal,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
                       borderSide: BorderSide.none,

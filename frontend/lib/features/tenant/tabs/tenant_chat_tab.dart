@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -614,7 +614,7 @@ class _ChatScreenState extends ConsumerState<_ChatScreen>
   List<ChatMessageItem> _messages = [];
   bool _isSending = false;
   bool _showAttachPicker = false;
-  String? _attachedFilePath;
+  Uint8List? _attachedBytes;
   String? _attachedFileName;
 
   // Spring animation for message bubbles
@@ -757,19 +757,19 @@ class _ChatScreenState extends ConsumerState<_ChatScreen>
 
   Future<void> _sendMessage() async {
     final text = _textCtrl.text.trim();
-    if (text.isEmpty && _attachedFilePath == null) return;
+    if (text.isEmpty && _attachedBytes == null) return;
 
     setState(() => _isSending = true);
 
     String? mediaUrl;
 
     // Upload attachment first if present
-    if (_attachedFilePath != null) {
+    if (_attachedBytes != null) {
       try {
         final formData = FormData.fromMap({
-          'file': await MultipartFile.fromFile(
-            _attachedFilePath!,
-            filename: _attachedFileName ?? _attachedFilePath!.split('/').last,
+          'file': MultipartFile.fromBytes(
+            _attachedBytes!,
+            filename: _attachedFileName ?? 'attachment',
           ),
           'category': 'chat',
         });
@@ -801,7 +801,7 @@ class _ChatScreenState extends ConsumerState<_ChatScreen>
       if (sent != null) {
         _messages = [..._messages, sent];
         _textCtrl.clear();
-        _attachedFilePath = null;
+        _attachedBytes = null;
         _attachedFileName = null;
         _showAttachPicker = false;
       }
@@ -820,29 +820,30 @@ class _ChatScreenState extends ConsumerState<_ChatScreen>
       result = await FilePicker.platform.pickFiles(
         type: FileType.image,
         allowMultiple: false,
-        withData: false,
+        withData: true,
       );
     } else if (source == 'gallery') {
       result = await FilePicker.platform.pickFiles(
         type: FileType.media,
         allowMultiple: false,
-        withData: false,
+        withData: true,
       );
     } else {
       result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'doc', 'docx'],
         allowMultiple: false,
-        withData: false,
+        withData: true,
       );
     }
 
     if (result != null && result.files.isNotEmpty && mounted) {
-      final path = result.files.single.path;
-      if (path != null) {
+      final file = result.files.single;
+      final bytes = file.bytes;
+      if (bytes != null) {
         setState(() {
-          _attachedFilePath = path;
-          _attachedFileName = result!.files.single.name;
+          _attachedBytes = bytes;
+          _attachedFileName = file.name;
         });
       }
     }
@@ -850,7 +851,7 @@ class _ChatScreenState extends ConsumerState<_ChatScreen>
 
   void _removeAttachment() {
     setState(() {
-      _attachedFilePath = null;
+      _attachedBytes = null;
       _attachedFileName = null;
     });
   }
@@ -915,9 +916,9 @@ class _ChatScreenState extends ConsumerState<_ChatScreen>
             ),
 
             // ── Attachment Preview ───────────────────────────────
-            if (_attachedFilePath != null)
+            if (_attachedBytes != null)
               _AttachmentPreview(
-                filePath: _attachedFilePath!,
+                bytes: _attachedBytes!,
                 fileName: _attachedFileName,
                 onRemove: _removeAttachment,
               ),
@@ -1627,19 +1628,20 @@ class _AttachOptionState extends State<_AttachOption> {
 // _AttachmentPreview
 // ─────────────────────────────────────────────────────────────────────────────
 class _AttachmentPreview extends StatelessWidget {
-  final String filePath;
+  final Uint8List bytes;
   final String? fileName;
   final VoidCallback onRemove;
 
   const _AttachmentPreview({
-    required this.filePath,
+    required this.bytes,
     this.fileName,
     required this.onRemove,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isImage = filePath.toLowerCase().contains(RegExp(r'\.(jpg|jpeg|png|gif|webp)'));
+    final isImage = fileName != null &&
+        fileName!.toLowerCase().contains(RegExp(r'\.(jpg|jpeg|png|gif|webp)'));
 
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 4, 12, 0),
@@ -1657,8 +1659,8 @@ class _AttachmentPreview extends StatelessWidget {
           if (isImage)
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
-              child: Image.file(
-                File(filePath),
+              child: Image.memory(
+                bytes,
                 width: 48, height: 48,
                 fit: BoxFit.cover,
               ),
@@ -1676,7 +1678,7 @@ class _AttachmentPreview extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              fileName ?? filePath.split('/').last,
+              fileName ?? 'attachment',
               style: const TextStyle(
                 color: _textDark, fontSize: 13,
                 fontWeight: FontWeight.w500,

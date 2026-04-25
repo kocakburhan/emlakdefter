@@ -151,7 +151,8 @@ class _TenantFinanceTabState extends ConsumerState<TenantFinanceTab> {
     if (result == null || result.files.isEmpty) return;
 
     final file = result.files.first;
-    if (file.path == null) {
+    final bytes = file.bytes;
+    if (bytes == null) {
       messenger.showSnackBar(
         const SnackBar(
           content: Text('Dosya seçilemedi'),
@@ -171,7 +172,7 @@ class _TenantFinanceTabState extends ConsumerState<TenantFinanceTab> {
 
     try {
       final formData = FormData.fromMap({
-        'file': await MultipartFile.fromFile(file.path!),
+        'file': MultipartFile.fromBytes(bytes, filename: file.name),
       });
       final resp = await ApiClient.dio.post(
         '/finance/upload-statement',

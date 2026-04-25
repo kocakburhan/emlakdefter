@@ -1,15 +1,19 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:record/record.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:path_provider/path_provider.dart' show getTemporaryDirectory;
+import 'dart:io' show File;
 import '../../../core/theme/colors.dart';
 import '../../../core/network/api_client.dart';
 import '../providers/chat_provider.dart';
+import 'package:record/record.dart';
 
 /// Sohbet Penceresi — WhatsApp tarzı mesaj balonları, düzenle, sil, 30 sn geri al
 class ChatWindowScreen extends ConsumerStatefulWidget {
@@ -881,6 +885,12 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
 
   // ─── Voice Recorder — §4.1.8 ───────────────────────────────────────
   void _showVoiceRecorderSheet(BuildContext ctx) {
+    if (kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sesli mesaj web\'de desteklenmiyor')),
+      );
+      return;
+    }
     Navigator.pop(ctx);
     showModalBottomSheet(
       context: context,
@@ -908,7 +918,8 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
     if (!mounted) return;
     Navigator.pop(context);
 
-    final uploadResp = await _uploadMedia(image.path, 'image');
+    final bytes = await image.readAsBytes();
+    final uploadResp = await _uploadMedia(bytes, image.name, 'image');
     if (uploadResp != null) {
       await _sendMessageWithAttachment(uploadResp);
     }
@@ -923,21 +934,22 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
     if (result == null || result.files.isEmpty) return;
 
     final file = result.files.first;
-    if (file.path == null) return;
+    final bytes = file.bytes;
+    if (bytes == null) return;
 
     if (!mounted) return;
     Navigator.pop(context);
 
-    final uploadResp = await _uploadMedia(file.path!, 'document');
+    final uploadResp = await _uploadMedia(bytes, file.name, 'document');
     if (uploadResp != null) {
       await _sendMessageWithAttachment(uploadResp);
     }
   }
 
-  Future<String?> _uploadMedia(String filePath, String category) async {
+  Future<String?> _uploadMedia(Uint8List bytes, String fileName, String category) async {
     try {
       final formData = FormData.fromMap({
-        'file': await MultipartFile.fromFile(filePath),
+        'file': MultipartFile.fromBytes(bytes, filename: fileName),
         'category': category,
       });
       final resp = await ApiClient.dio.post(
@@ -1055,8 +1067,9 @@ class _VoiceRecorderSheetState extends State<_VoiceRecorderSheet> {
 
     try {
       // Upload to backend
+      final voiceBytes = await File(_recordedPath!).readAsBytes();
       final formData = FormData.fromMap({
-        'file': await MultipartFile.fromFile(_recordedPath!),
+        'file': MultipartFile.fromBytes(voiceBytes, filename: 'voice_message.mp4'),
         'category': 'voice',
       });
       final resp = await ApiClient.dio.post(

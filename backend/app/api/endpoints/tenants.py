@@ -6,6 +6,8 @@ from typing import List, Optional
 from uuid import UUID
 from datetime import datetime
 
+from firebase_admin import auth as firebase_auth
+from app.core.security import get_password_hash
 from app.api import deps
 from app.database import get_db
 from app.models.users import User
@@ -17,6 +19,7 @@ from app.schemas.tenants import (
     LandlordCreate, LandlordUpdate, LandlordResponse, LandlordWithDetailsResponse,
     TenantTicketCreate, TenantTicketResponse, TenantTicketMessageResponse,
     TenantDocumentsResponse, TenantDocumentItem,
+    TenantCreateWithUser,
 )
 from app.schemas.finance import TenantFinanceSummary, PaymentScheduleResponse, TransactionResponse
 from app.schemas.operations import TicketMessageResponse
@@ -334,6 +337,143 @@ async def create_tenant(
     await db.refresh(tenant)
 
     return tenant
+
+
+@router.post("/create-with-user", response_model=TenantWithDetailsResponse, status_code=status.HTTP_201_CREATED)
+async def create_tenant_with_user(
+    tenant_in: TenantCreateWithUser,
+    current_user: User = Depends(deps.get_current_user),
+    agency_id: UUID = Depends(deps.get_current_user_agency_id),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Kiracı + Firebase kullanıcısı birlikte oluşturur (PRD §4.1.4).
+    1. Firebase'de email/password ile yeni user oluştur
+    2. PostgreSQL'de User kaydı oluştur
+    3. Tenant kaydı oluştur ve birime bağla
+    4. Birimi "rented" olarak işaretle
+    """
+    import os
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # Birimin bu agency'ye ait olduğunu kontrol et
+    unit_stmt = select(PropertyUnit).where(
+        PropertyUnit.id == tenant_in.unit_id,
+        PropertyUnit.agency_id == agency_id
+    )
+    unit_result = await db.execute(unit_stmt)
+    unit = unit_result.scalar_one_or_none()
+
+    if not unit:
+        raise HTTPException(status_code=404, detail="Birim bulunamadı veya erişim yetkiniz yok.")
+
+    # Birim başka kiracılya kiralanmış mı kontrol et
+    active_tenant_stmt = select(Tenant).where(
+        Tenant.unit_id == tenant_in.unit_id,
+        Tenant.is_active == True
+    )
+    active_result = await db.execute(active_tenant_stmt)
+    active_tenant = active_result.scalar_one_or_none()
+
+    if active_tenant:
+        raise HTTPException(status_code=400, detail="Bu birimde aktif kiracı bulunuyor.")
+
+    # Email zaten başka bir kullanıcıda var mı kontrol et
+    existing_user_stmt = select(User).where(User.email == tenant_in.email.lower())
+    existing_user_result = await db.execute(existing_user_stmt)
+    existing_user = existing_user_result.scalar_one_or_none()
+
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Bu email adresi zaten başka bir kullanıcı tarafından kullanılıyor.")
+
+    # ── 1. Firebase'de user oluştur ────────────────────────────────
+    firebase_uid = None
+    if os.path.exists(os.getenv("FIREBASE_CREDENTIALS_PATH", "firebase-adminsdk.json")):
+        try:
+            firebase_user = firebase_auth.create_user(
+                email=tenant_in.email,
+                password=tenant_in.password,
+                display_name=tenant_in.name,
+            )
+            firebase_uid = firebase_user.uid
+            logger.info(f"[Firebase] Yeni tenant user oluşturuldu: {tenant_in.email} -> {firebase_uid}")
+        except Exception as e:
+            logger.error(f"[Firebase] Tenant user oluşturma hatası: {e}")
+            raise HTTPException(status_code=500, detail=f"Firebase kullanıcı oluşturulamadı: {str(e)}")
+    else:
+        # Mock mod: fake UID üret
+        import uuid as uuid_module
+        firebase_uid = f"mock_tenant_{uuid_module.uuid4().hex[:12]}"
+        logger.warning(f"[Mock] Firebase user oluşturuldu (mock mod): {firebase_uid}")
+
+    # ── 2. PostgreSQL User kaydı oluştur ───────────────────────────
+    from app.models.users import UserRole
+    new_user = User(
+        email=tenant_in.email.lower(),
+        phone_number=tenant_in.phone,
+        firebase_uid=firebase_uid,
+        full_name=tenant_in.name,
+        role=UserRole.tenant,
+        status="active",
+        agency_id=agency_id,
+        password_hash=get_password_hash(tenant_in.password) if tenant_in.password else None,
+    )
+    db.add(new_user)
+    await db.flush()  # new_user.id almak için
+
+    # ── 3. Tenant kaydı oluştur ────────────────────────────────────
+    new_tenant = Tenant(
+        agency_id=agency_id,
+        unit_id=tenant_in.unit_id,
+        user_id=new_user.id,
+        temp_name=tenant_in.name,
+        temp_phone=tenant_in.phone,
+        rent_amount=tenant_in.rent_amount,
+        payment_day=tenant_in.payment_day,
+        start_date=tenant_in.start_date,
+        end_date=tenant_in.end_date,
+        status="active",
+        is_active=True,
+    )
+    db.add(new_tenant)
+
+    # ── 4. Birimi "rented" olarak işaretle ─────────────────────────
+    unit.status = "rented"
+    unit.vacant_since = None
+
+    await db.commit()
+
+    # ── 5. Detaylı yanıt oluştur ───────────────────────────────────
+    await db.refresh(new_tenant)
+    await db.refresh(new_user)
+    await db.refresh(unit)
+
+    property_stmt = select(Property).where(Property.id == unit.property_id)
+    prop_result = await db.execute(property_stmt)
+    property_ = prop_result.scalar_one_or_none()
+
+    return TenantWithDetailsResponse(
+        id=new_tenant.id,
+        agency_id=new_tenant.agency_id,
+        unit_id=new_tenant.unit_id,
+        user_id=new_user.id,
+        temp_name=new_tenant.temp_name,
+        temp_phone=new_tenant.temp_phone,
+        rent_amount=new_tenant.rent_amount,
+        payment_day=new_tenant.payment_day,
+        start_date=new_tenant.start_date,
+        end_date=new_tenant.end_date,
+        status=new_tenant.status,
+        actual_end_date=new_tenant.actual_end_date,
+        is_active=new_tenant.is_active,
+        created_at=new_tenant.created_at,
+        unit_door_number=unit.door_number,
+        unit_floor=unit.floor,
+        property_name=property_.name if property_ else None,
+        user_full_name=new_user.full_name,
+        user_phone=new_user.phone_number,
+    )
 
 
 @router.patch("/{tenant_id}", response_model=TenantResponse)

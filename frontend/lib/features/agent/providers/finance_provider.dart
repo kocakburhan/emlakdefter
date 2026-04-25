@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:dio/dio.dart';
 import '../../../core/network/api_client.dart';
 import 'dart:math';
+import 'dart:io' show File;
 
 enum MatchStatus { pending, matched, rejected, overdue, partial }
 
@@ -81,8 +82,12 @@ class FinanceNotifier extends StateNotifier<AsyncValue<List<TransactionModel>>> 
 
        if (platformFile.bytes != null) {
           multipartFile = MultipartFile.fromBytes(platformFile.bytes!, filename: platformFile.name);
+       } else if (platformFile.path != null) {
+          multipartFile = MultipartFile.fromBytes(await File(platformFile.path!).readAsBytes(), filename: platformFile.name);
        } else {
-          multipartFile = await MultipartFile.fromFile(platformFile.path!, filename: platformFile.name);
+          // Web'de path ve bytes yoksa hata ver
+          state = AsyncValue.error('Dosya seçilemedi', StackTrace.current);
+          return;
        }
 
        FormData formData = FormData.fromMap({

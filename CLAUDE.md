@@ -57,13 +57,15 @@ frontend/
 | Katman | İlerleme |
 |---|---|
 | Altyapı (DB, Docker, Firebase) | ~80% |
-| Backend API | ~55% |
-| Frontend UI | ~65% |
-| AI/ML (Gemini PDF okuma) | ~15% |
-| Ev Sahibi Paneli | %100 |
-| Offline/Sync | %0 |
+| Backend API | ~60% |
+| Frontend UI | ~70% |
+| AI/ML (Gemini PDF okuma) | ~70% |
+| Ev Sahibi Paneli | ~85% |
+| Kiracı Paneli | ~85% |
+| Offline/Sync | ~50% |
+| BI/Analytics | ~80% |
 
-**Acil yapılacaklar:** Tenant panelleri mock→API, Chat WebSocket canlı mesaj, Gemini PDF okuma, APScheduler bildirimler
+**⚠️ ÖNEMLİ:** "Tamamlandı" yazması test edilmiş demek DEĞİLDİR. Tüm API endpoint'leri ve özellikler ayrıca test edilmelidir.
 
 ---
 
@@ -75,6 +77,7 @@ frontend/
 4. **Firebase Auth:** JWT token doğrulama `get_current_user_agency_id` üzerinden
 5. **API değişikliklerinde:** `project_status.md`'yi güncelle
 6. **Her görev tamamlandığında:** `project_status.md`'ye o görevin tamamlandığını, ne yapıldığını ve tarihini detaylıca yaz. Bu değişmez bir kuraldır.
+7. **Test kuralı:** Bir özellik "tamamlandı" olarak işaretlenmeden önce MUTLAKA test edilmiş olmalıdır. Sadece kod yazılması yeterli değildir.
 
 ---
 
@@ -89,6 +92,12 @@ docker-compose up -d
 
 # Migration
 alembic upgrade head
+
+# Flutter analiz
+flutter analyze
+
+# Backend doğrulama
+python -c "from app.main import app; print('OK')"
 ```
 
 ---
@@ -98,3 +107,5 @@ alembic upgrade head
 - Firebase Phone Auth: Console'da henüz aktif edilmedi
 - `emlakdefter_db` → port 5433, `emlakdefter_redis` → port 6379
 - Eski Firebase Admin SDK anahtarı git geçmişinden temizlendi
+- Web platformu için ayrı screen dosyaları: `*_web.dart`, `*_web_stub.dart`
+- **Tüm API endpoint'leri test edilmelidir** — "Tamamlandı" yazısı test edilmişlik anlamına gelmez

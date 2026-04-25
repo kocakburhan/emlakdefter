@@ -1,5 +1,8 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/network/api_client.dart';
@@ -37,6 +40,113 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
 
   bool _isEditing = false;
   bool _isSaving = false;
+
+  // ── Kiracı Ekle Form Controllers (§4.1.4) ────────────────────────
+  final _tenantNameController = TextEditingController();
+  final _tenantEmailController = TextEditingController();
+  final _tenantPhoneController = TextEditingController();
+  final _tenantPasswordController = TextEditingController();
+  final _tenantRentController = TextEditingController();
+  bool _isCreatingTenant = false;
+
+  Future<void> _addPhoto() async {
+    final picker = ImagePicker();
+    final image = await picker.pickImage(source: ImageSource.gallery);
+    if (image == null) return;
+
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final bytes = await image.readAsBytes();
+      final formData = FormData.fromMap({
+        'file': MultipartFile.fromBytes(bytes, filename: 'photo.jpg'),
+        'category': 'media',
+      });
+      final resp = await ApiClient.dio.post('/upload/media', data: formData);
+      final url = resp.data['url'] as String;
+
+      if (!mounted) return;
+      Navigator.pop(context); // close loading
+
+      setState(() {
+        final current = List<Map<String, dynamic>>.from(_unit?['media_links'] ?? []);
+        current.add({'url': url, 'caption': ''});
+        _unit?['media_links'] = current;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Fotoğraf eklendi")),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Yükleme hatası: $e")),
+      );
+    }
+  }
+
+  // PRD §4.1.4-A: Document upload
+  Future<void> _addDocument() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'],
+    );
+    if (result == null || result.files.isEmpty) return;
+
+    final file = result.files.first;
+    // Use name/getName() for cross-platform compatibility; bytes is null on web when path is unavailable
+    final fileName = file.name;
+    final bytes = file.bytes;
+    if (bytes == null) {
+      // On web, bytes may be null if path access failed — try xFile approach
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Bu dosya web'de seçilemiyor")),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final formData = FormData.fromMap({
+        'file': MultipartFile.fromBytes(bytes, filename: fileName),
+        'category': 'document',
+      });
+      final resp = await ApiClient.dio.post('/upload/media', data: formData);
+      final url = resp.data['url'] as String;
+
+      if (!mounted) return;
+      Navigator.pop(context); // close loading
+
+      setState(() {
+        final current = List<Map<String, dynamic>>.from(_unit?['documents'] ?? []);
+        current.add({'url': url, 'name': fileName, 'type': file.extension ?? 'file'});
+        _unit?['documents'] = current;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Belge eklendi: $fileName")),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Yükleme hatası: $e")),
+      );
+    }
+  }
 
   // Section animation controllers
   late AnimationController _headerAnimController;
@@ -103,6 +213,11 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
     _doorController.dispose();
     _commissionController.dispose();
     _youtubeController.dispose();
+    _tenantNameController.dispose();
+    _tenantEmailController.dispose();
+    _tenantPhoneController.dispose();
+    _tenantPasswordController.dispose();
+    _tenantRentController.dispose();
     super.dispose();
   }
 
@@ -209,6 +324,63 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
     }
   }
 
+  // ── Kiracı Ekle Bottom Sheet — PRD §4.1.4 ─────────────────────────
+  Future<void> _showAddTenantSheet() async {
+    // Pre-fill rent amount from unit data
+    final rentFromUnit = _unit?['rent_price'] ?? '';
+    _tenantRentController.text = rentFromUnit.toString();
+
+    final result = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _AddTenantBottomSheet(
+        unitId: widget.unitId,
+        doorNumber: _unit?['door_number'] ?? '',
+        propertyName: widget.propertyName,
+        nameController: _tenantNameController,
+        emailController: _tenantEmailController,
+        phoneController: _tenantPhoneController,
+        passwordController: _tenantPasswordController,
+        rentController: _tenantRentController,
+      ),
+    );
+
+    if (result != null) {
+      // Tenant created successfully — refresh unit data
+      _tenantNameController.clear();
+      _tenantEmailController.clear();
+      _tenantPhoneController.clear();
+      _tenantPasswordController.clear();
+      _tenantRentController.clear();
+      await _fetchUnit();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.person_add, color: Colors.white, size: 16),
+                ),
+                const SizedBox(width: 10),
+                const Text('Kiracı oluşturuldu'),
+              ],
+            ),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
+    }
+  }
+
   Color get _statusColor {
     if (_unit == null) return AppColors.textSecondary;
     switch (_unit!['status']) {
@@ -281,6 +453,13 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
     return links.map((e) => Map<String, String>.from(e)).toList();
   }
 
+  // PRD §4.1.4-A: Document items
+  List<Map<String, dynamic>> get _documentItems {
+    final docs = _unit?['documents'] as List<dynamic>?;
+    if (docs == null || docs.isEmpty) return [];
+    return docs.map((e) => Map<String, dynamic>.from(e)).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -326,17 +505,17 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
                         'Kapı ${_unit?['door_number'] ?? '...'}',
                         style: const TextStyle(
                           color: AppColors.charcoal,
-                          fontSize: 17,
+                          fontSize: 16,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.3,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 1),
                       Text(
                         widget.propertyName,
                         style: TextStyle(
                           color: AppColors.textSecondary.withValues(alpha: 0.7),
-                          fontSize: 11,
+                          fontSize: 10,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -418,6 +597,22 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
                       ),
               ),
               const SizedBox(width: 8),
+              if (!_isEditing && _unit?['status'] == 'vacant')
+                FadeTransition(
+                  opacity: _headerFade,
+                  child: IconButton(
+                    icon: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.person_add, size: 20, color: AppColors.success),
+                    ),
+                    onPressed: _isCreatingTenant ? null : _showAddTenantSheet,
+                  ),
+                ),
+              const SizedBox(width: 8),
             ],
           ),
 
@@ -479,6 +674,18 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
                     child: FadeTransition(
                       opacity: _cardFade,
                       child: _buildMediaSection(),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // §4.1.4-A: DOKÜMANLAR
+                  _buildSectionHeader('D', 'Dokümanlar'),
+                  const SizedBox(height: 12),
+                  SlideTransition(
+                    position: _cardSlide,
+                    child: FadeTransition(
+                      opacity: _cardFade,
+                      child: _buildDocumentSection(),
                     ),
                   ),
                   const SizedBox(height: 100),
@@ -976,41 +1183,64 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
           const SizedBox(height: 16),
 
           if (mediaItems.isEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Column(
+            GestureDetector(
+              onTap: _addPhoto,
+              child: Stack(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      shape: BoxShape.circle,
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    child: Icon(
-                      Icons.add_photo_alternate_outlined,
-                      color: AppColors.textSecondary.withValues(alpha: 0.4),
-                      size: 28,
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.add_photo_alternate_outlined,
+                            color: AppColors.textSecondary.withValues(alpha: 0.4),
+                            size: 28,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Henüz fotoğraf eklenmemiş',
+                          style: TextStyle(
+                            color: AppColors.textSecondary.withValues(alpha: 0.6),
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Fotoğraf yüklemek için medya upload kullanın',
+                          style: TextStyle(
+                            color: AppColors.textSecondary.withValues(alpha: 0.4),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Henüz fotoğraf eklenmemiş',
-                    style: TextStyle(
-                      color: AppColors.textSecondary.withValues(alpha: 0.6),
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Fotoğraf yüklemek için medya upload kullanın',
-                    style: TextStyle(
-                      color: AppColors.textSecondary.withValues(alpha: 0.4),
-                      fontSize: 11,
+                  Positioned(
+                    bottom: 12,
+                    right: 12,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.charcoal,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.add,
+                        color: Colors.white,
+                        size: 18,
+                      ),
                     ),
                   ),
                 ],
@@ -1100,6 +1330,182 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen>
                 },
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  // PRD §4.1.4-A: DOKÜMANLAR — lease contracts, delivery receipts, etc.
+  Widget _buildDocumentSection() {
+    final docs = _documentItems;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.05),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.charcoal.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.description_outlined,
+                  color: AppColors.charcoal,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Dokümanlar',
+                      style: TextStyle(
+                        color: AppColors.charcoal,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      'Sözleşmeler, teslim tutanakları ve diğer belgeler',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.charcoal.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${docs.length} belge',
+                  style: const TextStyle(
+                    color: AppColors.charcoal,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          if (docs.isEmpty)
+            GestureDetector(
+              onTap: _addDocument,
+              child: Stack(
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.upload_file,
+                            color: AppColors.textSecondary.withValues(alpha: 0.4),
+                            size: 28,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Henüz belge eklenmemiş',
+                          style: TextStyle(
+                            color: AppColors.textSecondary.withValues(alpha: 0.6),
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Sözleşme, teslim tutanağı veya diğer belgeler ekleyin',
+                          style: TextStyle(
+                            color: AppColors.textSecondary.withValues(alpha: 0.4),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 12,
+                    right: 12,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.charcoal,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.add,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else ...[
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: docs.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final doc = docs[index];
+                return _DocumentTile(
+                  name: doc['name'] ?? 'Bilinmeyen',
+                  type: doc['type'] ?? 'file',
+                  url: doc['url'] ?? '',
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _addDocument,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Yeni Belge Ekle'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.charcoal,
+                  side: BorderSide(
+                    color: AppColors.charcoal.withValues(alpha: 0.3),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1474,6 +1880,566 @@ class _VideoPreviewDialog extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Document list tile — §4.1.4-A
+class _DocumentTile extends StatelessWidget {
+  final String name;
+  final String type;
+  final String url;
+
+  const _DocumentTile({
+    required this.name,
+    required this.type,
+    required this.url,
+  });
+
+  IconData get _icon {
+    switch (type.toLowerCase()) {
+      case 'pdf':
+        return Icons.picture_as_pdf;
+      case 'doc':
+      case 'docx':
+        return Icons.description;
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+        return Icons.image;
+      default:
+        return Icons.insert_drive_file;
+    }
+  }
+
+  Color get _iconColor {
+    switch (type.toLowerCase()) {
+      case 'pdf':
+        return Colors.red;
+      case 'doc':
+      case 'docx':
+        return Colors.blue;
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+        return Colors.green;
+      default:
+        return AppColors.charcoal;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.06),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: _iconColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(_icon, color: _iconColor, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                    color: AppColors.charcoal,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  type.toUpperCase(),
+                  style: TextStyle(
+                    color: AppColors.textSecondary.withValues(alpha: 0.6),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: () {
+              // Could open URL in browser - placeholder for now
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text("Belge: $name")),
+              );
+            },
+            icon: Icon(
+              Icons.open_in_new,
+              color: AppColors.textSecondary.withValues(alpha: 0.5),
+              size: 18,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Kiracı Ekle Bottom Sheet — PRD §4.1.4 ─────────────────────────────────────
+
+class _AddTenantBottomSheet extends StatefulWidget {
+  final String unitId;
+  final String doorNumber;
+  final String propertyName;
+  final TextEditingController nameController;
+  final TextEditingController emailController;
+  final TextEditingController phoneController;
+  final TextEditingController passwordController;
+  final TextEditingController rentController;
+
+  const _AddTenantBottomSheet({
+    required this.unitId,
+    required this.doorNumber,
+    required this.propertyName,
+    required this.nameController,
+    required this.emailController,
+    required this.phoneController,
+    required this.passwordController,
+    required this.rentController,
+  });
+
+  @override
+  State<_AddTenantBottomSheet> createState() => _AddTenantBottomSheetState();
+}
+
+class _AddTenantBottomSheetState extends State<_AddTenantBottomSheet> {
+  bool _isLoading = false;
+  String? _error;
+  DateTime _startDate = DateTime.now();
+  DateTime _endDate = DateTime.now().add(const Duration(days: 365));
+  int _paymentDay = 1;
+
+  Future<void> _submit() async {
+    if (widget.nameController.text.trim().isEmpty ||
+        widget.emailController.text.trim().isEmpty ||
+        widget.passwordController.text.trim().isEmpty ||
+        widget.rentController.text.trim().isEmpty) {
+      setState(() => _error = "Tüm alanları doldurun");
+      return;
+    }
+
+    final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
+    if (!emailRegex.hasMatch(widget.emailController.text.trim())) {
+      setState(() => _error = "Geçerli bir email adresi girin");
+      return;
+    }
+
+    if (widget.passwordController.text.trim().length < 8) {
+      setState(() => _error = "Şifre en az 8 karakter olmalıdır");
+      return;
+    }
+
+    setState(() { _isLoading = true; _error = null; });
+
+    try {
+      final resp = await ApiClient.dio.post(
+        '/tenants/create-with-user',
+        data: {
+          'unit_id': widget.unitId,
+          'name': widget.nameController.text.trim(),
+          'email': widget.emailController.text.trim(),
+          'phone': widget.phoneController.text.trim().isEmpty
+              ? null
+              : widget.phoneController.text.trim(),
+          'password': widget.passwordController.text,
+          'rent_amount': int.tryParse(widget.rentController.text) ?? 0,
+          'payment_day': _paymentDay,
+          'start_date': _startDate.toIso8601String().split('T')[0],
+          'end_date': _endDate.toIso8601String().split('T')[0],
+        },
+      );
+
+      if (resp.statusCode == 201) {
+        if (!mounted) return;
+        Navigator.pop(context, resp.data);
+      }
+    } on DioException catch (e) {
+      final msg = e.response?.data?.get('detail') ?? e.message ?? 'Bilinmeyen hata';
+      setState(() => _error = msg.toString());
+    } catch (e) {
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle bar
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.textSecondary.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.person_add, color: AppColors.success, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Kiracı Ekle',
+                        style: TextStyle(
+                          color: AppColors.charcoal,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      Text(
+                        '${widget.propertyName} · Kapı ${widget.doorNumber}',
+                        style: TextStyle(
+                          color: AppColors.textSecondary.withValues(alpha: 0.7),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: Icon(Icons.close, color: AppColors.textSecondary.withValues(alpha: 0.5)),
+                ),
+              ],
+            ),
+
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline, color: AppColors.error, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _error!,
+                        style: const TextStyle(color: AppColors.error, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 20),
+
+            // Ad Soyad
+            _buildField(
+              label: 'Ad Soyad',
+              controller: widget.nameController,
+              icon: Icons.person_outline,
+              hint: 'Kiracının tam adı',
+            ),
+            const SizedBox(height: 14),
+
+            // Email
+            _buildField(
+              label: 'Email',
+              controller: widget.emailController,
+              icon: Icons.email_outlined,
+              hint: 'ornek@mail.com',
+              keyboardType: TextInputType.emailAddress,
+            ),
+            const SizedBox(height: 14),
+
+            // Telefon
+            _buildField(
+              label: 'Telefon (Opsiyonel)',
+              controller: widget.phoneController,
+              icon: Icons.phone_outlined,
+              hint: '+90 5XX XXX XX XX',
+              keyboardType: TextInputType.phone,
+            ),
+            const SizedBox(height: 14),
+
+            // Şifre
+            _buildField(
+              label: 'Geçici Şifre',
+              controller: widget.passwordController,
+              icon: Icons.lock_outline,
+              hint: 'En az 8 karakter',
+              obscureText: true,
+            ),
+            const SizedBox(height: 14),
+
+            // Kira Bedeli
+            _buildField(
+              label: 'Kira Bedeli (₺)',
+              controller: widget.rentController,
+              icon: Icons.payments_outlined,
+              hint: 'Aylık kira',
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 14),
+
+            // Ödeme günü
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.charcoal.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.calendar_today, color: AppColors.charcoal, size: 18),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Ödeme Günü',
+                        style: TextStyle(
+                          color: AppColors.textSecondary.withValues(alpha: 0.7),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      DropdownButton<int>(
+                        value: _paymentDay,
+                        dropdownColor: AppColors.surface,
+                        underline: const SizedBox(),
+                        isExpanded: true,
+                        items: List.generate(28, (i) => i + 1)
+                            .map((d) => DropdownMenuItem(value: d, child: Text('$d', style: const TextStyle(color: AppColors.charcoal))))
+                            .toList(),
+                        onChanged: (v) => setState(() => _paymentDay = v!),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 14),
+
+            // Başlangıç — Bitiş tarih
+            Row(
+              children: [
+                Expanded(
+                  child: _buildDateField(
+                    label: 'Başlangıç',
+                    date: _startDate,
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _startDate,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(2030),
+                      );
+                      if (picked != null) setState(() => _startDate = picked);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildDateField(
+                    label: 'Bitiş',
+                    date: _endDate,
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _endDate,
+                        firstDate: _startDate,
+                        lastDate: DateTime(2030),
+                      );
+                      if (picked != null) setState(() => _endDate = picked);
+                    },
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 24),
+
+            // Submit button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.success,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  disabledBackgroundColor: AppColors.success.withValues(alpha: 0.4),
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                      )
+                    : const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.person_add, size: 20),
+                          SizedBox(width: 8),
+                          Text('Kiracı Oluştur', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                        ],
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildField({
+    required String label,
+    required TextEditingController controller,
+    required IconData icon,
+    String? hint,
+    TextInputType? keyboardType,
+    bool obscureText = false,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.charcoal.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: AppColors.charcoal, size: 18),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: AppColors.textSecondary.withValues(alpha: 0.7),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              TextField(
+                controller: controller,
+                keyboardType: keyboardType,
+                obscureText: obscureText,
+                style: const TextStyle(color: AppColors.charcoal, fontSize: 15),
+                decoration: InputDecoration(
+                  hintText: hint,
+                  hintStyle: TextStyle(
+                    color: AppColors.textSecondary.withValues(alpha: 0.4),
+                    fontSize: 14,
+                  ),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+                  border: InputBorder.none,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDateField({
+    required String label,
+    required DateTime date,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.charcoal.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.calendar_today, color: AppColors.charcoal, size: 16),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: AppColors.textSecondary.withValues(alpha: 0.6),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}',
+                    style: const TextStyle(color: AppColors.charcoal, fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.edit, color: AppColors.textSecondary.withValues(alpha: 0.4), size: 14),
+          ],
+        ),
+      ),
     );
   }
 }

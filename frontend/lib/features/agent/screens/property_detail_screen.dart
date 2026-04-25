@@ -114,7 +114,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen>
                 labelText: "Başlık",
                 labelStyle: const TextStyle(color: AppColors.textSecondary),
                 filled: true,
-                fillColor: AppColors.background,
+                fillColor: AppColors.charcoal,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
               ),
             ),
@@ -127,7 +127,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen>
                 labelText: "Mesaj",
                 labelStyle: const TextStyle(color: AppColors.textSecondary),
                 filled: true,
-                fillColor: AppColors.background,
+                fillColor: AppColors.charcoal,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
               ),
             ),
@@ -314,16 +314,15 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen>
                             Expanded(
                               child: TextField(
                                 controller: _doorController,
-                                style: const TextStyle(color: Colors.white),
+                                style: const TextStyle(color: AppColors.textPrimary),
                                 decoration: InputDecoration(
                                   labelText: "Kapı No",
                                   labelStyle: const TextStyle(color: AppColors.textSecondary),
                                   filled: true,
-                                  fillColor: AppColors.background,
+                                  fillColor: AppColors.surface,
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide.none,
-                                  ),
+                                    borderSide: BorderSide.none),
                                 ),
                               ),
                             ),
@@ -333,16 +332,15 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen>
                               child: TextField(
                                 controller: _floorController,
                                 keyboardType: TextInputType.number,
-                                style: const TextStyle(color: Colors.white),
+                                style: const TextStyle(color: AppColors.textPrimary),
                                 decoration: InputDecoration(
                                   labelText: "Kat",
                                   labelStyle: const TextStyle(color: AppColors.textSecondary),
                                   filled: true,
-                                  fillColor: AppColors.background,
+                                  fillColor: AppColors.surface,
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide.none,
-                                  ),
+                                    borderSide: BorderSide.none),
                                 ),
                               ),
                             ),
@@ -352,16 +350,15 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen>
                               child: TextField(
                                 controller: _duesController,
                                 keyboardType: TextInputType.number,
-                                style: const TextStyle(color: Colors.white),
+                                style: const TextStyle(color: AppColors.textPrimary),
                                 decoration: InputDecoration(
                                   labelText: "Aidat",
                                   labelStyle: const TextStyle(color: AppColors.textSecondary),
                                   filled: true,
-                                  fillColor: AppColors.background,
+                                  fillColor: AppColors.surface,
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide.none,
-                                  ),
+                                    borderSide: BorderSide.none),
                                 ),
                               ),
                             ),

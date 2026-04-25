@@ -1,10 +1,10 @@
-import 'dart:io';
 import 'dart:ui' as ui;
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:path_provider/path_provider.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/network/api_client.dart';
 import '../providers/tenant_provider.dart';
@@ -505,7 +505,8 @@ class _CreateTicketSheetState extends ConsumerState<_CreateTicketSheet> {
   final _descCtrl = TextEditingController();
   final _titleFocus = FocusNode();
   bool _isLoading = false;
-  String? _attachmentPath;
+  Uint8List? _attachmentBytes;
+  String? _attachmentName;
   String? _attachmentUrl;
 
   @override
@@ -523,51 +524,51 @@ class _CreateTicketSheetState extends ConsumerState<_CreateTicketSheet> {
     );
     if (result == null || result.files.isEmpty) return;
 
-    final path = result.files.single.path;
-    if (path == null) return;
+    final file = result.files.single;
+    final bytes = file.bytes;
+    if (bytes == null) return;
 
-    // ✅ EKLENDI — Görsel üzerine timestamp bas (PRD §4.2.2-B)
-    final stampedPath = await _stampImageWithTimestamp(path);
-    if (stampedPath != null) {
-      setState(() => _attachmentPath = stampedPath);
-    } else {
-      // Timestamp basılamazsa orijinal dosyayı kullan
-      setState(() => _attachmentPath = path);
+    // Web'de timestamp basamayız — doğrudan bytes kullan
+    if (kIsWeb) {
+      setState(() {
+        _attachmentBytes = bytes;
+        _attachmentName = file.name;
+      });
+      return;
+    }
+
+    // Native'da timestamp bas
+    final stampedBytes = await _stampImageBytes(bytes);
+    if (stampedBytes != null) {
+      setState(() {
+        _attachmentBytes = stampedBytes;
+        _attachmentName = file.name;
+      });
     }
   }
 
-  Future<String?> _stampImageWithTimestamp(String imagePath) async {
+  Future<Uint8List?> _stampImageBytes(Uint8List bytes) async {
     try {
-      // Görseli oku
-      final bytes = await File(imagePath).readAsBytes();
       final codec = await ui.instantiateImageCodec(bytes);
       final frame = await codec.getNextFrame();
       final image = frame.image;
 
-      // Canvas oluştur
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
       final size = Size(image.width.toDouble(), image.height.toDouble());
 
-      // Orijinal görseli çiz
       canvas.drawImage(image, Offset.zero, Paint());
 
-      // Timestamp metni oluştur
       final timestamp = _timestampNow();
       final textStyle = TextStyle(
         color: Colors.white,
         fontSize: size.width * 0.03,
         fontWeight: FontWeight.bold,
         shadows: const [
-          Shadow(
-            offset: Offset(1, 1),
-            blurRadius: 3,
-            color: Colors.black54,
-          ),
+          Shadow(offset: Offset(1, 1), blurRadius: 3, color: Colors.black54),
         ],
       );
 
-      // Sağ alt köşeye timestamp bas
       final textSpan = TextSpan(text: timestamp, style: textStyle);
       final textPainter = TextPainter(
         text: textSpan,
@@ -575,44 +576,24 @@ class _CreateTicketSheetState extends ConsumerState<_CreateTicketSheet> {
       );
       textPainter.layout();
 
-      // Padding
       final padding = size.width * 0.02;
       final offset = Offset(
         size.width - textPainter.width - padding,
         size.height - textPainter.height - padding,
       );
 
-      // Arka plan kutusu çiz (okunakarlık için)
       final bgRect = Rect.fromLTWH(
-        offset.dx - 4,
-        offset.dy - 2,
-        textPainter.width + 8,
-        textPainter.height + 4,
+        offset.dx - 4, offset.dy - 2,
+        textPainter.width + 8, textPainter.height + 4,
       );
       canvas.drawRect(bgRect, Paint()..color = Colors.black38);
-
       textPainter.paint(canvas, offset);
 
-      // Kaydet
       final picture = recorder.endRecording();
-      final stampedImage = await picture.toImage(
-        image.width,
-        image.height,
-      );
-      final pngBytes = await stampedImage.toByteData(
-        format: ui.ImageByteFormat.png,
-      );
+      final stampedImage = await picture.toImage(image.width, image.height);
+      final pngBytes = await stampedImage.toByteData(format: ui.ImageByteFormat.png);
 
-      if (pngBytes == null) return null;
-
-      // Geçici dosyaya yaz
-      final dir = await getTemporaryDirectory();
-      final stampedFile = File(
-        '${dir.path}/stamped_${DateTime.now().millisecondsSinceEpoch}.png',
-      );
-      await stampedFile.writeAsBytes(pngBytes.buffer.asUint8List());
-
-      return stampedFile.path;
+      return pngBytes?.buffer.asUint8List();
     } catch (e) {
       debugPrint('Timestamp basma hatası: $e');
       return null;
@@ -633,12 +614,12 @@ class _CreateTicketSheetState extends ConsumerState<_CreateTicketSheet> {
     setState(() => _isLoading = true);
 
     // Upload media if attached
-    if (_attachmentPath != null) {
+    if (_attachmentBytes != null) {
       try {
         final formData = FormData.fromMap({
-          'file': await MultipartFile.fromFile(
-            _attachmentPath!,
-            filename: _attachmentPath!.split('/').last,
+          'file': MultipartFile.fromBytes(
+            _attachmentBytes!,
+            filename: _attachmentName ?? 'attachment',
           ),
           'category': 'support',
         });
@@ -737,13 +718,13 @@ class _CreateTicketSheetState extends ConsumerState<_CreateTicketSheet> {
             TextField(
               controller: _titleCtrl,
               focusNode: _titleFocus,
-              style: const TextStyle(color: _warmWhite),
+              style: const TextStyle(color: AppColors.textPrimary),
               textCapitalization: TextCapitalization.sentences,
               decoration: InputDecoration(
                 hintText: 'Örn: Kombi sıcak su vermiyor',
-                hintStyle: TextStyle(color: _warmHint),
+                hintStyle: TextStyle(color: AppColors.textTertiary),
                 filled: true,
-                fillColor: _surface2,
+                fillColor: AppColors.surface,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -764,14 +745,14 @@ class _CreateTicketSheetState extends ConsumerState<_CreateTicketSheet> {
             const SizedBox(height: 6),
             TextField(
               controller: _descCtrl,
-              style: const TextStyle(color: _warmWhite),
+              style: const TextStyle(color: AppColors.textPrimary),
               textCapitalization: TextCapitalization.sentences,
               maxLines: 4,
               decoration: InputDecoration(
                 hintText: 'Sorunu daha detaylı açıklayın...',
-                hintStyle: TextStyle(color: _warmHint),
+                hintStyle: TextStyle(color: AppColors.textTertiary),
                 filled: true,
-                fillColor: _surface2,
+                fillColor: AppColors.surface,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -802,14 +783,14 @@ class _CreateTicketSheetState extends ConsumerState<_CreateTicketSheet> {
                     style: BorderStyle.solid,
                   ),
                 ),
-                child: _attachmentPath != null
+                child: _attachmentBytes != null
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
-                            Image.file(
-                              File(_attachmentPath!),
+                            Image.memory(
+                              _attachmentBytes!,
                               fit: BoxFit.cover,
                             ),
                             // Timestamp overlay
@@ -842,7 +823,7 @@ class _CreateTicketSheetState extends ConsumerState<_CreateTicketSheet> {
                             Positioned(
                               top: 4, right: 4,
                               child: GestureDetector(
-                                onTap: () => setState(() => _attachmentPath = null),
+                                onTap: () => setState(() => _attachmentBytes = null),
                                 child: Container(
                                   padding: const EdgeInsets.all(4),
                                   decoration: BoxDecoration(
@@ -1137,15 +1118,15 @@ class _TicketDetailSheetState extends ConsumerState<_TicketDetailSheet> {
                 Expanded(
                   child: TextField(
                     controller: _replyCtrl,
-                    style: const TextStyle(color: _warmWhite, fontSize: 14),
+                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
                     textCapitalization: TextCapitalization.sentences,
                     maxLines: 3,
                     minLines: 1,
                     decoration: InputDecoration(
                       hintText: 'Yanıtınızı yazın...',
-                      hintStyle: TextStyle(color: _warmHint),
+                      hintStyle: TextStyle(color: AppColors.textTertiary),
                       filled: true,
-                      fillColor: _surface2,
+                      fillColor: AppColors.surface,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide.none,

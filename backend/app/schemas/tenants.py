@@ -48,6 +48,25 @@ class TenantCreate(TenantBase):
     pass
 
 
+class TenantCreateWithUser(BaseModel):
+    """
+    Kiracı + Firebase kullanıcısı birlikte oluşturma (PRD §4.1.4).
+    Emlakçı formu doldurur → backend Firebase user + User + Tenant oluşturur.
+    """
+    unit_id: UUID
+    name: str = Field(..., min_length=2, max_length=200, description="Kiracının adı soyadı")
+    email: str = Field(..., description="Kiracının email adresi")
+    phone: Optional[str] = Field(None, description="Kiracının telefon numarası")
+    password: str = Field(..., min_length=8, description="Geçici şifre (kiracı ilk girişte değiştirecek)")
+    rent_amount: int = Field(..., description="Kira bedeli")
+    payment_day: int = Field(1, description="Ayın kaçıncı günü ödenecek")
+    start_date: date
+    end_date: date
+
+    class Config:
+        from_attributes = True
+
+
 class TenantUpdate(BaseModel):
     """Kiracı güncelleme"""
     rent_amount: Optional[int] = None

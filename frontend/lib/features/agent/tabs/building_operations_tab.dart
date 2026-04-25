@@ -1,3 +1,4 @@
+import 'dart:io' show File;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
@@ -1533,7 +1534,11 @@ class _InvoiceUploaderState extends State<_InvoiceUploader> {
 
       final multipartFile = platformFile.bytes != null
           ? MultipartFile.fromBytes(platformFile.bytes!, filename: platformFile.name)
-          : await MultipartFile.fromFile(platformFile.path!, filename: platformFile.name);
+          : (platformFile.path != null
+              ? MultipartFile.fromBytes(await File(platformFile.path!).readAsBytes(), filename: platformFile.name)
+              : null);
+
+      if (multipartFile == null) return;
 
       final formData = FormData.fromMap({
         'file': multipartFile,

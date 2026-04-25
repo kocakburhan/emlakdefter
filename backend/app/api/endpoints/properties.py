@@ -218,8 +218,8 @@ async def add_single_unit(
 @router.post("/{property_id}/broadcast-notification")
 async def send_property_notification(
     property_id: str,
-    title: str,
-    body: str,
+    title: str = Body(...),
+    body: str = Body(...),
     current_user: User = Depends(deps.get_current_user),
     agency_id: UUID = Depends(deps.get_current_user_agency_id),
     db: AsyncSession = Depends(get_db),

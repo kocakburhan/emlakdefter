@@ -544,7 +544,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                 labelText: 'Ad Soyad',
                 labelStyle: const TextStyle(color: AppColors.textSecondary),
                 filled: true,
-                fillColor: AppColors.background,
+                fillColor: AppColors.charcoal,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide.none,
@@ -560,7 +560,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                 labelText: 'Telefon',
                 labelStyle: const TextStyle(color: AppColors.textSecondary),
                 filled: true,
-                fillColor: AppColors.background,
+                fillColor: AppColors.charcoal,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide.none,
@@ -576,7 +576,7 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
                 labelText: 'Kira Bedeli (₺)',
                 labelStyle: const TextStyle(color: AppColors.textSecondary),
                 filled: true,
-                fillColor: AppColors.background,
+                fillColor: AppColors.charcoal,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide.none,
@@ -730,12 +730,12 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
             const SizedBox(height: 20),
             TextField(
               controller: editNameController,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: AppColors.textPrimary),
               decoration: InputDecoration(
                 labelText: 'Ad Soyad',
                 labelStyle: const TextStyle(color: AppColors.textSecondary),
                 filled: true,
-                fillColor: AppColors.background,
+                fillColor: AppColors.surface,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide.none,
@@ -745,13 +745,13 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
             const SizedBox(height: 12),
             TextField(
               controller: editPhoneController,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: AppColors.textPrimary),
               keyboardType: TextInputType.phone,
               decoration: InputDecoration(
                 labelText: 'Telefon',
                 labelStyle: const TextStyle(color: AppColors.textSecondary),
                 filled: true,
-                fillColor: AppColors.background,
+                fillColor: AppColors.surface,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide.none,
@@ -761,13 +761,13 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
             const SizedBox(height: 12),
             TextField(
               controller: editShareController,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: AppColors.textPrimary),
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
                 labelText: 'Mülkiyet Payı (%)',
                 labelStyle: const TextStyle(color: AppColors.textSecondary),
                 filled: true,
-                fillColor: AppColors.background,
+                fillColor: AppColors.surface,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide.none,
@@ -892,17 +892,14 @@ class _TenantsManagementScreenState extends ConsumerState<TenantsManagementScree
       if (result == null || result.files.isEmpty) return;
 
       final file = result.files.single;
-      if (file.path == null) {
+      final bytes = file.bytes;
+      if (bytes == null) {
         _showError('Dosya seçilemedi');
         return;
       }
 
-      // 2. Dosyayı Hetzner Object Storage'a yükle
       final formData = FormData.fromMap({
-        'file': await MultipartFile.fromFile(
-          file.path!,
-          filename: file.name,
-        ),
+        'file': MultipartFile.fromBytes(bytes, filename: file.name),
         'category': 'contracts',
       });
 

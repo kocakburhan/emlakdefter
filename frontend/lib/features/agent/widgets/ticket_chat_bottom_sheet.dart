@@ -133,7 +133,7 @@ class _TicketChatBottomSheetState extends ConsumerState<TicketChatBottomSheet> {
                         Expanded(
                            child: TextField(
                               controller: _msgController,
-                              style: const TextStyle(color: Colors.white),
+                              style: const TextStyle(color: AppColors.textPrimary),
                               decoration: InputDecoration(
                                  hintText: "Müşteriye/Kiracıya yanıt verin...",
                                  fillColor: AppColors.surface,

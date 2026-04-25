@@ -1,4 +1,3 @@
-import 'dart:io' show Platform;
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -22,11 +21,9 @@ class ApiClient {
       return 'http://127.0.0.1:$port/api/v1';
     }
     // Android emülatör 10.0.2.2 kullanır (host makinenin loopback adresi)
-    try {
-      if (Platform.isAndroid) {
-        return 'http://10.0.2.2:$port/api/v1';
-      }
-    } catch (_) {}
+    if (kIsWeb) {
+      return 'http://127.0.0.1:$port/api/v1';
+    }
     return 'http://127.0.0.1:$port/api/v1';
   }
 
