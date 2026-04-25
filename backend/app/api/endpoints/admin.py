@@ -10,6 +10,8 @@ from app.database import get_db
 from app.schemas.users import UserResponse, UserCreate, UserUpdate, AdminCreateAgencyBossRequest
 from app.schemas.users import UserRole
 from app.models.users import User, Agency, StaffRole, AgencyStaff, SubscriptionStatus
+from app.core.firebase import create_firebase_user_with_phone, create_firebase_user_with_email_password
+from app.core.security import get_password_hash
 
 
 router = APIRouter()
@@ -75,6 +77,13 @@ async def create_agency_and_boss(
 ):
     """Yeni emlak ofisi ve ona bağlı patron profili oluşturur"""
 
+    # En az email veya telefon numarası gerekli
+    if not request.boss_email and not request.boss_phone_number:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email veya telefon numarası en az biri gereklidir."
+        )
+
     # 1. Emlak Ofisi (Agency) oluştur
     agency = Agency(
         name=request.agency_name,
@@ -96,6 +105,19 @@ async def create_agency_and_boss(
     if request.boss_full_name and (request.boss_email or request.boss_phone_number):
         boss_email = request.boss_email.strip().lower() if request.boss_email else None
         boss_phone = normalize_phone(request.boss_phone_number) if request.boss_phone_number else None
+
+        firebase_uid = None
+        password_hash = None
+
+        # Şifre belirlenmişse: Email/Password ile Firebase user oluştur
+        if boss_email and request.boss_password:
+            firebase_user = create_firebase_user_with_email_password(boss_email, request.boss_password)
+            firebase_uid = firebase_user["uid"]
+            password_hash = get_password_hash(request.boss_password)
+        elif boss_phone:
+            # Firebase'de user oluştur (veya mevcutsa al) - OTP akışı
+            firebase_user = create_firebase_user_with_phone(boss_phone)
+            firebase_uid = firebase_user["uid"]
 
         # Check if email is unique
         if boss_email:
@@ -126,7 +148,8 @@ async def create_agency_and_boss(
             full_name=request.boss_full_name,
             role=UserRole.boss,
             agency_id=agency.id,
-            password_hash=None,
+            firebase_uid=firebase_uid,
+            password_hash=password_hash,  # Şifre belirlenmişse kaydet
             status="active"
         )
         db.add(boss)
@@ -213,7 +236,7 @@ async def delete_agency(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_superadmin),
 ):
-    """Ofisi sil (soft delete)"""
+    """Ofisi kalıcı olarak sil (hard delete)"""
     stmt = select(Agency).where(Agency.id == agency_id, Agency.is_deleted == False)
     result = await db.execute(stmt)
     agency = result.scalar_one_or_none()
@@ -221,11 +244,10 @@ async def delete_agency(
     if not agency:
         raise HTTPException(status_code=404, detail="Ofis bulunamadı")
 
-    agency.is_deleted = True
-    agency.deleted_at = datetime.utcnow()
+    await db.delete(agency)
     await db.commit()
 
-    return {"message": "Ofis silindi"}
+    return {"message": "Ofis kalıcı olarak silindi"}
 
 
 # ──────────────────────────────────────────────
@@ -274,12 +296,27 @@ async def create_user(
     current_user: User = Depends(require_superadmin),
 ):
     """Yeni patron (boss) oluştur - Admin tarafından"""
-    # Validation: en az email veya telefon gerekli
+    # En az email veya telefon gerekli
     if not user_in.email and not user_in.phone_number:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email veya telefon numarası en az biri girilmelidir"
+            detail="Email veya telefon numarası en az biri gereklidir"
         )
+
+    firebase_uid = None
+    normalized_phone = None
+    password_hash = None
+
+    # Email ve şifre varsa: Email/Password ile Firebase user oluştur
+    if user_in.email and user_in.password:
+        firebase_user = create_firebase_user_with_email_password(user_in.email, user_in.password)
+        firebase_uid = firebase_user["uid"]
+        password_hash = get_password_hash(user_in.password)
+    elif user_in.phone_number:
+        # Telefon varsa Firebase'de user oluştur - OTP akışı
+        normalized_phone = normalize_phone(user_in.phone_number)
+        firebase_user = create_firebase_user_with_phone(normalized_phone)
+        firebase_uid = firebase_user["uid"]
 
     # Email unique kontrolü
     if user_in.email:
@@ -293,8 +330,7 @@ async def create_user(
             )
 
     # Telefon unique kontrolü
-    if user_in.phone_number:
-        normalized_phone = normalize_phone(user_in.phone_number)
+    if normalized_phone:
         stmt = select(User).where(User.phone_number == normalized_phone, User.is_deleted == False)
         result = await db.execute(stmt)
         existing = result.scalar_one_or_none()
@@ -314,20 +350,17 @@ async def create_user(
     # User oluştur
     user = User(
         email=user_in.email.lower() if user_in.email else None,
-        phone_number=normalize_phone(user_in.phone_number) if user_in.phone_number else None,
+        phone_number=normalized_phone,
         full_name=user_in.full_name,
         role=user_in.role,
-        status="pending",  # İlk giriş bekleniyor
+        status="active",
         agency_id=user_in.agency_id,
-        password_hash=None,  # Şifre belirlenmemiş
+        firebase_uid=firebase_uid,
+        password_hash=password_hash,  # Şifre belirlenmişse kaydet
     )
     db.add(user)
     await db.commit()
     await db.refresh(user)
-
-    # Eğer boss ise ve agency_id verildiyse AgencyStaff kaydı oluştur
-    if user_in.role == UserRole.boss and user_in.agency_id:
-        pass # Artık AgencyStaff kullanılmıyor, User tablosundaki agency_id yeterli
 
     return UserResponse(
         id=user.id,
@@ -431,7 +464,7 @@ async def delete_user(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_superadmin),
 ):
-    """Kullanıcıyı sil (soft delete)"""
+    """Kullanıcıyı kalıcı olarak sil (hard delete)"""
     stmt = select(User).where(User.id == user_id, User.is_deleted == False)
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
@@ -439,11 +472,10 @@ async def delete_user(
     if not user:
         raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
 
-    user.is_deleted = True
-    user.deleted_at = datetime.utcnow()
+    await db.delete(user)
     await db.commit()
 
-    return {"message": "Kullanıcı silindi"}
+    return {"message": "Kullanıcı kalıcı olarak silindi"}
 
 
 @router.post("/users/{user_id}/deactivate")

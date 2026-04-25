@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
+
 import 'firebase_options.dart';
 import 'core/theme/app_theme.dart';
 import 'core/router/router.dart';
@@ -12,48 +14,66 @@ import 'core/notifications/fcm_service.dart';
 import 'core/network/api_client.dart';
 
 @pragma('vm:entry-point')
-Future<void> _firebaseMessagingCallback() async {
-  // Arka plan bildirim handler'ı — Android'de gereklidir
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  debugPrint('📩 Arka plan mesajı alındı: ${message.messageId}');
 }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Firebase'i platform yapılandırmasıyla başlat
+  bool isFirebaseInitialized = false;
+
+  // Firebase Başlatma
   try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    isFirebaseInitialized = true;
     debugPrint('🔥 Firebase Motoru Başarıyla Bağlandı!');
   } catch (e) {
     debugPrint('⚠️ Firebase Başlatılamadı: $e');
   }
 
-  // ── FCM Push Bildirimleri (§4.2.2-F) ──────────────────────
-  // Arka plan handler'ı kaydet (Android için)
-  await _firebaseMessagingCallback();
-  // FCM servisi başlat
-  await FCMService().initialize();
-  debugPrint('[App] FCM Service initialized');
+  // ── Firebase'e Bağlı Servislerin Başlatılması ──────────────────
+  if (isFirebaseInitialized) {
+    // 2. APP CHECK GÜVENLİ BLOĞA TAŞINDI
+    try {
+      await FirebaseAppCheck.instance.activate(
+        providerWeb: ReCaptchaEnterpriseProvider(
+          '6LfHH8gsAAAAAD8ZZHaen-KpP0U2P4Hug4vrAY5e',
+        ),
+      );
+      debugPrint('🛡️ App Check (reCAPTCHA) Başarıyla Aktifleştirildi!');
+    } catch (e) {
+      debugPrint('⚠️ App Check Başlatılamadı: $e');
+    }
+
+    // ── Token Geri Yükleme ───────────────────────────────────────
+    await ApiClient.restoreToken();
+    debugPrint('[App] Auth token restored');
+    // ─────────────────────────────────────────────────────────────
+
+    // FCM Push Bildirimleri
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    await FCMService().initialize();
+    debugPrint('[App] FCM Service initialized');
+  } else {
+    debugPrint(
+      '[App] Firebase çalışmadığı için bağlı servisler (App Check, FCM) başlatılmadı.',
+    );
+  }
   // ─────────────────────────────────────────────────────────────
 
-  // ── Offline Altyapı (§5) ──────────────────────────────────────
-  // 1. Hive + Boxes açılır
+  // ── Offline Altyapı ──────────────────────────────────────────
   await OfflineStorage().initialize();
   debugPrint('[App] OfflineStorage initialized');
 
-  // 2. Connectivity izlemeye başlar
   await ConnectivityService().initialize();
   debugPrint('[App] ConnectivityService initialized');
 
-  // 3. SyncService wiring — bağlantı geldiğinde auto-sync tetiklenir
   await SyncService().initialize();
   debugPrint('[App] SyncService initialized');
-  // ─────────────────────────────────────────────────────────────
-
-  // ── Token Geri Yükleme ─────────────────────────────────────────
-  // Sayfa yenilendiğinde (F5) kaydedilmiş auth token'ı geri yükle
-  await ApiClient.restoreToken();
-  debugPrint('[App] Auth token restored');
   // ─────────────────────────────────────────────────────────────
 
   runApp(const ProviderScope(child: EmlakdefterApp()));

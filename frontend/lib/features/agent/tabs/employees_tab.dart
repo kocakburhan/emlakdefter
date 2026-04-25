@@ -101,6 +101,7 @@ class _EmployeesTabState extends ConsumerState<EmployeesTab> {
     final nameController = TextEditingController();
     final emailController = TextEditingController();
     final phoneController = TextEditingController();
+    final passwordController = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
     showDialog(
@@ -174,9 +175,32 @@ class _EmployeesTabState extends ConsumerState<EmployeesTab> {
                       },
                       onChanged: (_) => setState(() {}),
                     ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: passwordController,
+                      decoration: const InputDecoration(
+                        labelText: 'Şifre (Opsiyonel)',
+                        hintText: 'Direct login için',
+                      ),
+                      obscureText: true,
+                      validator: (value) {
+                        if (value != null && value.isNotEmpty) {
+                          if (value.length < 8) {
+                            return 'Şifre en az 8 karakter olmalı';
+                          }
+                          if (!value.contains(RegExp(r'[A-Z]'))) {
+                            return 'En az bir büyük harf gerekli';
+                          }
+                          if (!value.contains(RegExp(r'[0-9]'))) {
+                            return 'En az bir rakam gerekli';
+                          }
+                        }
+                        return null;
+                      },
+                    ),
                     const SizedBox(height: 8),
                     const Text(
-                      '* Email veya telefondan en az biri girilmelidir.',
+                      '* Email veya telefondan en az biri girilmelidir.\n* Şifre girilirse direkt giriş yapılabilir.',
                       style: TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                   ],
@@ -200,6 +224,9 @@ class _EmployeesTabState extends ConsumerState<EmployeesTab> {
                               : null,
                           phoneNumber: phoneController.text.trim().isNotEmpty
                               ? phoneController.text.trim()
+                              : null,
+                          password: passwordController.text.trim().isNotEmpty
+                              ? passwordController.text.trim()
                               : null,
                         );
                     if (context.mounted) Navigator.pop(context);

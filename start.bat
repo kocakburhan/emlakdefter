@@ -110,7 +110,7 @@ echo   API Docs: http://localhost:8000/docs
 echo ========================================
 echo.
 cd /d "%FRONTEND_DIR%"
-flutter run -d chrome
+flutter run -d chrome --web-port 5000
 
 REM If Flutter closes
 echo.

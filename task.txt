@@ -1,0 +1,74 @@
+✅ Phone Auth aktif
+✅ Authorized domains eklendi
+✅ reCAPTCHA key oluşturuldu
+
+
+## Flutter Tarafı
+
+**1. Bağımlılıklar**
+
+`pubspec.yaml`'a `firebase_auth` zaten ekli olmalı, kontrol et. Web için ekstra paket gerekmez.
+
+**2. `index.html` — reCAPTCHA Script**
+
+`web/index.html` dosyasının `<head>` bölümüne Firebase'in reCAPTCHA script'ini eklemen gerekiyor. Bu olmadan web'de `signInWithPhoneNumber()` çağrısı hata verir. Firebase dökümantasyonundaki script tag'ini buraya koyacaksın.
+
+**3. RecaptchaVerifier Kurulumu**
+
+Web'de phone auth başlatmadan önce bir `RecaptchaVerifier` instance'ı oluşturman gerekiyor. Bu verifier'ı `signInWithPhoneNumber()` çağrısına parametre olarak geçiyorsun. `invisible` modda çalışır, kullanıcı genelde bir şey görmez.
+
+**4. Platform Ayrımı**
+
+`kIsWeb` kontrolü yapman şart. Aynı kod tabanında mobile ve web farklı flow izliyor:
+- **Web:** `signInWithPhoneNumber()` → `ConfirmationResult` döner → kullanıcı OTP girer → `confirmationResult.confirm(smsCode)` çağrısı
+- **Mobile:** `verifyPhoneNumber()` → callback'ler üzerinden akış
+
+**5. Firebase User'dan Token Alma**
+
+Login başarılı olduktan sonra `FirebaseAuth.instance.currentUser!.getIdToken()` ile ID token alıyorsun. Bu token'ı her FastAPI isteğinde `Authorization: Bearer <token>` header'ında göndereceksin.
+
+---
+
+## FastAPI Tarafı
+
+**1. `firebase-admin` SDK Kurulumu**
+
+`pip install firebase-admin` ile paketi ekle. Servis hesabı JSON dosyasını Firebase Console'dan indirmen gerekiyor: **Project Settings > Service accounts > Generate new private key.**
+
+**2. Firebase Admin Başlatma**
+
+Uygulama başlarken `firebase_admin.initialize_app()` çağrısını yapıyorsun, servis hesabı credential'ını geçiyorsun. Bu işlem bir kez yapılır, genelde `main.py` veya ayrı bir `firebase_config.py` dosyasında.
+
+**3. Token Doğrulama Middleware / Dependency**
+
+Her korumalı endpoint için bir FastAPI dependency yazıyorsun. Bu dependency request header'ından token'ı alıyor, `firebase_admin.auth.verify_id_token()` ile doğruluyor. Geçerliyse `uid` ve `phone_number` gibi bilgileri döndürüyor, geçersizse `401` fırlatıyor.
+
+**4. Korumalı Endpoint'lerde Kullanım**
+
+Her korumalı route'a bu dependency'yi `Depends()` ile ekliyorsun. Token decode edildikten sonra gelen `uid`'yi kendi veritabanındaki kullanıcıyla eşleştiriyorsun.
+
+---
+
+## Genel Akış Özeti
+
+```
+Flutter Web
+    → signInWithPhoneNumber() [reCAPTCHA tetiklenir]
+    → SMS gelir, kullanıcı OTP girer
+    → confirm(smsCode)
+    → getIdToken() ile Firebase ID token alınır
+    → Her API isteğinde Bearer token gönderilir
+
+FastAPI
+    → verify_id_token() ile token doğrulanır
+    → uid üzerinden kullanıcı tanınır
+    → İşlem yapılır
+```
+
+---
+
+## Dikkat Edilecekler
+
+- Servis hesabı JSON'ını asla Git'e commit etme, environment variable veya secret manager kullan.
+- ID token'ların ömrü 1 saattir, Flutter tarafında `getIdToken(true)` ile refresh mekanizması kurman gerekir.
+- Web'de `RecaptchaVerifier` widget'ı DOM'a bağlı olduğu için, auth flow başlamadan önce ilgili widget'ın render edilmiş olması gerekir.

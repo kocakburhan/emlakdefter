@@ -4,7 +4,7 @@ import '../../core/network/api_client.dart';
 class AdminService {
   /// Tüm ofisleri listele
   Future<List<Map<String, dynamic>>> getAgencies() async {
-    final response = await ApiClient.dio.get('/v1/admin/agencies');
+    final response = await ApiClient.dio.get('/admin/agencies');
     if (response.statusCode == 200) {
       return List<Map<String, dynamic>>.from(response.data);
     }
@@ -17,7 +17,7 @@ class AdminService {
     required String address,
   }) async {
     final response = await ApiClient.dio.post(
-      '/v1/admin/agencies',
+      '/admin/agencies',
       data: {'agency_name': name, 'agency_address': address},
     );
     return response.data;
@@ -30,15 +30,17 @@ class AdminService {
     required String bossFullName,
     String? bossEmail,
     String? bossPhone,
+    String? bossPassword,
   }) async {
     final response = await ApiClient.dio.post(
-      '/v1/admin/agencies',
+      '/admin/agencies',
       data: {
         'agency_name': agencyName,
         'agency_address': agencyAddress,
         'boss_full_name': bossFullName,
         if (bossEmail != null && bossEmail.isNotEmpty) 'boss_email': bossEmail,
         if (bossPhone != null && bossPhone.isNotEmpty) 'boss_phone_number': bossPhone,
+        if (bossPassword != null && bossPassword.isNotEmpty) 'boss_password': bossPassword,
       },
     );
     return response.data;
@@ -51,7 +53,7 @@ class AdminService {
     String? address,
   }) async {
     final response = await ApiClient.dio.put(
-      '/v1/admin/agencies/$agencyId',
+      '/admin/agencies/$agencyId',
       data: {
         if (name != null) 'name': name,
         if (address != null) 'address': address,
@@ -62,7 +64,7 @@ class AdminService {
 
   /// Ofis sil
   Future<void> deleteAgency(String agencyId) async {
-    await ApiClient.dio.delete('/v1/admin/agencies/$agencyId');
+    await ApiClient.dio.delete('/admin/agencies/$agencyId');
   }
 
   /// Tüm kullanıcıları listele
@@ -72,7 +74,7 @@ class AdminService {
     if (agencyId != null) params['agency_id'] = agencyId;
 
     final response = await ApiClient.dio.get(
-      '/v1/admin/users',
+      '/admin/users',
       queryParameters: params,
     );
     if (response.statusCode == 200) {
@@ -84,19 +86,21 @@ class AdminService {
   /// Patron oluştur
   Future<Map<String, dynamic>> createUser({
     String? email,
-    String? phoneNumber,
+    required String phoneNumber,
     required String fullName,
     required String role,
     String? agencyId,
+    String? password,
   }) async {
     final response = await ApiClient.dio.post(
-      '/v1/admin/users',
+      '/admin/users',
       data: {
         if (email != null) 'email': email,
-        if (phoneNumber != null) 'phone_number': phoneNumber,
+        'phone_number': phoneNumber,
         'full_name': fullName,
         'role': role,
         if (agencyId != null) 'agency_id': agencyId,
+        if (password != null && password.isNotEmpty) 'password': password,
       },
     );
     return response.data;
@@ -111,7 +115,7 @@ class AdminService {
     String? status,
   }) async {
     final response = await ApiClient.dio.put(
-      '/v1/admin/users/$userId',
+      '/admin/users/$userId',
       data: {
         if (email != null) 'email': email,
         if (phoneNumber != null) 'phone_number': phoneNumber,
@@ -124,17 +128,17 @@ class AdminService {
 
   /// Kullanıcı sil
   Future<void> deleteUser(String userId) async {
-    await ApiClient.dio.delete('/v1/admin/users/$userId');
+    await ApiClient.dio.delete('/admin/users/$userId');
   }
 
   /// Kullanıcı pasife al
   Future<void> deactivateUser(String userId) async {
-    await ApiClient.dio.post('/v1/admin/users/$userId/deactivate');
+    await ApiClient.dio.post('/admin/users/$userId/deactivate');
   }
 
   /// Ofise bağlı kullanıcıları listele
   Future<List<Map<String, dynamic>>> getAgencyUsers(String agencyId) async {
-    final response = await ApiClient.dio.get('/v1/admin/agencies/$agencyId/users');
+    final response = await ApiClient.dio.get('/admin/agencies/$agencyId/users');
     if (response.statusCode == 200) {
       return List<Map<String, dynamic>>.from(response.data);
     }

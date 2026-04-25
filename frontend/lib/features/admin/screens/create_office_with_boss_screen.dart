@@ -24,6 +24,7 @@ class _CreateOfficeWithBossScreenState extends ConsumerState<CreateOfficeWithBos
   final _bossNameController = TextEditingController();
   final _bossEmailController = TextEditingController();
   final _bossPhoneController = TextEditingController();
+  final _bossPasswordController = TextEditingController();
 
   bool _isPhoneMode = false;
   bool _isLoading = false;
@@ -36,6 +37,7 @@ class _CreateOfficeWithBossScreenState extends ConsumerState<CreateOfficeWithBos
     _bossNameController.dispose();
     _bossEmailController.dispose();
     _bossPhoneController.dispose();
+    _bossPasswordController.dispose();
     super.dispose();
   }
 
@@ -70,6 +72,9 @@ class _CreateOfficeWithBossScreenState extends ConsumerState<CreateOfficeWithBos
             bossFullName: _bossNameController.text.trim(),
             bossEmail: email.isNotEmpty ? email : null,
             bossPhone: phone.isNotEmpty ? phone : null,
+            bossPassword: _bossPasswordController.text.trim().isNotEmpty
+                ? _bossPasswordController.text.trim()
+                : null,
           );
 
       if (agency == null) {
@@ -372,6 +377,61 @@ class _CreateOfficeWithBossScreenState extends ConsumerState<CreateOfficeWithBos
               const SizedBox(height: 8),
               Text(
                 'Email veya telefon en az biri girilmelidir',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.slateGray,
+                    ),
+              ),
+              const SizedBox(height: 24),
+
+              // Boss Password
+              Text(
+                'Şifre (Opsiyonel)',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: AppColors.charcoal,
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _bossPasswordController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  hintText: 'Direct login için şifre belirle',
+                  hintStyle: TextStyle(color: AppColors.slateGray.withValues(alpha: 0.6)),
+                  filled: true,
+                  fillColor: AppColors.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.charcoal, width: 2),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                ),
+                validator: (value) {
+                  if (value != null && value.isNotEmpty) {
+                    if (value.length < 8) {
+                      return 'Şifre en az 8 karakter olmalı';
+                    }
+                    if (!value.contains(RegExp(r'[A-Z]'))) {
+                      return 'En az bir büyük harf gerekli';
+                    }
+                    if (!value.contains(RegExp(r'[0-9]'))) {
+                      return 'En az bir rakam gerekli';
+                    }
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Şifre girilirse patron direkt giriş yapabilir',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.slateGray,
                     ),

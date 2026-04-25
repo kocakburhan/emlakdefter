@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/notifications/fcm_service.dart';
 
 /// Kullanıcı profil bilgisi (Backend'den dönen yanıt)
 class UserProfile {
@@ -94,6 +95,7 @@ class AuthState {
   final String? pendingEmailOrPhone;
   final String? verificationId;
   final AuthFlowState flowState;
+  ConfirmationResult? webConfirmationResult;
 
   AuthState({
     this.isLoading = false,
@@ -105,6 +107,7 @@ class AuthState {
     this.pendingEmailOrPhone,
     this.verificationId,
     this.flowState = AuthFlowState.login,
+    this.webConfirmationResult,
   });
 
   AuthState copyWith({
@@ -117,6 +120,7 @@ class AuthState {
     String? pendingEmailOrPhone,
     String? verificationId,
     AuthFlowState? flowState,
+    ConfirmationResult? webConfirmationResult,
   }) {
     return AuthState(
       isLoading: isLoading ?? this.isLoading,
@@ -128,6 +132,7 @@ class AuthState {
       pendingEmailOrPhone: pendingEmailOrPhone ?? this.pendingEmailOrPhone,
       verificationId: verificationId ?? this.verificationId,
       flowState: flowState ?? this.flowState,
+      webConfirmationResult: webConfirmationResult ?? this.webConfirmationResult,
     );
   }
 }
@@ -262,32 +267,60 @@ class AuthNotifier extends StateNotifier<AuthState> {
           }
         }
 
-        await _auth.verifyPhoneNumber(
-          phoneNumber: phoneInput,
-          verificationCompleted: (PhoneAuthCredential credential) async {
-            state = state.copyWith(isLoading: false);
-          },
-          verificationFailed: (FirebaseAuthException e) {
+        // Web platformu için Firebase Client SDK
+        // Not: Web phone auth Firebase SDK v10.17+ gerektirir
+        // Not: Web'de RecaptchaVerifier zorunludur, SMS göndermek için reCAPTCHA doğrulaması gerekir
+        // Not: SDK'nın _delegate'i private olduğundan, verifier'sız çağırıyoruz
+        //       SDK otomatik olarak default invisible reCAPTCHA oluşturur
+        if (kIsWeb) {
+          try {
+            // Verifier vermeden çağır - SDK otomatik oluşturur
+            final confirmationResult = await _auth.signInWithPhoneNumber(
+              phoneInput,
+            );
+
+            state = state.copyWith(
+              isLoading: false,
+              verificationId: confirmationResult.verificationId,
+              webConfirmationResult: confirmationResult,
+            );
+            return AuthResult.success(
+              message: 'SMS doğrulama kodu gönderildi',
+            );
+          } on FirebaseAuthException catch (e) {
             final error = e.message ?? 'Doğrulama başarısız oldu';
             state = state.copyWith(isLoading: false, error: error);
-            if (!completer.isCompleted) {
-              completer.complete(AuthResult.failure(error));
-            }
-          },
-          codeSent: (String verId, int? resendToken) {
-            state = state.copyWith(isLoading: false, verificationId: verId);
-            if (!completer.isCompleted) {
-              completer.complete(
-                AuthResult.success(message: 'SMS doğrulama kodu gönderildi'),
-              );
-            }
-          },
-          codeAutoRetrievalTimeout: (String verId) {
-            state = state.copyWith(verificationId: verId);
-          },
-        );
+            return AuthResult.failure(error);
+          }
+        } else {
+          // Mobile: verifyPhoneNumber callback'leri kullan
+          await _auth.verifyPhoneNumber(
+            phoneNumber: phoneInput,
+            verificationCompleted: (PhoneAuthCredential credential) async {
+              state = state.copyWith(isLoading: false);
+            },
+            verificationFailed: (FirebaseAuthException e) {
+              final error = e.message ?? 'Doğrulama başarısız oldu';
+              state = state.copyWith(isLoading: false, error: error);
+              if (!completer.isCompleted) {
+                completer.complete(AuthResult.failure(error));
+              }
+            },
+            codeSent: (String verId, int? resendToken) {
+              state = state.copyWith(isLoading: false, verificationId: verId);
+              if (!completer.isCompleted) {
+                completer.complete(
+                  AuthResult.success(message: 'SMS doğrulama kodu gönderildi'),
+                );
+              }
+            },
+            codeAutoRetrievalTimeout: (String verId) {
+              state = state.copyWith(verificationId: verId);
+            },
+          );
 
-        return completer.future;
+          return completer.future;
+        }
       }
     } on FirebaseAuthException catch (e) {
       String message;
@@ -404,39 +437,75 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (!isEmail) {
         // Telefon ise Firebase credential oluştur ve doğrula
         final verId = state.verificationId;
-        if (verId == null) {
-          state = state.copyWith(
-            isLoading: false,
-            error: 'Doğrulama ID bulunamadı.',
-          );
-          return AuthResult.failure(
-            'Doğrulama ID bulunamadı. Lütfen tekrar kod talep edin.',
-          );
-        }
 
-        try {
-          AuthCredential credential = PhoneAuthProvider.credential(
-            verificationId: verId,
-            smsCode: code,
-          );
-
-          final userCredential = await _auth.signInWithCredential(credential);
-          firebaseIdToken = await userCredential.user?.getIdToken();
-
-          if (firebaseIdToken == null) {
+        if (kIsWeb) {
+          // Web: confirmationResult.confirm() kullan
+          final confirmationResult = state.webConfirmationResult;
+          if (confirmationResult == null) {
             state = state.copyWith(
               isLoading: false,
-              error: 'Firebase Token alınamadı.',
+              error: 'Doğrulama oturumu bulunamadı.',
             );
-            return AuthResult.failure('Firebase Token alınamadı.');
+            return AuthResult.failure(
+              'Doğrulama oturumu bulunamadı. Lütfen tekrar kod talep edin.',
+            );
           }
-        } on FirebaseAuthException catch (e) {
-          String errStr = 'Doğrulama başarısız: ${e.message}';
-          if (e.code == 'invalid-verification-code') {
-            errStr = 'Hatalı doğrulama kodu, lütfen kontrol ediniz.';
+
+          try {
+            final userCredential = await confirmationResult.confirm(code);
+            firebaseIdToken = await userCredential.user?.getIdToken();
+
+            if (firebaseIdToken == null) {
+              state = state.copyWith(
+                isLoading: false,
+                error: 'Firebase Token alınamadı.',
+              );
+              return AuthResult.failure('Firebase Token alınamadı.');
+            }
+          } on FirebaseAuthException catch (e) {
+            String errStr = 'Doğrulama başarısız: ${e.message}';
+            if (e.code == 'invalid-verification-code') {
+              errStr = 'Hatalı doğrulama kodu, lütfen kontrol ediniz.';
+            }
+            state = state.copyWith(isLoading: false, error: errStr);
+            return AuthResult.failure(errStr);
           }
-          state = state.copyWith(isLoading: false, error: errStr);
-          return AuthResult.failure(errStr);
+        } else {
+          // Mobile: PhoneAuthProvider.credential kullan
+          if (verId == null) {
+            state = state.copyWith(
+              isLoading: false,
+              error: 'Doğrulama ID bulunamadı.',
+            );
+            return AuthResult.failure(
+              'Doğrulama ID bulunamadı. Lütfen tekrar kod talep edin.',
+            );
+          }
+
+          try {
+            AuthCredential credential = PhoneAuthProvider.credential(
+              verificationId: verId,
+              smsCode: code,
+            );
+
+            final userCredential = await _auth.signInWithCredential(credential);
+            firebaseIdToken = await userCredential.user?.getIdToken();
+
+            if (firebaseIdToken == null) {
+              state = state.copyWith(
+                isLoading: false,
+                error: 'Firebase Token alınamadı.',
+              );
+              return AuthResult.failure('Firebase Token alınamadı.');
+            }
+          } on FirebaseAuthException catch (e) {
+            String errStr = 'Doğrulama başarısız: ${e.message}';
+            if (e.code == 'invalid-verification-code') {
+              errStr = 'Hatalı doğrulama kodu, lütfen kontrol ediniz.';
+            }
+            state = state.copyWith(isLoading: false, error: errStr);
+            return AuthResult.failure(errStr);
+          }
         }
       }
 
@@ -519,7 +588,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final response = await ApiClient.dio.post(
         '/auth/set-password',
-        data: {'user_id': userId, 'new_password': password},
+        data: {'user_id': userId, 'new_password': password, 'confirm_password': confirmPassword},
       );
 
       if (response.statusCode == 200 && response.data != null) {
@@ -736,6 +805,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       user: user,
       flowState: AuthFlowState.dashboard,
     );
+
+    // ✅ Giriş başarılı — FCM token'ı backend'e gönder
+    FCMService().registerToken();
   }
 
   /// Firebase auth başarılı → Backend'e login isteği at

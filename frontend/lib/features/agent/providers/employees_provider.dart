@@ -49,6 +49,7 @@ class EmployeeNotifier extends Notifier<EmployeeState> {
     String? email,
     String? phoneNumber,
     required String fullName,
+    String? password,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
@@ -56,6 +57,7 @@ class EmployeeNotifier extends Notifier<EmployeeState> {
         email: email,
         phoneNumber: phoneNumber,
         fullName: fullName,
+        password: password,
       );
       final updatedEmployees = [...state.employees, employee];
       state = state.copyWith(isLoading: false, employees: updatedEmployees);

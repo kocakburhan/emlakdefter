@@ -25,15 +25,9 @@ class DefaultFirebaseOptions {
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -58,7 +52,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyD3w3x06s6S2q9DVrIOjTDmOPTQR5E9-fI',
-    appId: '1:304007762415:android:b1b1ea8712cfbec264e61a',
+    appId: '1:304007762415:android:7e8ff764f97349bf64e61a',
     messagingSenderId: '304007762415',
     projectId: 'emlakdefter',
     storageBucket: 'emlakdefter.firebasestorage.app',
@@ -66,10 +60,34 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyAleMTS2D8DN_s4bMzpp0w2_AJa05hUevM',
+    appId: '1:304007762415:ios:06af164d723bcf1864e61a',
+    messagingSenderId: '304007762415',
+    projectId: 'emlakdefter',
+    storageBucket: 'emlakdefter.firebasestorage.app',
+    androidClientId: '304007762415-b01tq4g3m9jb38rdrnm1phlj0gnf6pga.apps.googleusercontent.com',
+    iosClientId: '304007762415-ikoo3ektrnt45qmmv8k4pr86sthrfh2b.apps.googleusercontent.com',
+    iosBundleId: 'com.emlakdefter.app',
+  );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyAleMTS2D8DN_s4bMzpp0w2_AJa05hUevM',
     appId: '1:304007762415:ios:c4dfa736c0acebc064e61a',
     messagingSenderId: '304007762415',
     projectId: 'emlakdefter',
     storageBucket: 'emlakdefter.firebasestorage.app',
+    androidClientId: '304007762415-b01tq4g3m9jb38rdrnm1phlj0gnf6pga.apps.googleusercontent.com',
+    iosClientId: '304007762415-8fthdirnkh565rpbm7prkmdutsjm6u7c.apps.googleusercontent.com',
     iosBundleId: 'com.example.frontend',
   );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyDq-J6ibZjRFUXyGErOB981P6vu-IyD8TY',
+    appId: '1:304007762415:web:9c9cd82b3d39742b64e61a',
+    messagingSenderId: '304007762415',
+    projectId: 'emlakdefter',
+    authDomain: 'emlakdefter.firebaseapp.com',
+    storageBucket: 'emlakdefter.firebasestorage.app',
+    measurementId: 'G-THRCBDCFJM',
+  );
+
 }

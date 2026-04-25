@@ -9,6 +9,8 @@ from app.api import deps
 from app.database import get_db
 from app.schemas.users import UserResponse, CreateEmployeeRequest, UserRole
 from app.models.users import User, StaffRole, AgencyStaff
+from app.core.firebase import create_firebase_user_with_phone, create_firebase_user_with_email_password, get_firebase_user_by_phone
+from app.core.security import get_password_hash
 
 
 router = APIRouter()
@@ -51,8 +53,9 @@ async def create_employee(
     """
     Yeni çalışan ekle (Sadece Boss rolü erişebilir).
     Çalışan patronun agency_id'sine bağlanır.
+    Email ve şifre belirlenirse direkt login yapılabilir.
     """
-    
+
     if current_user.role != UserRole.boss and current_user.role != UserRole.superadmin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -67,16 +70,32 @@ async def create_employee(
             detail="Ofis bilgisi bulunamadı."
         )
 
-    # Validation: en az email veya telefon gerekli
+    # En az email veya telefon gerekli
     if not request.email and not request.phone_number:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email veya telefon numarası en az biri girilmelidir."
+            detail="Email veya telefon numarası en az biri gereklidir."
         )
 
+    firebase_uid = None
+    normalized_phone = None
+    password_hash = None
+
+    # Email ve şifre varsa: Email/Password ile Firebase user oluştur
+    if request.email and request.password:
+        firebase_user = create_firebase_user_with_email_password(request.email, request.password)
+        firebase_uid = firebase_user["uid"]
+        password_hash = get_password_hash(request.password)
+    elif request.phone_number:
+        # Telefon varsa Firebase'de user oluştur - OTP akışı
+        normalized_phone = normalize_phone(request.phone_number)
+        firebase_user = create_firebase_user_with_phone(normalized_phone)
+        firebase_uid = firebase_user["uid"]
+
+    email = request.email.strip().lower() if request.email else None
+
     # Email unique kontrolü
-    if request.email:
-        email = request.email.strip().lower()
+    if email:
         stmt = select(User).where(User.email == email, User.is_deleted == False)
         result = await db.execute(stmt)
         if result.scalar_one_or_none():
@@ -84,12 +103,9 @@ async def create_employee(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Bu email adresi sistemde zaten kayıtlı."
             )
-    else:
-        email = None
 
     # Telefon unique kontrolü
-    if request.phone_number:
-        normalized_phone = normalize_phone(request.phone_number)
+    if normalized_phone:
         stmt = select(User).where(User.phone_number == normalized_phone, User.is_deleted == False)
         result = await db.execute(stmt)
         if result.scalar_one_or_none():
@@ -97,22 +113,21 @@ async def create_employee(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Bu telefon numarası sistemde zaten kayıtlı."
             )
-    else:
-        normalized_phone = None
 
     # User oluştur
     user = User(
         email=email,
         phone_number=normalized_phone,
-        full_name=request.full_name.strip(),
+        full_name=request.full_name.strip() if request.full_name else None,
         role=UserRole.employee,
         status="active",
         agency_id=agency_id,
-        password_hash=None,  # İlk giriş bekleniyor
+        firebase_uid=firebase_uid,
+        password_hash=password_hash,  # Şifre belirlenmişse kaydet
     )
     db.add(user)
     await db.flush()
-    
+
     # AgencyStaff yetki tablosunda da tanımlayalım
     agency_staff = AgencyStaff(
         user_id=user.id,
@@ -120,7 +135,7 @@ async def create_employee(
         role=StaffRole.employee
     )
     db.add(agency_staff)
-    
+
     await db.commit()
     await db.refresh(user)
 

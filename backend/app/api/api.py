@@ -3,17 +3,17 @@ from app.api.endpoints import auth, properties, finance, operations, chat, tenan
 
 api_router = APIRouter()
 
-# API v1 endpoints - New auth flow
-api_router.include_router(auth.router, prefix="/v1/auth", tags=["Auth"])
-api_router.include_router(auth.router, prefix="/auth", tags=["A. Kimlik, Otorite ve Sisteme Katılım Aracı"])
+# Auth endpoints (login, OTP, password)
+# main.py mounts api_router at /api/v1, so auth -> /api/v1/auth
+api_router.include_router(auth.router, prefix="/auth", tags=["Auth"])
 
 # Admin panel endpoints (superadmin only)
-api_router.include_router(admin.router, prefix="/v1/admin", tags=["Admin"])
+api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
 
 # Agency endpoints (boss/employee)
-api_router.include_router(agency.router, prefix="/v1/agency", tags=["Agency"])
+api_router.include_router(agency.router, prefix="/agency", tags=["Agency"])
 
-# Legacy / Compatibility endpoints
+# Legacy / Compatibility endpoints (no /v1 prefix - already under /api/v1 from main.py)
 api_router.include_router(properties.router, prefix="/properties", tags=["B. Otonom Portföy Motoru (Property Loop)"])
 api_router.include_router(tenants.router, prefix="/tenants", tags=["C. Kiracı ve Ev Sahibi Yönetimi"])
 api_router.include_router(finance.router, prefix="/finance", tags=["D. Yapay Zeka (Gemini) Finans ve Banka Okuyucusu"])

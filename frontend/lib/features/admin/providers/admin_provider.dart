@@ -80,6 +80,7 @@ class AdminNotifier extends Notifier<AdminState> {
     required String bossFullName,
     String? bossEmail,
     String? bossPhone,
+    String? bossPassword,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
@@ -89,6 +90,7 @@ class AdminNotifier extends Notifier<AdminState> {
         bossFullName: bossFullName,
         bossEmail: bossEmail,
         bossPhone: bossPhone,
+        bossPassword: bossPassword,
       );
       final updatedAgencies = [...state.agencies, agency];
       state = state.copyWith(isLoading: false, agencies: updatedAgencies);
@@ -133,7 +135,12 @@ class AdminNotifier extends Notifier<AdminState> {
     required String fullName,
     required String role,
     String? agencyId,
+    String? password,
   }) async {
+    if (phoneNumber == null || phoneNumber.isEmpty) {
+      state = state.copyWith(isLoading: false, error: 'Telefon numarası gerekli');
+      return null;
+    }
     state = state.copyWith(isLoading: true, error: null);
     try {
       final user = await _service.createUser(
@@ -142,6 +149,7 @@ class AdminNotifier extends Notifier<AdminState> {
         fullName: fullName,
         role: role,
         agencyId: agencyId,
+        password: password,
       );
       final updatedUsers = [...state.users, user];
       state = state.copyWith(isLoading: false, users: updatedUsers);

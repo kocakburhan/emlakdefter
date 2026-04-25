@@ -16,6 +16,7 @@ class EmployeeService {
     String? email,
     String? phoneNumber,
     required String fullName,
+    String? password,
   }) async {
     final response = await ApiClient.dio.post(
       '/agency/employees',
@@ -23,6 +24,7 @@ class EmployeeService {
         if (email != null) 'email': email,
         if (phoneNumber != null) 'phone_number': phoneNumber,
         'full_name': fullName,
+        if (password != null && password.isNotEmpty) 'password': password,
       },
     );
     return response.data;

@@ -237,6 +237,69 @@ def get_firebase_user_by_email(email: str) -> dict | None:
         return None
 
 
+def create_firebase_user_with_phone(phone_number: str) -> dict:
+    """
+    Firebase'de telefon numarası ile yeni bir user oluşturur.
+    Bu fonksiyon patronun çalışan eklemesi sırasında çağrılır.
+    Kullanıcı daha sonra OTP doğrulaması yapana kadar Firebase'de
+    phone_verified = false durumda kalır.
+    """
+    if not os.path.exists(FIREBASE_CREDENTIALS_PATH):
+        logger.warning("[Firebase] Credentials yok — mock Firebase user oluşturuluyor.")
+        return {"uid": f"mock_uid_{phone_number}", "phone_number": phone_number}
+
+    try:
+        # Önce bu telefon numarası ile kullanıcı var mı kontrol et
+        existing_user = get_firebase_user_by_phone(phone_number)
+        if existing_user:
+            logger.info(f"[Firebase] Bu telefon numarası zaten kayıtlı: {phone_number}")
+            return existing_user
+
+        # Yeni Firebase user oluştur (phone_number ile)
+        user = auth.create_user(
+            phone_number=phone_number,
+            disabled=False
+        )
+        logger.info(f"[Firebase] Yeni user oluşturuldu: {phone_number} -> {user.uid}")
+        return {"uid": user.uid, "phone_number": user.phone_number}
+
+    except Exception as e:
+        logger.error(f"[Firebase] User oluşturma hatası: {e}")
+        raise HTTPException(status_code=500, detail=f"Firebase user oluşturulamadı: {str(e)}")
+
+
+def create_firebase_user_with_email_password(email: str, password: str) -> dict:
+    """
+    Firebase'de email ve şifre ile yeni bir user oluşturur.
+    Bu fonksiyon superadmin boss oluştururken veya boss employee oluştururken
+    doğrudan şifre ataması için kullanılır.
+    Kullanıcı direkt bu şifre ile giriş yapabilir.
+    """
+    if not os.path.exists(FIREBASE_CREDENTIALS_PATH):
+        logger.warning("[Firebase] Credentials yok — mock Firebase user oluşturuluyor.")
+        return {"uid": f"mock_uid_{email}", "email": email}
+
+    try:
+        # Önce bu email ile kullanıcı var mı kontrol et
+        existing_user = get_firebase_user_by_email(email)
+        if existing_user:
+            logger.info(f"[Firebase] Bu email zaten kayıtlı: {email}")
+            return existing_user
+
+        # Yeni Firebase user oluştur (email + password ile)
+        user = auth.create_user(
+            email=email,
+            password=password,
+            disabled=False
+        )
+        logger.info(f"[Firebase] Yeni user oluşturuldu: {email} -> {user.uid}")
+        return {"uid": user.uid, "email": user.email}
+
+    except Exception as e:
+        logger.error(f"[Firebase] Email/Password User oluşturma hatası: {e}")
+        raise HTTPException(status_code=500, detail=f"Firebase user oluşturulamadı: {str(e)}")
+
+
 def generate_email_verification_link(email: str) -> str:
     """
     Firebase Admin SDK ile email verification link oluşturur.

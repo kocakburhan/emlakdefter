@@ -114,24 +114,15 @@ class AdminCreateAgencyBossRequest(BaseModel):
 
     boss_full_name: Optional[str] = Field(None, description="Patron Ad Soyad (zorunlu)")
     boss_email: Optional[str] = None
-    boss_phone_number: Optional[str] = None
+    boss_phone_number: Optional[str] = Field(None, description="Telefon numarası (email veya telefon en az biri gerekli)")
+    boss_password: Optional[str] = Field(None, description="Patronun şifresi (direct login için)")
 
-    @field_validator('boss_email', 'boss_phone_number')
-    @classmethod
-    def require_at_least_one_contact(cls, v, info):
-        # We will do structural validation where at least one is required
-        return v
-        
 class CreateEmployeeRequest(BaseModel):
     """Patron tarafından yeni Çalışan (Employee) oluşturma isteği"""
     full_name: str = Field(..., min_length=1, description="Çalışan Ad Soyad (zorunlu)")
     email: Optional[str] = None
-    phone_number: Optional[str] = None
-
-    @field_validator('email', 'phone_number')
-    @classmethod
-    def require_at_least_one_contact(cls, v, info):
-        return v
+    phone_number: Optional[str] = Field(None, description="Telefon numarası (email veya telefon en az biri gerekli)")
+    password: Optional[str] = Field(None, description="Çalışanın şifresi (direct login için)")
 
 # === User Schemas ===
 
@@ -142,12 +133,7 @@ class UserCreate(BaseModel):
     full_name: str = Field(..., min_length=1)
     role: UserRole
     agency_id: Optional[UUID] = None
-
-    @field_validator('email', 'phone_number')
-    @classmethod
-    def at_least_one_contact(cls, v, info):
-        # At least email or phone must be provided
-        return v
+    password: Optional[str] = Field(None, description="Kullanıcının şifresi (direct login için)")
 
     @field_validator('email')
     @classmethod

@@ -25,6 +25,11 @@ class FCMService {
   void Function(RemoteMessage)? onMessageReceived;
   void Function(String? token)? onTokenRefreshed;
 
+  /// Sadece token'ı backend'e kaydet (initialize'dan bağımsız)
+  Future<void> registerToken() async {
+    await _registerToken();
+  }
+
   /// Uygulama başlatıldığında çağrılmalı.
   /// Bildirim iznini alır, token'ı backend'e kaydeder.
   Future<void> initialize() async {
@@ -73,7 +78,6 @@ class FCMService {
     FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
     // ── Arka plan / terminated bildirimler için ────────────────
-    // Bu, uygulama açıkken değil ama başlatıldığında çalışır
     FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
 
     // Uygulama terminate edilmişken açıldığında bildirim var mı kontrol et
@@ -93,13 +97,20 @@ class FCMService {
 
       debugPrint('[FCM] Token: ${token.substring(0, 20)}...');
 
-      // Backend'e kaydet
-      await ApiClient.dio.post('/auth/fcm-token', data: {
-        'fcm_token': token,
-        'device_type': _deviceType,
-      });
+      // 🛑 Kullanıcı giriş yapmış mı kontrol et
+      final hasValidToken = ApiClient.dio.options.headers.containsKey('Authorization') ||
+                            ApiClient.dio.options.headers['Authorization'] != null;
 
-      debugPrint('[FCM] Token backend\'e kaydedildi');
+      if (hasValidToken) {
+        await ApiClient.dio.post('/auth/fcm-token', data: {
+          'fcm_token': token,
+          'device_type': _deviceType,
+        });
+        debugPrint('[FCM] Token backend\'e kaydedildi');
+      } else {
+        debugPrint('[FCM] Kullanıcı misafir (giriş yapmamış), token backend\'e gönderilmedi.');
+      }
+
     } catch (e) {
       debugPrint('[FCM] Token kayıt hatası: $e');
     }

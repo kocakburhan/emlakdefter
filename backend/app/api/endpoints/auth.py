@@ -309,7 +309,14 @@ async def set_password(request: SetPasswordRequest, db: AsyncSession = Depends(g
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Kullanıcı bulunamadı"
         )
-        
+
+    # Şifre eşleşme kontrolü
+    if request.new_password != request.confirm_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Şifreler uyuşmuyor"
+        )
+
     user.password_hash = get_password_hash(request.new_password)
     user.status = "active"
     user.last_login_at = datetime.utcnow()
