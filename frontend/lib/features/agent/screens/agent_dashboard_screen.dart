@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/theme/colors.dart';
-import '../tabs/home_tab.dart';
+import '../screens/agent_home_menu_screen.dart';
 import '../tabs/properties_tab.dart';
 import '../tabs/finance_tab.dart';
 import '../tabs/support_tab.dart';
@@ -21,13 +21,13 @@ class _AgentDashboardScreenState extends State<AgentDashboardScreen>
   int _currentIndex = 0;
   late AnimationController _navController;
 
-  final List<Widget> _pages = [
-    const HomeTab(),
+  List<Widget> get _pages => [
+    AgentHomeMenuScreen(onNavigateToTab: _onTabChanged),
     const PropertiesTab(),
     const FinanceTab(),
     const SupportTab(),
     const BuildingOperationsTab(),
-    const EmployeesTab(), // Yerine Çalışanlar Sekmesi (veya Sohbet'in yanında)
+    const EmployeesTab(),
     const ChatTab(),
   ];
 
@@ -118,9 +118,9 @@ class _AgentDashboardScreenState extends State<AgentDashboardScreen>
                 unselectedLabelStyle: Theme.of(context).textTheme.labelSmall,
                 items: [
                   _buildNavItem(
-                    Icons.dashboard_outlined,
-                    Icons.dashboard,
-                    "Özet",
+                    Icons.home_outlined,
+                    Icons.home,
+                    "Ana Sayfa",
                     0,
                   ),
                   _buildNavItem(

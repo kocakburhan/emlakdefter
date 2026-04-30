@@ -97,6 +97,8 @@ Detaylı bilgi için: `.claude/agents/` klasöründeki agent dosyalarını okuyu
 7. **Test kuralı:** Bir özellik "tamamlandı" olarak işaretlenmeden önce MUTLAKA test edilmiş olmalıdır. Sadece kod yazılması yeterli değildir.
 8. **Kolaya kaçma yasağı:** Kod yazarken kolaya kaçma. Şimdi zaman kazanıp sonra hata oluşturacak yaklaşımlardan kaçın. Her zaman doğru ve sürdürülebilir çözümü tercih et.
 9. **Hata fark etme kuralı:** Geliştirme sırasında bir hata veya yanlışlık fark ettiğinde görevini bitirdikten sonra bekleme, **o an çöz**. Görev tamamlandığında fark ettiğin hataları düzelt ve bu durumu bana bildir.
+10. **Cross-platform uyumluluk:** Tüm geliştirmeler hem web hem de mobil (Flutter) platformlarında sorunsuz çalışmalıdır. Bir özellik veya ekran geliştirirken her iki platformu da test et; sadece birinde çalışan kod kabul edilmez.
+11. **Frontend geliştirme zorunluluğu:** Frontend (UI/UX) geliştirmelerinde `frontend-design` skill'i kullanılması zorunludur. Herhangi bir ekran, bileşen veya tasarım görevi verildiğinde önce bu skill invoke edilmeli, sonra geliştirme yapılmalıdır.
 
 ---
 
