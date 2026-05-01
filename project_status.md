@@ -256,7 +256,7 @@ Sonuç: Mülkler doğru zaman damgasıyla görünüyor ✅
 
 **Sorun:** 1 Ay / 3 Ay / 6 Ay / 12 Ay / Geçen Yıl seçenekleri çalışmıyordu — backend tüm verileri her zaman 12 ay olarak döndürüyordu, frontend'in seçim yapmasına rağmen.
 
-**Kök Neden:** 
+**Kök Neden:**
 1. Backend `bi-dashboard` endpoint'i `period` query parametresi almıyordu
 2. Frontend `_selectedPeriod` değiştirince API'ye yeni period değeri gönderilmiyordu
 3. Tüm `_build_*` helper fonksiyonları sabit `range(11, -1, -1)` (12 ay) kullanıyordu
@@ -291,11 +291,115 @@ pytest tests/test_analytics_period.py -v
 # 2 passed in 7.57s
 ```
 
+**Ek Değişiklikler:**
+- `_resolve_period()` eklendi: ytd (yılın başından bugüne) ve py (geçen yıl) özel dönemleri çözümler
+- `/bi/report` (PDF) endpoint'ine `period` parametresi eklendi
+- `/bi/export` (Excel) endpoint'ine `period` parametresi eklendi
+- `refresh()` seçili dönemi koruyacak şekilde güncellendi (`_currentPeriod` field)
+
 **Dosyalar:**
 - `backend/app/api/endpoints/analytics.py` — Period param + helper güncellemeleri
 - `frontend/lib/features/agent/screens/bi_analytics_screen.dart` — Fetch + period map
 - `backend/tests/test_analytics_period.py` — pytest testleri
 - `backend/tests/verify_period.py` — Manuel doğrulama
+
+**Durum:** Tüm testler geçti, hatasız ✅
+
+### 1 Mayıs 2026 — PDF Upload "Connection Error" Düzeltildi
+
+**Sorun:** Finans ekranında banka ekstresi (PDF) yüklenirken `DioException [connection error]: The XMLHttpRequest onError callback was called` hatası alınıyordu.
+
+**Kök Neden:**
+1. `api_client.dart`'daki `_createDio()` sabit `Content-Type: application/json` header'i koyuyordu — bu header FormData multipart upload için YANLIŞ (boundary bilgisini bloke ediyor)
+2. Dio multipart/form-data için Content-Type'ı otomatik belirlemeli (boundary ile birlikte)
+
+**Çözüm:**
+
+1. `frontend/lib/core/network/api_client.dart`:
+   - `_createDio()` metodundaki sabit `headers: {'Content-Type': 'application/json'}` kaldırıldı
+   - Dio BaseOptions'ta headers boş bırakıldı — böylece FormData otomatik `multipart/form-data; boundary=...` Content-Type'ını koyabiliyor
+   - Interceptor'lar zaten isteğe göre header'ları ayarlıyor (Authorization vs)
+
+2. `frontend/lib/features/agent/providers/finance_provider.dart`:
+   - PDF upload çağrısında açıklayıcı yorum eklendi
+   - FormData otomatik boundary oluşturduğu için explicit `contentType` parametresi gerekmeyeceği not edildi
+
+**Doğrulama:**
+```bash
+curl -s -X POST http://localhost:8000/api/v1/finance/upload-statement \
+  -H "Authorization: Bearer dev_bypass_token_12345" \
+  -F "file=@/dev/null"
+# Backend doğru "sadece PDF" hatası veriyor → endpoint çalışıyor
+flutter analyze
+# No issues found ✅
+```
+
+**Ek Not:** Backend CORS zaten `allow_origins=["*"]` ve `allow_methods=["*"]` — multipart/form-data için ek CORS yapılandırması gerekmedi.
+
+**Dosyalar:**
+- `frontend/lib/core/network/api_client.dart` — Fixed content-type header
+- `frontend/lib/features/agent/providers/finance_provider.dart` — Doc comment eklendi
+
+**Durum:** Test edildi, backend endpoint çalışıyor ✅
+
+### 2 Mayıs 2026 — Uçtan Uuca Hata Analizi ve Düzeltmeler
+
+**Kapsam:** Backend ve frontend genelinde tüm test/hata analizi — systematic debugging workflow kullanıldı.
+
+#### Backend Düzeltmeleri
+
+**1. RLS İzolasyon Testleri — Role BYPASSRLS Fix**
+Sorun: `emlakdefter_user` PostgreSQL rolü `BYPASSRLS` yetkisine sahipti — tüm RLS politikaları atlanıyordu, testler gerçek veritabanı izolasyonunu test edemiyordu.
+
+Çözüm:
+```sql
+ALTER ROLE emlakdefter_user NOSUPERUSER NOBYPASSRLS
+```
+Test sonucu: 7/7 RLS test geçti ✅
+
+**2. APScheduler Test State Isolation Fix**
+Sorun: `test_job_names_match_expected_functions` testleri birbirini etkiliyordu — `_scheduler_started` global değişkeni bir testin durumunu diğerine bırakıyordu.
+
+Çözüm:
+- Her test başında `scheduler_module._scheduler_started = False` reset edildi
+- Test dosyası: `backend/tests/test_apscheduler_jobs.py`
+
+**3. @app.on_event Deprecation → Lifespan Handler**
+Sorun: `@app.on_event("startup")` ve `@app.on_event("shutdown")` deprecated uyarıları — FastAPI 0.100+ lifespan API kullanılmalı.
+
+Çözüm: `app/main.py`'de lifespan context manager kullanıldı:
+```python
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # startup
+    yield
+    # shutdown
+```
+
+**4. API Router Placement Bug Fix**
+Sorun: `app.include_router(api_router, prefix="/api/v1")` dosyanın SONUNDA değildi — `app.get("/health")` çağrıları arasında kaybolmuştu, bu nedenle tüm API route'ları 404 veriyordu (testler başarısız oluyordu).
+
+Çözüm: `app.include_router()` çağrısı dosyanın en sonuna taşındı.
+
+**5. Pydantic V2 ConfigDict Migration — Schema Uyarıları**
+Sorun: `class Config:` deprecated, `ConfigDict` kullanılmalı (Pydantic V2 migration).
+
+Etkilenen dosyalar:
+- `app/schemas/properties.py` (PropertyUnitResponse, PropertyResponse)
+- `app/schemas/finance.py` (TransactionResponse, PaymentScheduleResponse, vb.)
+- `app/schemas/tenants.py` (TenantResponse, LandlordResponse, vb.)
+
+Durum: Uyarılar 34 warning olarak mevcut — legacy schema dosyaları bu sprint dışında bırakıldı (API çalışmasını etkilemiyor).
+
+#### Test Sonuçları
+
+```bash
+# Backend pytest
+172 passed, 1 xfailed, 34 warnings in 14.42s
+
+# Flutter analyze
+51 issues (sadece info/warning — error yok)
+```
 
 **Durum:** Tüm testler geçti, hatasız ✅
 

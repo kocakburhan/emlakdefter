@@ -104,10 +104,21 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                   _buildIconBtn(
                     context,
                     Icons.analytics_outlined,
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const BIAnalyticsScreen()),
-                    ),
+                    () {
+                      try {
+                        debugPrint('DEBUG: BI Analytics icon tapped - pushing screen');
+                        final route = MaterialPageRoute(builder: (_) => const BIAnalyticsScreen());
+                        Navigator.push(context, route);
+                        debugPrint('DEBUG: Navigation started');
+                      } catch (e, st) {
+                        debugPrint('DEBUG: Navigation error: $e\n$st');
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('BI Ekranı açılamadı: $e')),
+                          );
+                        }
+                      }
+                    },
                   ),
                   const SizedBox(width: 8),
                   _buildPendingBtn(context),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/theme/colors.dart';
+import 'summary_screen.dart';
 
 /// Agent Ana Sayfa — Refined Minimal Luxury Tasarım
 ///Blur/glow efektleri kaldırıldı, clean shadows ve güçlü tipografi ile şık görünüm
@@ -11,6 +12,13 @@ class AgentHomeMenuScreen extends StatelessWidget {
     Key? key,
     required this.onNavigateToTab,
   }) : super(key: key);
+
+  void _navigateToSummary(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const SummaryScreen()),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -156,7 +164,7 @@ class AgentHomeMenuScreen extends StatelessWidget {
         icon: Icons.dashboard_rounded,
         color: AppColors.charcoal,
         index: 0,
-        onTap: () => onNavigateToTab(0),
+        onTap: () => _navigateToSummary(context),
       ),
 
       // Binalar — Properties

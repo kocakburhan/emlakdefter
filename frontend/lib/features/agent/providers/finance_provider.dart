@@ -94,8 +94,12 @@ class FinanceNotifier extends StateNotifier<AsyncValue<List<TransactionModel>>> 
          "file": multipartFile,
        });
 
-       // 2. Gerçek API Çağrısı
-       final response = await ApiClient.dio.post('/finance/upload-statement', data: formData);
+       // 2. Gerçek API Çağrısı — FormData ile dosya yükleme
+       // NOT: contentType belirtmesek de FormData otomatik multipart/form-data ekler
+       final response = await ApiClient.dio.post(
+         '/finance/upload-statement',
+         data: formData,
+       );
 
        // 3. Yanıtı Parse Et
        final matchedResults = response.data['matched_results'] as List<dynamic>;

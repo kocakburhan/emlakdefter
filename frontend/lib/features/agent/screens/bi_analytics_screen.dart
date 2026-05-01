@@ -48,11 +48,14 @@ class BIAnalyticsData {
 }
 
 class BIAnalyticsNotifier extends StateNotifier<AsyncValue<BIAnalyticsData>> {
+  String _currentPeriod = '12m';
+
   BIAnalyticsNotifier() : super(const AsyncValue.loading()) {
     fetch();
   }
 
   Future<void> fetch({String period = '12m'}) async {
+    _currentPeriod = period;
     state = const AsyncValue.loading();
     try {
       final resp = await ApiClient.dio.get(
@@ -74,7 +77,7 @@ class BIAnalyticsNotifier extends StateNotifier<AsyncValue<BIAnalyticsData>> {
     }
   }
 
-  Future<void> refresh() => fetch();
+  Future<void> refresh() => fetch(period: _currentPeriod);
 }
 
 final biAnalyticsProvider = StateNotifierProvider<BIAnalyticsNotifier, AsyncValue<BIAnalyticsData>>((ref) {

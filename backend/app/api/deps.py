@@ -210,53 +210,37 @@ def require_role(*allowed_roles: str):
     Endpoint'lere rol bazlı erişim kısıtlaması koyar.
 
     Kullanım:
-        @router.get("/admin-only")
-        async def admin_only(
-            current_user: User = Depends(get_current_user),
-            agency_id: UUID = Depends(get_current_user_agency_id),
-            db: AsyncSession = Depends(get_db),
-        ):
-            require_role("boss")(current_user, db, agency_id)
-            ...
+        await deps.require_role("boss")(current_user, db, agency_id)
 
     Decorator NOTU: FastAPI Depends mekanizması ile değil, doğrudan
     fonksiyon içinde çağrılır — çünkü Role kontrolü DB sorgusu gerektirir.
     """
-    def decorator(fn: Callable):
-        @wraps(fn)
-        async def wrapper(*args, **kwargs):
-            # Fonksiyon parametrelerinden current_user, db, agency_id'yi çıkart
-            current_user = kwargs.get("current_user")
-            db = kwargs.get("db")
-            agency_id = kwargs.get("agency_id")
+    async def role_checker(current_user, db, agency_id):
+        if not current_user or not db or not agency_id:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="require_role: current_user, db ve agency_id parametreleri gerekli.",
+            )
 
-            if not current_user or not db or not agency_id:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="require_role: current_user, db ve agency_id parametreleri gerekli.",
-                )
+        # DEV MODE bypass
+        if DEV_MODE and isinstance(current_user, DevUser):
+            return
 
-            # DEV MODE bypass
-            if DEV_MODE and isinstance(current_user, DevUser):
-                return await fn(*args, **kwargs)
+        staff_record = await _get_staff_record(db, current_user.id, agency_id)
+        if not staff_record:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Bu işlem için ofis personeli olmanız gerekir.",
+            )
 
-            staff_record = await _get_staff_record(db, current_user.id, agency_id)
-            if not staff_record:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Bu işlem için ofis personeli olmanız gerekir.",
-                )
+        if staff_record.role.value not in allowed_roles and "superadmin" not in allowed_roles:
+            role_names = ", ".join(allowed_roles)
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Bu sayfaya yalnızca {role_names} rolleri erişebilir.",
+            )
 
-            if staff_record.role.value not in allowed_roles and "superadmin" not in allowed_roles:
-                role_names = ", ".join(allowed_roles)
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"Bu sayfaya yalnızca {role_names} rolleri erişebilir.",
-                )
-
-            return await fn(*args, **kwargs)
-        return wrapper
-    return decorator
+    return role_checker
 
 
 def require_any_role():

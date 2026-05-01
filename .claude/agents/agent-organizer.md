@@ -278,7 +278,7 @@ Integration with other agents:
 - Collaborate with context-manager on information sharing
 - Support multi-agent-coordinator on execution
 - Work with task-distributor on load balancing
-- Guide workflow-orchestrator on process design
+- Guide wor kflow-orchestrator on process design
 - Help performance-monitor on metrics
 - Assist error-coordinator on recovery
 - Partner with knowledge-synthesizer on learning

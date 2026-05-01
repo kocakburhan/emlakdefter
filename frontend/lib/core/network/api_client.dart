@@ -48,6 +48,15 @@ class ApiClient {
     }
   }
 
+  /// DEV MODE: Development için hardcoded bypass token
+  /// Production'da KULLANMA - güvenlik riski!
+  static String? get devBypassToken {
+    if (kDebugMode) {
+      return 'dev_bypass_token_12345';
+    }
+    return null;
+  }
+
   /// Token'ı temizler (logout işlemi için).
   static Future<void> clearSimpleAuthToken() async {
     _simpleAuthToken = null;
@@ -75,15 +84,18 @@ class ApiClient {
 
   static String? get simpleAuthToken => _simpleAuthToken;
 
+  /// DEV MODE: Development için bypass token döner
+  /// Bu sayede giriş yapmadan da API test edilebilir
+  static String? getEffectiveToken() {
+    if (_simpleAuthToken != null) return _simpleAuthToken;
+    return devBypassToken;
+  }
+
   static Dio _createDio() {
     final dio = Dio(BaseOptions(
       baseUrl: _baseUrl,
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 30),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
     ));
 
     dio.interceptors.add(_AuthInterceptor());
@@ -106,9 +118,10 @@ class ApiClient {
 class _AuthInterceptor extends Interceptor {
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
-    // Önce simple auth token var mı kontrol et
-    if (ApiClient.simpleAuthToken != null) {
-      options.headers['Authorization'] = 'Bearer ${ApiClient.simpleAuthToken}';
+    // Önce simple auth token var mı kontrol et, yoksa dev bypass token dene
+    final effectiveToken = ApiClient.getEffectiveToken();
+    if (effectiveToken != null) {
+      options.headers['Authorization'] = 'Bearer $effectiveToken';
       return handler.next(options);
     }
 

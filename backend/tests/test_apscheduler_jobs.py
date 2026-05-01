@@ -291,9 +291,12 @@ class TestSchedulerConfiguration:
 
     def test_start_scheduler_registers_jobs(self):
         """start_scheduler çağrılınca 2 job eklenmeli"""
+        import sys
+        from app.core import scheduler as scheduler_module
         from app.core.scheduler import scheduler, start_scheduler
 
         scheduler.remove_all_jobs()
+        scheduler_module._scheduler_started = False  # Reset for isolated test
 
         # scheduler.start() bir event loop gerektirir — test ortamında patch et
         with patch.object(scheduler, 'start', return_value=None):
@@ -301,12 +304,16 @@ class TestSchedulerConfiguration:
             jobs = scheduler.get_jobs()
 
         assert len(jobs) == 2, f"Expected 2 jobs, got {len(jobs)}: {[j.name for j in jobs]}"
+        scheduler_module._scheduler_started = False  # Reset for next test
 
     def test_job_names_match_expected_functions(self):
         """Job isimleri doğru fonksiyonlara işaret etmeli"""
+        import sys
+        from app.core import scheduler as scheduler_module
         from app.core.scheduler import scheduler, start_scheduler
 
         scheduler.remove_all_jobs()
+        scheduler_module._scheduler_started = False  # Reset for isolated test
 
         with patch.object(scheduler, 'start', return_value=None):
             start_scheduler()

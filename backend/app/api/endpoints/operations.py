@@ -582,6 +582,7 @@ async def get_activity_feed(
     # 4) Yeni kiracılar (son eklenen aktif kiracılar)
     tenant_stmt = (
         select(Tenant)
+        .options(selectinload(Tenant.user))
         .where(Tenant.agency_id == agency_id, Tenant.status == "active")
         .order_by(desc(Tenant.created_at))
         .limit(10)
@@ -589,14 +590,50 @@ async def get_activity_feed(
     tenant_result = await db.execute(tenant_stmt)
     tenants = tenant_result.scalars().all()
     for t in tenants:
+        # Kiracı adı: user.full_name > temp_name > 'İsimsiz'
+        tenant_name = 'İsimsiz'
+        if t.user and hasattr(t.user, 'full_name') and t.user.full_name:
+            tenant_name = t.user.full_name
+        elif t.temp_name:
+            tenant_name = t.temp_name
         items.append(ActivityFeedItem(
             id=str(t.id),
             type="tenant",
-            title=f"Yeni Kiracı: {t.full_name or t.temp_name or 'İsimsiz'}",
+            title=f"Yeni Kiracı: {tenant_name}",
             subtitle=t.created_at.strftime('%d.%m.%Y') if hasattr(t, 'created_at') and t.created_at else "",
             icon="person_add",
             color="success",
             timestamp=t.created_at.isoformat() if hasattr(t, 'created_at') and t.created_at else now.isoformat(),
+        ))
+
+    # 5) Son eklenen mülkler (arsa, bina, apartman, müstakil ev, ticari)
+    prop_stmt = (
+        select(Property)
+        .where(
+            Property.agency_id == agency_id,
+            Property.is_deleted == False,
+        )
+        .order_by(desc(Property.created_at))
+        .limit(10)
+    )
+    prop_result = await db.execute(prop_stmt)
+    props = prop_result.scalars().all()
+    type_labels = {
+        "apartment_complex": "Apartman",
+        "standalone_house": "Müstakil Ev",
+        "land": "Arsa",
+        "commercial": "Ticari",
+    }
+    for p in props:
+        prop_type = p.type.value if hasattr(p.type, 'value') else str(p.type)
+        items.append(ActivityFeedItem(
+            id=str(p.id),
+            type="property",
+            title=f"Yeni Mülk: {p.name or 'İsimsiz'}",
+            subtitle=type_labels.get(prop_type, "Mülk"),
+            icon="home",
+            color="accent",
+            timestamp=p.created_at.isoformat() if hasattr(p, 'created_at') and p.created_at else now.isoformat(),
         ))
 
     # Zamanına göre sırala (en yen üstte)

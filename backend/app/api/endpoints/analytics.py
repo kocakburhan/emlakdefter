@@ -6,7 +6,6 @@ from typing import List
 from datetime import date, datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from uuid import UUID
-import uuid
 
 from app.api import deps
 from app.models.users import User, Agency
@@ -28,9 +27,20 @@ _PERIOD_MAP = {
     "3m": 3,
     "6m": 6,
     "12m": 12,
-    "ytd": 0,   # current year to date — handled in helper
-    "py": -1,   # previous year — handled in helper
+    "ytd": None,   # current year to date — handled via _ytd_months_back
+    "py": None,   # previous year — handled via _py_months_back
 }
+
+
+def _resolve_period(period: str, now: date) -> int:
+    """Resolve period string to months_back integer."""
+    if period == "ytd":
+        # Months from Jan 1 of current year to today (e.g. May 1 -> 4)
+        return now.month - 1
+    elif period == "py":
+        # Full months in previous year
+        return 12
+    return _PERIOD_MAP.get(period, 12)
 
 
 def _month_str(d: date) -> str:
@@ -389,7 +399,7 @@ async def get_bi_analytics_dashboard(
     # ✅ Boss rolü kontrolü — merkezi decorator
     await deps.require_boss_role()(current_user, db, agency_id)
 
-    months_back = _PERIOD_MAP.get(period, 12)
+    months_back = _resolve_period(period, date.today())
 
     portfolio = await _build_portfolio_performance(db, agency_id, months_back)
     tenant_churn = await _build_tenant_churn(db, agency_id, months_back)
@@ -409,6 +419,7 @@ async def download_bi_pdf(
     current_user: User = Depends(deps.get_current_user),
     agency_id: UUID = Depends(deps.get_current_user_agency_id),
     db: AsyncSession = Depends(deps.get_db),
+    period: str = "12m",
 ):
     """
     BI Analytics PDF raporu indirir — PRD §4.1.10-E.
@@ -416,10 +427,12 @@ async def download_bi_pdf(
     """
     await deps.require_boss_role()(current_user=current_user, db=db, agency_id=agency_id)
 
-    portfolio = await _build_portfolio_performance(db, agency_id)
-    tenant_churn = await _build_tenant_churn(db, agency_id)
-    financial = await _build_financial_annual(db, agency_id)
-    collection = await _build_collection_performance(db, agency_id)
+    months_back = _resolve_period(period, date.today())
+
+    portfolio = await _build_portfolio_performance(db, agency_id, months_back)
+    tenant_churn = await _build_tenant_churn(db, agency_id, months_back)
+    financial = await _build_financial_annual(db, agency_id, months_back)
+    collection = await _build_collection_performance(db, agency_id, months_back)
 
     agency_stmt = select(Agency).where(Agency.id == agency_id)
     agency_res = await db.execute(agency_stmt)
@@ -459,6 +472,7 @@ async def download_bi_pdf(
 
 @router.get("/bi/export")
 async def export_bi_analytics(
+    period: str = "12m",
     current_user: User = Depends(deps.get_current_user),
     agency_id: UUID = Depends(deps.get_current_user_agency_id),
     db: AsyncSession = Depends(deps.get_db),
@@ -468,11 +482,12 @@ async def export_bi_analytics(
     Yalnızca Boss rolü erişebilir.
     """
     await deps.require_boss_role()(current_user=current_user, db=db, agency_id=agency_id)
+    months_back = _resolve_period(period, date.today())
 
-    portfolio = await _build_portfolio_performance(db, agency_id)
-    tenant_churn = await _build_tenant_churn(db, agency_id)
-    financial = await _build_financial_annual(db, agency_id)
-    collection = await _build_collection_performance(db, agency_id)
+    portfolio = await _build_portfolio_performance(db, agency_id, months_back)
+    tenant_churn = await _build_tenant_churn(db, agency_id, months_back)
+    financial = await _build_financial_annual(db, agency_id, months_back)
+    collection = await _build_collection_performance(db, agency_id, months_back)
 
     from app.services.excel_service import export_analytics_to_excel
     agency_stmt = select(Agency).where(Agency.id == agency_id)
