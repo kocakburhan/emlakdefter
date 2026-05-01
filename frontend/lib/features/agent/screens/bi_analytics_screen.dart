@@ -52,10 +52,13 @@ class BIAnalyticsNotifier extends StateNotifier<AsyncValue<BIAnalyticsData>> {
     fetch();
   }
 
-  Future<void> fetch() async {
+  Future<void> fetch({String period = '12m'}) async {
     state = const AsyncValue.loading();
     try {
-      final resp = await ApiClient.dio.get('/analytics/bi-dashboard');
+      final resp = await ApiClient.dio.get(
+        '/analytics/bi-dashboard',
+        queryParameters: {'period': period},
+      );
       if (resp.statusCode == 200 && resp.data != null) {
         state = AsyncValue.data(BIAnalyticsData.fromJson(resp.data));
       } else {
@@ -96,6 +99,13 @@ class _BIAnalyticsScreenState extends ConsumerState<BIAnalyticsScreen>
   bool _headerDone = false;
 
   static const _periodOptions = ['Bu Ay', 'Son 3 Ay', 'Son 6 Ay', 'Bu Yıl', 'Geçen Yıl'];
+  static const _periodValueMap = {
+    'Bu Ay': '1m',
+    'Son 3 Ay': '3m',
+    'Son 6 Ay': '6m',
+    'Bu Yıl': '12m',
+    'Geçen Yıl': 'py',
+  };
 
   @override
   void initState() {
@@ -508,7 +518,11 @@ class _BIAnalyticsScreenState extends ConsumerState<BIAnalyticsScreen>
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: GestureDetector(
-                      onTap: () => setState(() => _selectedPeriod = p),
+                      onTap: () {
+                        setState(() => _selectedPeriod = p);
+                        final periodVal = _periodValueMap[p] ?? '12m';
+                        ref.read(biAnalyticsProvider.notifier).fetch(period: periodVal);
+                      },
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
