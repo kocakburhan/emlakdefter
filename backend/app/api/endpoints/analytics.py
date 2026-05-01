@@ -23,6 +23,15 @@ from app.schemas.analytics import (
 
 router = APIRouter()
 
+_PERIOD_MAP = {
+    "1m": 1,
+    "3m": 3,
+    "6m": 6,
+    "12m": 12,
+    "ytd": 0,   # current year to date — handled in helper
+    "py": -1,   # previous year — handled in helper
+}
+
 
 def _month_str(d: date) -> str:
     return f"{d.year}-{d.month:02d}"
@@ -32,7 +41,7 @@ def _month_str(d: date) -> str:
 # A. PORTFÖY PERFORMANS
 # ──────────────────────────────────────────────
 
-async def _build_portfolio_performance(db: AsyncSession, agency_id: UUID) -> PortfolioPerformanceResponse:
+async def _build_portfolio_performance(db: AsyncSession, agency_id: UUID, months_back: int = 12) -> PortfolioPerformanceResponse:
     # Tüm mülkler
     prop_stmt = select(Property).where(Property.agency_id == agency_id, Property.is_deleted == False)
     props = (await db.execute(prop_stmt)).scalars().all()
@@ -61,12 +70,12 @@ async def _build_portfolio_performance(db: AsyncSession, agency_id: UUID) -> Por
             occupancy_rate=round(p_occ / p_total * 100, 1) if p_total > 0 else 0.0,
         ))
 
-    # Son 12 ay trend — gerçek tarihsel veri
+    # Son N ay trend — gerçek tarihsel veri
     # Her ay için o ayın DOLULUK ORANI = o ayda rented olan birim sayısı / toplam birim
     # Kiracı start_date/actual_end_date kayıtlarından aylık doluluk tahmini
     now = date.today()
     occupancy_trend = []
-    for i in range(11, -1, -1):
+    for i in range(months_back - 1, -1, -1):
         m = (now - relativedelta(months=i)).replace(day=1)
         m_end = m + relativedelta(months=1)
 
@@ -124,7 +133,7 @@ async def _build_portfolio_performance(db: AsyncSession, agency_id: UUID) -> Por
 # B. KİRACI SİRKÜLASYONU
 # ──────────────────────────────────────────────
 
-async def _build_tenant_churn(db: AsyncSession, agency_id: UUID) -> TenantChurnResponse:
+async def _build_tenant_churn(db: AsyncSession, agency_id: UUID, months_back: int = 12) -> TenantChurnResponse:
     now = date.today()
 
     # Aktif kiracılar
@@ -133,9 +142,9 @@ async def _build_tenant_churn(db: AsyncSession, agency_id: UUID) -> TenantChurnR
     )
     active_count = (await db.execute(active_stmt)).scalar() or 0
 
-    # Son 12 ay giriş/çıkış
+    # Son N ay giriş/çıkış
     monthly_flow = []
-    for i in range(11, -1, -1):
+    for i in range(months_back - 1, -1, -1):
         m_start = (now - relativedelta(months=i)).replace(day=1)
         m_end = m_start + relativedelta(months=1)
 
@@ -182,7 +191,7 @@ async def _build_tenant_churn(db: AsyncSession, agency_id: UUID) -> TenantChurnR
 # C. FİNANSAL YILLIK RAPOR
 # ──────────────────────────────────────────────
 
-async def _build_financial_annual(db: AsyncSession, agency_id: UUID) -> FinancialAnnualResponse:
+async def _build_financial_annual(db: AsyncSession, agency_id: UUID, months_back: int = 12) -> FinancialAnnualResponse:
     now = date.today()
     current_year = now.year
     prev_year = current_year - 1
@@ -196,17 +205,17 @@ async def _build_financial_annual(db: AsyncSession, agency_id: UUID) -> Financia
         )
         return (await db.execute(stmt)).scalar() or 0
 
-    cur_inc = _year_total(current_year, "income")
-    cur_exp = _year_total(current_year, "expense")
-    prev_inc = _year_total(prev_year, "income")
-    prev_exp = _year_total(prev_year, "expense")
+    cur_inc = await _year_total(current_year, "income")
+    cur_exp = await _year_total(current_year, "expense")
+    prev_inc = await _year_total(prev_year, "income")
+    prev_exp = await _year_total(prev_year, "expense")
 
     inc_growth = ((cur_inc - prev_inc) / prev_inc * 100) if prev_inc > 0 else 0.0
     exp_growth = ((cur_exp - prev_exp) / prev_exp * 100) if prev_exp > 0 else 0.0
 
     # Aylık breakdown
     monthly_breakdown = []
-    for i in range(11, -1, -1):
+    for i in range(months_back - 1, -1, -1):
         m = (now - relativedelta(months=i)).replace(day=1)
         m_start = m
         m_end = m + relativedelta(months=1)
@@ -233,9 +242,9 @@ async def _build_financial_annual(db: AsyncSession, agency_id: UUID) -> Financia
             net_balance=inc_m - exp_m,
         ))
 
-    # Kategori trendleri (son 6 ay)
+    # Kategori trendleri (son N ay, max 6)
     category_trends = []
-    for i in range(5, -1, -1):
+    for i in range(min(months_back - 1, 5), -1, -1):
         m = (now - relativedelta(months=i)).replace(day=1)
         m_start = m
         m_end = m + relativedelta(months=1)
@@ -278,7 +287,7 @@ async def _build_financial_annual(db: AsyncSession, agency_id: UUID) -> Financia
 # D. TAHSİLAT PERFORMANSI
 # ──────────────────────────────────────────────
 
-async def _build_collection_performance(db: AsyncSession, agency_id: UUID) -> CollectionPerformanceResponse:
+async def _build_collection_performance(db: AsyncSession, agency_id: UUID, months_back: int = 12) -> CollectionPerformanceResponse:
     now = date.today()
 
     # Genel tahsilat oranı (tüm ödeme takvimleri üzerinden)
@@ -323,9 +332,9 @@ async def _build_collection_performance(db: AsyncSession, agency_id: UUID) -> Co
     )).scalar() or 0
     on_time_rate = (on_time_count / total_schedules * 100) if total_schedules > 0 else 0.0
 
-    # Aylık tahsilat oranları (son 6 ay)
+    # Aylık tahsilat oranları (son N ay)
     monthly_rates = []
-    for i in range(5, -1, -1):
+    for i in range(months_back - 1, -1, -1):
         m = (now - relativedelta(months=i)).replace(day=1)
         m_start = m
         m_end = m + relativedelta(months=1)
@@ -368,19 +377,24 @@ async def get_bi_analytics_dashboard(
     current_user: User = Depends(deps.get_current_user),
     agency_id: UUID = Depends(deps.get_current_user_agency_id),
     db: AsyncSession = Depends(deps.get_db),
+    period: str = "12m",
 ):
     """
     BI Analytics Dashboard — Emlak ofisi yöneticisinin (Kurucu Emlakçı / Admin)
     tüm stratejik metriklerini bir arada döner.
     PRD §4.1.10
+
+    period: 1m | 3m | 6m | 12m | ytd | py
     """
     # ✅ Boss rolü kontrolü — merkezi decorator
-    await deps.require_boss_role()(current_user=current_user, db=db, agency_id=agency_id)
+    await deps.require_boss_role()(current_user, db, agency_id)
 
-    portfolio = await _build_portfolio_performance(db, agency_id)
-    tenant_churn = await _build_tenant_churn(db, agency_id)
-    financial = await _build_financial_annual(db, agency_id)
-    collection = await _build_collection_performance(db, agency_id)
+    months_back = _PERIOD_MAP.get(period, 12)
+
+    portfolio = await _build_portfolio_performance(db, agency_id, months_back)
+    tenant_churn = await _build_tenant_churn(db, agency_id, months_back)
+    financial = await _build_financial_annual(db, agency_id, months_back)
+    collection = await _build_collection_performance(db, agency_id, months_back)
 
     return BIAnalyticsDashboard(
         portfolio=portfolio,
