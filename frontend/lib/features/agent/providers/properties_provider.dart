@@ -19,6 +19,9 @@ class PropertyModel {
   // Hesaplanan alan (Backend'den gelmiyor, unit listesinden hesaplanacak)
   final int emptyUnits;
 
+  // YENİ: İşlem tipi (for_rent, for_sale, both)
+  final String? listingType;
+
   PropertyModel({
     required this.id,
     required this.name,
@@ -29,6 +32,7 @@ class PropertyModel {
     this.features,
     this.createdAt,
     this.emptyUnits = 0,
+    this.listingType, // YENİ
   });
 
   /// Backend JSON → Flutter Model
@@ -40,13 +44,14 @@ class PropertyModel {
       address: json['address'],
       totalUnits: json['total_units'] ?? 0,
       centralDues: json['central_dues'] ?? 0,
-      features: json['features'] != null 
-          ? Map<String, dynamic>.from(json['features']) 
+      features: json['features'] != null
+          ? Map<String, dynamic>.from(json['features'])
           : null,
-      createdAt: json['created_at'] != null 
-          ? DateTime.tryParse(json['created_at']) 
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'])
           : null,
       emptyUnits: 0, // İleride unit detayından hesaplanacak
+      listingType: json['listing_type'], // YENİ
     );
   }
 }
@@ -121,6 +126,8 @@ class PropertiesNotifier extends StateNotifier<AsyncValue<List<PropertyModel>>> 
     int? unitsPerFloor,
     // Esnek kat yapılandırması (her kat için birim sayısı)
     List<Map<String, dynamic>>? floorConfig,
+    // YENİ: İşlem tipi (for_rent, for_sale, both)
+    String? listingType,
   }) async {
     final currentList = state.value ?? [];
 
@@ -131,6 +138,7 @@ class PropertiesNotifier extends StateNotifier<AsyncValue<List<PropertyModel>>> 
         'address': address,
         'central_dues': centralDues,
         'features': features ?? {},
+        'listing_type': listingType, // YENİ
       };
 
       // floor_config varsa esnek üretim kullan, yoksa uniform döngü parametreleri
@@ -146,7 +154,7 @@ class PropertiesNotifier extends StateNotifier<AsyncValue<List<PropertyModel>>> 
 
       if (response.statusCode == 201 && response.data != null) {
         final newProp = PropertyModel.fromJson(response.data);
-        state = AsyncValue.data([...currentList, newProp]);
+        state = AsyncValue.data([newProp, ...currentList]);
         debugPrint("✅ Yeni mülk oluşturuldu: ${newProp.name} (${newProp.totalUnits} birim)");
         return newProp.totalUnits;
       } else {
