@@ -5,17 +5,18 @@ import '../../../core/theme/colors.dart';
 import '../providers/properties_provider.dart';
 
 enum PropertyFormType {
-  apartment,  // → apartment_complex
+  apartment,     // → apartment_complex
   apartmentUnit, // → apartment_unit (YENİ)
-  villa,       // → standalone_house
+  villa,         // → standalone_house
   land,
   commercial,
 }
 
+// YENİ: İşlem tipi seçimi (kiralık/satılık/both)
 enum ListingType {
   forRent,   // "for_rent"
   forSale,   // "for_sale"
-  both,      // "both" — YENİ
+  both,      // "both"
 }
 
 class FloorConfigEntry {
@@ -45,9 +46,9 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
     with TickerProviderStateMixin {
   PropertyFormType _selectedType = PropertyFormType.apartment;
 
-  // YENİ: Wizard adımları
+  // YENİ: Wizard state
   int _wizardStep = 0; // 0=Tip seçimi, 1=Form
-  ListingType? _selectedListingType; // Kiralık/Satılık/Both
+  ListingType? _selectedListingType;
 
   final _nameController = TextEditingController();
   final _addressController = TextEditingController();
@@ -175,9 +176,9 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
       case PropertyFormType.apartment:
         return 'apartment_complex';  // Backend: apartment_complex
       case PropertyFormType.apartmentUnit:
-        return 'apartment_unit';      // Backend: apartment_unit (YENİ)
+        return 'apartment_unit';     // Backend: apartment_unit (YENİ)
       case PropertyFormType.villa:
-        return 'standalone_house';    // Backend: standalone_house
+        return 'standalone_house';  // Backend: standalone_house
       case PropertyFormType.land:
         return 'land';
       case PropertyFormType.commercial:
@@ -309,8 +310,8 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
                   );
                 },
                 child: _wizardStep == 0
-                    ? _buildTypeSelectionStep()
-                    : _buildFormStep(),
+                    ? _buildWizardStep0()
+                    : _buildFormContent(),
               ),
             ),
           ],
@@ -323,7 +324,7 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
   // WIZARD STEP 0 — TİP SEÇİMİ
   // ═══════════════════════════════════════════════════════════════
 
-  Widget _buildTypeSelectionStep() {
+  Widget _buildWizardStep0() {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 28),
       child: Column(
@@ -404,15 +405,15 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                _buildPropertyTypeChip("APARTMAN/SİTE", Icons.apartment, PropertyFormType.apartment),
+                _buildTypeChip("APARTMAN/SİTE", Icons.apartment, PropertyFormType.apartment),
                 const SizedBox(width: 8),
-                _buildPropertyTypeChip("APARTMAN DAİRESİ", Icons.meeting_room, PropertyFormType.apartmentUnit),
+                _buildTypeChip("APARTMAN DAİRESİ", Icons.meeting_room, PropertyFormType.apartmentUnit),
                 const SizedBox(width: 8),
-                _buildPropertyTypeChip("MÜSTAKİL EV", Icons.villa, PropertyFormType.villa),
+                _buildTypeChip("MÜSTAKİL EV", Icons.villa, PropertyFormType.villa),
                 const SizedBox(width: 8),
-                _buildPropertyTypeChip("ARSA/TARLA", Icons.landscape, PropertyFormType.land),
+                _buildTypeChip("ARSA/TARLA", Icons.landscape, PropertyFormType.land),
                 const SizedBox(width: 8),
-                _buildPropertyTypeChip("DÜKKAN", Icons.storefront, PropertyFormType.commercial),
+                _buildTypeChip("DÜKKAN", Icons.storefront, PropertyFormType.commercial),
               ],
             ),
           ),
@@ -476,94 +477,50 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
     );
   }
 
-  Widget _buildPropertyTypeChip(String label, IconData icon, PropertyFormType type) {
-    final isSelected = _selectedType == type;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedType = type),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.charcoal : AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? AppColors.charcoal : Colors.white.withValues(alpha: 0.08),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: isSelected ? Colors.white : AppColors.textSecondary),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: isSelected ? Colors.white : AppColors.textSecondary,
-                letterSpacing: 0.3,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  bool _canProceed() => _selectedListingType != null;
 
-  bool _canProceed() {
-    return _selectedListingType != null;
-  }
-
-  void _proceedToForm() {
-    setState(() => _wizardStep = 1);
-  }
+  void _proceedToForm() => setState(() => _wizardStep = 1);
 
   // ═══════════════════════════════════════════════════════════════
-  // WIZARD STEP 1 — FORM
+  // WIZARD STEP 1 — FORM CONTENT
   // ═══════════════════════════════════════════════════════════════
 
-  Widget _buildFormStep() {
+  Widget _buildFormContent() {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
+          // Geri butonu ve başlık
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.charcoal.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(14),
+              GestureDetector(
+                onTap: () => setState(() => _wizardStep = 0),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.arrow_back, size: 16, color: AppColors.textPrimary),
                 ),
-                child: const Icon(Icons.add_location_alt, color: AppColors.charcoal, size: 24),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _getListingTypeLabel(),
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Text(
-                      "Portföyünüze yeni bir gayrimenkul ekleyin",
-                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                    ),
-                  ],
+                child: Text(
+                  _getWizardSubtitle(),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 24),
 
-          // ── MÜLK TİPİ SEÇİMİ (Zorunlu Adım 1) ────────────────
+          // MÜLK TİPİ SEÇİMİ
           const Text(
             "MÜLK TİPİ",
             style: TextStyle(
@@ -590,7 +547,7 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
           ),
           const SizedBox(height: 28),
 
-          // ── ORTAK ALANLAR ────────────────────────────────────
+          // ORTAK ALANLAR
           _buildTextField(
             controller: _nameController,
             label: "Mülk Adı",
@@ -606,12 +563,12 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
           ),
           const SizedBox(height: 16),
 
-          // ── TİPE GÖRE DİNAMİK ALANLAR ──────────────────────
+          // TİPE GÖRE DİNAMİK ALANLAR
           _buildDynamicFields(),
 
           const SizedBox(height: 28),
 
-          // ── ONAY BUTONU ────────────────────────────────────
+          // ONAY BUTONU
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -625,16 +582,16 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
                 ),
               ),
               child: _isLoading
-                  ? Row(
+                  ? const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const SizedBox(
+                        SizedBox(
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         ),
-                        const SizedBox(width: 12),
-                        const Text(
+                        SizedBox(width: 12),
+                        Text(
                           "OTONOM ÜRETİM ÇALIŞTIRILIYOR...",
                           style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1),
                         ),
@@ -673,7 +630,7 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
     );
   }
 
-  String _getListingTypeLabel() {
+  String _getWizardSubtitle() {
     switch (_selectedListingType) {
       case ListingType.forRent:
         return "Kiralık Mülk Ekle";
@@ -684,115 +641,6 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
       default:
         return "Yeni Mülk Ekle";
     }
-  }
-                          color: AppColors.textSecondary,
-                          letterSpacing: 1.5,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            _buildTypeChip("APARTMAN / SİTE", Icons.apartment, PropertyFormType.apartment),
-                            const SizedBox(width: 8),
-                            _buildTypeChip("MÜSTAKİL EV", Icons.villa, PropertyFormType.villa),
-                            const SizedBox(width: 8),
-                            _buildTypeChip("ARSA / TARLA", Icons.landscape, PropertyFormType.land),
-                            const SizedBox(width: 8),
-                            _buildTypeChip("DÜKKAN", Icons.storefront, PropertyFormType.commercial),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 28),
-
-                      // ── ORTAK ALANLAR ────────────────────────────────────
-                      _buildTextField(
-                        controller: _nameController,
-                        label: "Mülk Adı",
-                        hint: "Örn: Boğaz Evleri Sitesi",
-                        icon: Icons.badge_outlined,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTextField(
-                        controller: _addressController,
-                        label: "Adres (Opsiyonel)",
-                        hint: "Örn: Atatürk Cad. No:42, Beşiktaş",
-                        icon: Icons.location_on_outlined,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // ── TİPE GÖRE DİNAMİK ALANLAR ──────────────────────
-                      _buildDynamicFields(),
-
-                      const SizedBox(height: 28),
-
-                      // ── ONAY BUTONU ────────────────────────────────────
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _submit,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.charcoal,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          child: _isLoading
-                              ? Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    const Text(
-                                      "OTONOM ÜRETİM ÇALIŞTIRILIYOR...",
-                                      style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1),
-                                    ),
-                                  ],
-                                )
-                              : _isCreated
-                                  ? Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        const Icon(Icons.check_circle, size: 20),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          "✅ $_createdUnitsCount DAIRE OLUŞTURULDU!",
-                                          style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1),
-                                        ),
-                                      ],
-                                    )
-                                  : Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        const Icon(Icons.rocket_launch, size: 20),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          _selectedType == PropertyFormType.apartment
-                                              ? "OTONOM İNŞAATA BAŞLA"
-                                              : "MÜLK EKLE",
-                                          style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1),
-                                        ),
-                                      ],
-                                    ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _buildTypeChip(String label, IconData icon, PropertyFormType type) {
@@ -1589,7 +1437,7 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
         ),
         const SizedBox(height: 16),
 
-        // Kat
+        // Kat ve Aidat
         Row(
           children: [
             Expanded(child: _buildNumberField(_endFloorController, "Kat")),
