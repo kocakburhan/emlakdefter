@@ -18,8 +18,9 @@ async def create_property_with_autonomous_units(db: AsyncSession, agency_id: str
         name=prop_in.name,
         type=prop_in.type,
         address=prop_in.address,
-        central_dues=prop_in.central_dues,  
-        features=prop_in.features or {}
+        central_dues=prop_in.central_dues,
+        features=prop_in.features or {},
+        listing_type=prop_in.listing_type  # YENİ: İşlem tipi
     )
     
     db.add(new_property)
@@ -94,6 +95,18 @@ async def create_property_with_autonomous_units(db: AsyncSession, agency_id: str
         )
         new_property.total_units = 1
         db.add(unit)
+    elif prop_in.type == PropertyType.apartment_unit:
+        # YENİ: Apartman dairesi — tek birim olarak oluştur
+        unit = PropertyUnit(
+            agency_id=new_property.agency_id,
+            property_id=new_property.id,
+            door_number="1",
+            floor="Zemin",
+            dues_amount=new_property.central_dues,
+            listing_type=prop_in.listing_type  # YENİ: İşlem tipi birime de yansır
+        )
+        new_property.total_units = 1
+        db.add(unit)
     elif prop_in.type in (PropertyType.land, PropertyType.commercial):
         # Arsa ve Ticari için de tekil birim oluştur (Test 5 istisnası)
         unit = PropertyUnit(
@@ -109,5 +122,16 @@ async def create_property_with_autonomous_units(db: AsyncSession, agency_id: str
          raise HTTPException(status_code=400, detail="Tanımsız veya hatalı mülk tipi isteği algılandı.")
          
     await db.commit() # Database'e işlemi kilitle
-    await db.refresh(new_property)
-    return new_property
+
+    # Refresh instance yerine fresh SELECT yap — refresh race condition oluşabiliyor
+    from sqlalchemy import select
+    stmt = select(Property).where(Property.id == new_property.id)
+    result = await db.execute(stmt)
+    fresh_property = result.scalar_one_or_none()
+
+    # Hala yoksa detached object üzerinden manual dön
+    if fresh_property is None:
+        # Detached object — sadece ID ve computed field'lari set et
+        fresh_property = new_property
+
+    return fresh_property
