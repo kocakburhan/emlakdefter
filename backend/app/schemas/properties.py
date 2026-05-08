@@ -35,6 +35,7 @@ class PropertyUnitResponse(PropertyUnitBase):
     commission_rate: Optional[float] = None
     youtube_video_link: Optional[str] = None
     media_links: Optional[List[Dict[str, Any]]] = None
+    listing_type: Optional[str] = None  # YENİ
 
     class Config:
         from_attributes = True
@@ -48,10 +49,11 @@ class FloorConfigItem(BaseModel):
 class PropertyCreate(BaseModel):
     """Emlakçının UI formundan doldurup göndereceği paket"""
     name: str = Field(..., description="Mülk Adı (Örn: Güneş Sitesi veya Hobi Bahçesi)")
-    type: str = Field(..., description="'apartment_complex', 'standalone_house', 'land' veya 'commercial'")
+    type: str = Field(..., description="'apartment_complex', 'apartment_unit', 'standalone_house', 'land' veya 'commercial'")
     address: Optional[str] = None
     central_dues: NonNegativeInt = Field(0, description="Dairelere miras bırakılacak varsayılan aidat")
     features: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Asansör, Havuz gibi JSON miras özellikleri")
+    listing_type: Optional[str] = Field(None, description="'for_rent', 'for_sale' veya 'both'")
 
     # Sistemin can damarı: Otonom Generative Parameters (Asimetrik Üretim)
     start_floor: Optional[int] = Field(None, description="Başlangıç katı (Örn: -2 Otopark katları dahil)")
@@ -75,7 +77,8 @@ class PropertyResponse(BaseModel):
     central_dues: int
     features: Optional[Dict[str, Any]]
     created_at: datetime
-    
+    listing_type: Optional[str] = None  # YENİ
+
     class Config:
         from_attributes = True
 
