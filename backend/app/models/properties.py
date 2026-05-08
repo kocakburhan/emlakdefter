@@ -6,6 +6,7 @@ from .base import BaseModel
 
 class PropertyType(str, enum.Enum):
     apartment_complex = "apartment_complex"  # Apartman / Site
+    apartment_unit = "apartment_unit"        # YENİ: Apartman Dairesi (tek birim)
     standalone_house = "standalone_house"    # Müstakil / Villa
     land = "land"                            # Arsa / Tarla
     commercial = "commercial"                 # Ticari / Dükkan
@@ -26,6 +27,9 @@ class Property(BaseModel):
     year_built = Column(Integer, nullable=True)         # Yapım yılı
     land_area = Column(Integer, nullable=True)          # Arsa alanı m² (land için)
     commercial_type = Column(String, nullable=True)     # Ticari tipi — "shop", "office", "warehouse" vs
+
+    # YENİ: İşlem tipi (for_rent, for_sale, both)
+    listing_type = Column(String, nullable=True)
 
     agency = relationship("Agency", back_populates="properties")
     units = relationship("PropertyUnit", back_populates="property")
@@ -55,6 +59,9 @@ class PropertyUnit(BaseModel):
     area_sqm = Column(Integer, nullable=True)         # m² cinsinden alan (land, commercial, standalone_house)
     unit_identifier = Column(String, nullable=True)    # Arsa: "Parsel 123", Dükkan: "Mağaza No: A1"
     notes = Column(String, nullable=True)              # Ek notlar
+
+    # YENİ: İşlem tipi (for_rent, for_sale, both)
+    listing_type = Column(String, nullable=True)
 
     property = relationship("Property", back_populates="units")
     landlord_relations = relationship("LandlordUnit", back_populates="unit")
