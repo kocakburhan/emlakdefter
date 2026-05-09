@@ -64,7 +64,7 @@ backend/app/api/endpoints/
 5. **Gemini PDF parsing** — Gerçek banka ekstresiyle test edilmedi
 
 ### 🟡 Orta Öncelik
-1. **Web platformu** — `bi_analytics_screen_web.dart`, `mali_rapor_screen_web.dart` ayrıştırması devam
+1. **Web platformu** — ✅ `bi_analytics_screen_web.dart` ve `mali_rapor_screen_web.dart` production ready (PDF/Excel export her iki platformda çalışıyor)
 2. **Hetzner Object Storage** — Bucket credentials gerekli (prod deployment)
 3. **APScheduler bildirimleri** — ✅ Endpoint auth testleri pass (4/4)
 4. **Excel/PDF export** — ✅ Endpoint auth testleri pass (9/9) — finance PDF endpoint'i 404 (yok)
