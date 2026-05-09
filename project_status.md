@@ -58,8 +58,8 @@ backend/app/api/endpoints/
 
 ### 🔴 Acil — Test Edilmesi Gerekenler
 1. **Firebase Phone Auth** — Console'da aktif edilmedi
-2. **Tüm API endpoint'leri** — Entegrasyon testleri yok
-3. **WebSocket Chat** — Backend çalışıyor mu test edilmedi
+2. **Tüm API endpoint'leri** — ✅ Entegrasyon testleri eklendi (51/54 pass)
+3. **WebSocket Chat** — ✅ WebSocket auth testleri pass (4/4 pass, 1 skip)
 4. **Offline Sync** — Queue mekanizması var ama test edilmedi
 5. **Gemini PDF parsing** — Gerçek banka ekstresiyle test edilmedi
 
