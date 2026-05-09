@@ -168,7 +168,151 @@ backend/app/api/endpoints/
 
 ---
 
+## Düzeltilen Hatalar
+
+### 2 Mayıs 2026 — Chat WebSocket & db.refresh() Hataları
+
+**Problem 1: WebSocket Bağlantı Hatası**
+- **Sebep:** Flutter WebSocket client'ı `ws://127.0.0.1:8001/api/v1/chat/ws/...` adresine bağlanmaya çalışıyordu
+- **Gerçek:** FastAPI WebSocket endpoint'i port 8000'de çalışıyor (tüm endpoint'ler tek port'ta)
+- **Çözüm:** `frontend/lib/core/network/chat_websocket_service.dart` dosyasında `_wsBaseUrl` port 8001 → 8000 olarak değiştirildi
+
+**Problem 2: Chat Mesaj Gönderme - db.refresh() Race Condition**
+- **Sebep:** `chat.py` endpoint'lerinde `await db.refresh()` async commit sonrası kullanılınca `InvalidRequestError` hatası
+- **Çözüm:** Tüm `db.refresh()` çağrıları fresh SELECT sorgusu ile değiştirildi:
+  - `send_message()`: ChatMessage refresh
+  - `create_conversation()`: ChatConversation refresh
+  - `archive_conversation()`: ChatConversation refresh
+  - `edit_message()`: ChatMessage refresh
+- **Pattern:** Aynı `db.refresh()` race condition fix'i `property_service.py`'de daha önce uygulanmıştı
+
+**Not:** Backend otomatik reload edecek (`--reload` flag), Flutter'da değişiklikleri test etmek için hot restart yapın.
+
+---
+
+### 9 Mayıs 2026 — Chat WhatsApp-Style Düzeltmeleri
+
+**Yapılan Değişiklikler:**
+
+1. **Message Bubble Alignment** (`frontend/lib/features/agent/screens/chat_window_screen.dart`):
+   - Gönderilen mesajlar (isMine=true) artık WhatsApp'ta olduğu gibi SAAĞDA yeşil balon
+   - Alınan mesajlar SOLDAA beyaz/gri balon
+   - `CrossAxisAlignment.end` ve `MainAxisAlignment.end` kullanılarak doğru hizalama
+   - Gereksiz `Spacer(flex: 1)` ve `Flexible(flex: 5)` wrapper'ları kaldırıldı
+   - Balon köşeleri artık doğru: gönderen = sağ üst yuvarlak, sol alt kare; alan = sol üst yuvarlak, sağ alt kare
+
+2. **WebSocket URL Path Düzeltmesi** (`frontend/lib/core/network/chat_websocket_service.dart`):
+   - Backend endpoint path'i `/api/v1/chat/ws/` → `/chat/ws/` olarak düzeltildi (api_router prefix'i zaten `/api/v1` ekliyor)
+   - URL artık doğru: `ws://127.0.0.1:8000/api/v1/chat/ws/{conversationId}`
+
+3. **UserID Initialization** (`chat_tab.dart`, `chat_window_screen.dart`):
+   - `auth_provider.dart`'dan `AuthNotifier` kullanılarak `_myUserId` doğru ayarlandı
+   - `ChatWindowScreen.initState()` ve `ChatTab.initState()` içinde `authProvider` okunarak `setMyUserId()` çağrılıyor
+   - Mesaj göndereni doğru tespit edilebiliyor (isMine flag)
+
+**Sorunlar:**
+- Gönderilen mesajların yeşil balonda sağda, alınan mesajların beyaz balonda solda gösterilmesi
+- WebSocket bağlantısının yanlış URL'den yapılması
+- `isMine` flag'inin `_myUserId` null olduğu için hep `false` olması
+
+**Çözüm:** `CrossAxisAlignment.end` + `MainAxisAlignment.end` ile WhatsApp tarzı hizalama + UserID doğru initialize edilmesi
+
+**Durum:** Backend/Frontend düzeltildi, test edilmeli ✅
+
+---
+
+### 9 Mayıs 2026 — Kullanıcılar Ekranı (Animated Card Selection)
+
+**Yapılan Değişiklikler:**
+
+1. **Yeni Kullanıcılar Ekranı** (`frontend/lib/features/agent/tabs/users_tab.dart`):
+   - 3 kategori kartı: Çalışanlar, Kiracılar, Ev Sahipleri
+   - TweenAnimationBuilder ile animasyonlu kart seçimi
+   - Seçili kart scale + opacity artışı, seçili olmayanlar fade out
+   - Her kartta kullanıcı sayısı rozeti
+   - Her kategoride o kategorye ait kullanıcı listesi
+
+2. **Yeni Users Provider** (`frontend/lib/features/agent/providers/users_provider.dart`):
+   - AppUser model: tüm kullanıcı tiplerini birleştirir
+   - UsersNotifier: employees/tenants/landlords ayrı listeler
+   - UserCategory enum ile seçili kategori takibi
+   - loadAll(): tüm kategorileri paralel yükler
+
+3. **Agent Dashboard Güncellemesi** (`agent_dashboard_screen.dart`):
+   - EmployeesTab → UsersTab (tab index 5)
+   - 6. tab = Users (formerly Employees)
+
+**Backend:** Değişiklik yok — mevcut endpoint'ler kullanıldı (`/agency/employees`, `/tenants`, `/tenants/landlords`)
+
+**Durum:** Tamamlandı ✅
+
+---
+
 ## Tamamlanan Görevler
+
+### 7 Mayıs 2026 — Geri Butonu ve Çıkış Yap Düzeltmeleri
+
+**Sorunlar:**
+1. Özet ekranı hariç tüm ekranlarda geri butonu yoktu
+2. Web'de tarayıcının geri butonuna basılınca giriş ekranına atıyordu
+3. Dashboard'larda (Admin, Agent, Tenant, Landlord) çıkış yap butonu yoktu veya düzgün çalışmıyordu
+4. Web'de kullanıcı tarayıcı geri butonuna basarak uygulamadan çıkamıyordu
+5. Agent dashboard'da geri butonu ve logout butonu eksikti
+
+**Çözümler:**
+1. **Agent Dashboard Düzeltmesi** (`frontend/lib/features/agent/screens/agent_dashboard_screen.dart`):
+   - `StatefulWidget` → `ConsumerStatefulWidget` olarak değiştirildi
+   - AppBar eklendi: sol üstte geri butonu, sağ üstte "Çıkış yap" butonu
+   - WebBackButtonHandler.updateContext(context) ile browser back uyarısı için context kaydediliyor
+   - Her tab için başlık gösteriliyor (Ana Sayfa, Binalar, Finans, Destek, Operasyon, Çalışanlar, Sohbet)
+   - Geri butonu ana sayfadaysa uyarı dialogu gösteriyor**
+
+1. **NavigationService** (`frontend/lib/core/router/router.dart`):
+   - go_router ile entegre navigation history servisi eklendi
+   - Singleton pattern ile app genelinde kullanılıyor
+   - **Not:** `onPopPage` GoRouter'da desteklenmiyor, kaldırıldı
+
+2. **AppBackButton Widget** (`frontend/lib/core/widgets/app_back_button.dart`):
+   - `context.pop()` kullanarak Navigator.pop yerine go_router pop yapıyor
+   - Web'de browser history ile doğru çalışıyor
+   - `AppBackButton` ve `AppBackButtonWithText` variantları mevcut
+
+3. **Web Back Button Engelleme** (`frontend/lib/core/utils/web_back_button_handler.dart`):
+   - `dart:html` kullanılarak browser history manipüle ediliyor
+   - `pushState` ile her seferinde yeni state eklenerek geri butonu nötralize ediliyor
+   - `onPopState` listener ile kullanıcı aynı sayfada kalıyor
+   - Kullanıcı uyarılıyor: "Tarayıcınızın geri butonunu kullanmak yerine, ekranın sol üstündeki geri butonunu kullanın."
+
+4. **Back Button Düzeltmeleri:**
+   - `property_detail_screen.dart`: `Navigator.pop` → `context.pop()`
+   - `unit_detail_screen.dart`: `Navigator.pop` → `context.pop()`
+   - `tenants_management_screen.dart`: `Navigator.pop` → `context.pop()`
+   - `landlord_investment_screen.dart`: `Navigator.pop` → `context.pop()`
+   - `landlord_properties_screen.dart`: `Navigator.pop(ctx)` → `ctx.pop()`
+
+5. **Logout Butonları:**
+   - **Admin Dashboard**: `authProvider.notifier.logOut()` çağrısı eklendi
+   - **Landlord Dashboard**: Sağ üste "Çıkış yap" butonu eklendi
+   - **Tenant Dashboard**: StatefulWidget'tan ConsumerStatefulWidget'a çevrilerek ref erişimi sağlandı, logout butonu eklendi
+
+**Dosyalar:**
+- `frontend/lib/core/router/router.dart` — NavigationService (onPopPage kaldırıldı)
+- `frontend/lib/core/widgets/app_back_button.dart` — Yeni widget
+- `frontend/lib/core/utils/web_back_button_handler.dart` — Web back button handler (YENİ)
+- `frontend/lib/core/widgets/web_back_button_wrapper.dart` — Web wrapper widget (YENİ)
+- `frontend/lib/main.dart` — WebBackButtonHandler.initialize() çağrısı eklendi
+- `frontend/lib/features/admin/screens/admin_dashboard_screen.dart` — Logout fix
+- `frontend/lib/features/landlord/screens/landlord_dashboard_screen.dart` — Logout butonu
+- `frontend/lib/features/tenant/screens/tenant_dashboard_screen.dart` — ConsumerStatefulWidget + Logout
+- `frontend/lib/features/agent/screens/property_detail_screen.dart` — context.pop()
+- `frontend/lib/features/agent/screens/unit_detail_screen.dart` — context.pop()
+- `frontend/lib/features/agent/screens/tenants_management_screen.dart` — context.pop()
+- `frontend/lib/features/landlord/screens/landlord_investment_screen.dart` — context.pop()
+- `frontend/lib/features/landlord/screens/landlord_properties_screen.dart` — ctx.pop()
+
+**Durum:** Tamamlandı ✅
+
+**Not:** Web'de browser geri butonu artık uygulama içi gezinme için kullanılamıyor. Kullanıcılar ekranın sol üstündeki geri butonunu veya "Çıkış yap" butonunu kullanmalı. Navigator.pop kullanımları hâlâ ~100 yerde mevcut, büyük mimari değişiklik gerektiriyor.
 
 ### 30 Nisan 2026 — Özet Ekranı Agent Workflow ile Yeniden Geliştirildi
 

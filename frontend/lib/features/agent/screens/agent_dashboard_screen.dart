@@ -1,25 +1,34 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/colors.dart';
+import '../../../core/utils/web_back_button_handler.dart';
+import '../../../features/auth/providers/auth_provider.dart';
 import '../screens/agent_home_menu_screen.dart';
 import '../tabs/properties_tab.dart';
 import '../tabs/finance_tab.dart';
 import '../tabs/support_tab.dart';
 import '../tabs/building_operations_tab.dart';
 import '../tabs/chat_tab.dart';
-import '../tabs/employees_tab.dart';
+import '../tabs/users_tab.dart';
 
-class AgentDashboardScreen extends StatefulWidget {
+class AgentDashboardScreen extends ConsumerStatefulWidget {
   const AgentDashboardScreen({Key? key}) : super(key: key);
 
   @override
-  State<AgentDashboardScreen> createState() => _AgentDashboardScreenState();
+  ConsumerState<AgentDashboardScreen> createState() => _AgentDashboardScreenState();
 }
 
-class _AgentDashboardScreenState extends State<AgentDashboardScreen>
+class _AgentDashboardScreenState extends ConsumerState<AgentDashboardScreen>
     with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
   late AnimationController _navController;
+  StreamSubscription<void>? _backButtonSubscription;
+
+  // Navigation stack to track screen history (for proper back navigation)
+  final List<int> _navigationStack = [0];
 
   List<Widget> get _pages => [
     AgentHomeMenuScreen(onNavigateToTab: _onTabChanged),
@@ -27,7 +36,7 @@ class _AgentDashboardScreenState extends State<AgentDashboardScreen>
     const FinanceTab(),
     const SupportTab(),
     const BuildingOperationsTab(),
-    const EmployeesTab(),
+    const UsersTab(),
     const ChatTab(),
   ];
 
@@ -38,17 +47,38 @@ class _AgentDashboardScreenState extends State<AgentDashboardScreen>
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
+    // Subscribe to web back button events
+    _backButtonSubscription = WebBackButtonHandler.onBackButtonPressed.listen((_) {
+      if (mounted) {
+        _showBackButtonHint();
+      }
+    });
   }
 
   @override
   void dispose() {
+    _backButtonSubscription?.cancel();
     _navController.dispose();
     super.dispose();
   }
 
   void _onTabChanged(int index) {
     if (index != _currentIndex) {
-      setState(() => _currentIndex = index);
+      setState(() {
+        _currentIndex = index;
+        _navigationStack.add(index);
+      });
+    }
+  }
+
+  void _goBack() {
+    if (_navigationStack.length > 1) {
+      setState(() {
+        _navigationStack.removeLast();
+        _currentIndex = _navigationStack.last;
+      });
+    } else {
+      _showExitWarning(context);
     }
   }
 
@@ -56,28 +86,72 @@ class _AgentDashboardScreenState extends State<AgentDashboardScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        switchInCurve: Curves.easeOut,
-        switchOutCurve: Curves.easeIn,
-        transitionBuilder: (child, animation) {
-          return FadeTransition(
-            opacity: animation,
-            child: SlideTransition(
-              position:
-                  Tween<Offset>(
-                    begin: const Offset(0.02, 0),
-                    end: Offset.zero,
-                  ).animate(
-                    CurvedAnimation(parent: animation, curve: Curves.easeOut),
-                  ),
-              child: child,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(10),
             ),
-          );
+            child: const Icon(Icons.arrow_back, color: AppColors.charcoal, size: 20),
+          ),
+          onPressed: _goBack,
+        ),
+        title: Text(
+          _getTitle(_currentIndex),
+          style: const TextStyle(color: AppColors.charcoal, fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+        centerTitle: true,
+        actions: [
+          TextButton.icon(
+            icon: const Icon(Icons.logout, color: AppColors.charcoal, size: 18),
+            label: const Text(
+              'Çıkış yap',
+              style: TextStyle(color: AppColors.charcoal, fontSize: 13),
+            ),
+            onPressed: () async {
+              await ref.read(authProvider.notifier).logOut();
+              if (context.mounted) {
+                context.go('/');
+              }
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop) {
+            _goBack();
+          }
         },
-        child: KeyedSubtree(
-          key: ValueKey(_currentIndex),
-          child: _pages[_currentIndex],
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeIn,
+          transitionBuilder: (child, animation) {
+            return FadeTransition(
+              opacity: animation,
+              child: SlideTransition(
+                position:
+                    Tween<Offset>(
+                      begin: const Offset(0.02, 0),
+                      end: Offset.zero,
+                    ).animate(
+                      CurvedAnimation(parent: animation, curve: Curves.easeOut),
+                    ),
+                child: child,
+              ),
+            );
+          },
+          child: KeyedSubtree(
+            key: ValueKey(_currentIndex),
+            child: _pages[_currentIndex],
+          ),
         ),
       ),
       bottomNavigationBar: _buildBottomNav(),
@@ -192,6 +266,82 @@ class _AgentDashboardScreenState extends State<AgentDashboardScreen>
         child: Icon(isSelected ? activeIcon : icon, size: 22),
       ),
       label: label,
+    );
+  }
+
+  String _getTitle(int index) {
+    switch (index) {
+      case 0:
+        return 'Ana Sayfa';
+      case 1:
+        return 'Binalar';
+      case 2:
+        return 'Finans';
+      case 3:
+        return 'Destek';
+      case 4:
+        return 'Operasyon';
+      case 5:
+        return 'Çalışanlar';
+      case 6:
+        return 'Sohbet';
+      default:
+        return 'Agent';
+    }
+  }
+
+  void _showBackButtonHint() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(this.context).showSnackBar(
+      SnackBar(
+        content: const Row(
+          children: [
+            Icon(Icons.info_outline, color: Colors.white, size: 20),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Geri gitmek için ekranın sol üstündeki geri butonunu kullanın',
+                style: TextStyle(color: Colors.white, fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF1E1E2E),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 3),
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+      ),
+    );
+  }
+
+  void _showExitWarning(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.exit_to_app, color: AppColors.charcoal, size: 22),
+            SizedBox(width: 10),
+            Text(
+              'Çıkış yapmak istiyor musunuz?',
+              style: TextStyle(color: AppColors.charcoal, fontSize: 18),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Uygulamadan çıkmak için sağ üstteki "Çıkış yap" butonunu kullanın.',
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Tamam', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+        ],
+      ),
     );
   }
 }
