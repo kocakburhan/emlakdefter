@@ -60,7 +60,7 @@ backend/app/api/endpoints/
 1. **Firebase Phone Auth** — Console'da aktif edilmedi
 2. **Tüm API endpoint'leri** — ✅ Entegrasyon testleri eklendi (51/54 pass)
 3. **WebSocket Chat** — ✅ WebSocket auth testleri pass (4/4 pass, 1 skip)
-4. **Offline Sync** — Queue mekanizması var ama test edilmedi
+4. **Offline Sync** — ✅ Offline queue testleri pass (35/35)
 5. **Gemini PDF parsing** — Gerçek banka ekstresiyle test edilmedi
 
 ### 🟡 Orta Öncelik
