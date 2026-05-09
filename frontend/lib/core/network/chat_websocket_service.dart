@@ -61,6 +61,7 @@ class ChatWebSocketService {
       }
 
       final wsBaseUrl = _wsBaseUrl;
+      // Backend WebSocket endpoint: /api/v1/chat/ws/{conversation_id}
       final uri = Uri.parse('$wsBaseUrl/chat/ws/$conversationId?token=$token');
       debugPrint('[WS] Bağlanıyor: $uri');
 
@@ -190,13 +191,12 @@ class ChatWebSocketService {
   }
 
   String get _wsBaseUrl {
-    const port = '8001';
+    // FastAPI + WebSocket endpoint'leri aynı port üzerinde çalışır (8000)
+    const port = '8000';
     if (kIsWeb) {
       return 'ws://127.0.0.1:$port/api/v1';
     }
     // Android emulator: 10.0.2.2 → host machine's localhost
-    // iOS simulator / physical device: use configured server IP
-    // The production URL should come from environment config
     return 'ws://10.0.2.2:$port/api/v1';
   }
 

@@ -147,11 +147,16 @@ async def get_current_user_agency_id(
         await set_rls_context(db, agency_id)
         return agency_id
 
+    # Önce AgencyStaff tablosundan dene (yeni çoklu-ofis yapısı)
     stmt = select(AgencyStaff.agency_id).where(
         AgencyStaff.user_id == current_user.id
     )
     result = await db.execute(stmt)
     agency_id = result.scalar_one_or_none()
+
+    # Fallback: users tablosundaki agency_id (eski tek-agency yapısı)
+    if agency_id is None:
+        agency_id = current_user.agency_id
 
     if agency_id is None:
         raise HTTPException(

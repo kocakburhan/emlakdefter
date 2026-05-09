@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/colors.dart';
+import '../../../features/auth/providers/auth_provider.dart';
 import '../providers/landlord_provider.dart';
 import 'landlord_properties_screen.dart';
 import 'landlord_tenant_performance_screen.dart';
@@ -110,31 +112,53 @@ class _LandlordDashboardScreenState extends ConsumerState<LandlordDashboardScree
                   ],
                 ),
               ),
-              // Avatar
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      const Color(0xFFD4A574).withValues(alpha:0.8),
-                      const Color(0xFFB8956A).withValues(alpha:0.9),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFD4A574).withValues(alpha:0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
+              // Avatar + Logout
+              Row(
+                children: [
+                  IconButton(
+                    icon: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.logout, color: AppColors.textSecondary, size: 18),
                     ),
-                  ],
-                ),
-                child: const Center(
-                  child: Text('E', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                ),
+                    onPressed: () async {
+                      await ref.read(authProvider.notifier).logOut();
+                      if (context.mounted) {
+                        context.go('/');
+                      }
+                    },
+                    tooltip: 'Çıkış yap',
+                  ),
+                  const SizedBox(width: 4),
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          const Color(0xFFD4A574).withValues(alpha:0.8),
+                          const Color(0xFFB8956A).withValues(alpha:0.9),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFD4A574).withValues(alpha:0.3),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Center(
+                      child: Text('E', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

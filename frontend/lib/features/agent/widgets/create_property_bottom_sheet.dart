@@ -5,18 +5,18 @@ import '../../../core/theme/colors.dart';
 import '../providers/properties_provider.dart';
 
 enum PropertyFormType {
-  apartment,     // → apartment_complex
+  apartment, // → apartment_complex
   apartmentUnit, // → apartment_unit (YENİ)
-  villa,         // → standalone_house
+  villa, // → standalone_house
   land,
   commercial,
 }
 
 // YENİ: İşlem tipi seçimi (kiralık/satılık/both)
 enum ListingType {
-  forRent,   // "for_rent"
-  forSale,   // "for_sale"
-  both,      // "both"
+  forRent, // "for_rent"
+  forSale, // "for_sale"
+  both, // "both"
 }
 
 class FloorConfigEntry {
@@ -24,7 +24,11 @@ class FloorConfigEntry {
   int units;
   bool excluded;
 
-  FloorConfigEntry({required this.floor, this.units = 2, this.excluded = false});
+  FloorConfigEntry({
+    required this.floor,
+    this.units = 2,
+    this.excluded = false,
+  });
 
   FloorConfigEntry copyWith({int? units, bool? excluded}) {
     return FloorConfigEntry(
@@ -39,10 +43,12 @@ class CreatePropertyBottomSheet extends ConsumerStatefulWidget {
   const CreatePropertyBottomSheet({Key? key}) : super(key: key);
 
   @override
-  ConsumerState<CreatePropertyBottomSheet> createState() => _CreatePropertyBottomSheetState();
+  ConsumerState<CreatePropertyBottomSheet> createState() =>
+      _CreatePropertyBottomSheetState();
 }
 
-class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottomSheet>
+class _CreatePropertyBottomSheetState
+    extends ConsumerState<CreatePropertyBottomSheet>
     with TickerProviderStateMixin {
   PropertyFormType _selectedType = PropertyFormType.apartment;
 
@@ -99,7 +105,9 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
 
   // Tüm hariç olmayan katlardaki toplam birim sayısı
   int get _totalUnits {
-    return _floorConfig.where((f) => !f.excluded).fold(0, (sum, f) => sum + f.units);
+    return _floorConfig
+        .where((f) => !f.excluded)
+        .fold(0, (sum, f) => sum + f.units);
   }
 
   // Toplam kat sayısı (hariç olanlar dahil değil)
@@ -109,11 +117,15 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
 
   // Kat listesini oluştur / güncelle
   void _initFloorConfig() {
-    _floorConfig = _floorRange.map((f) => FloorConfigEntry(
-      floor: f,
-      units: _defaultUnitsPerFloor,
-      excluded: false,
-    )).toList();
+    _floorConfig = _floorRange
+        .map(
+          (f) => FloorConfigEntry(
+            floor: f,
+            units: _defaultUnitsPerFloor,
+            excluded: false,
+          ),
+        )
+        .toList();
   }
 
   // Tüm katlara varsayılan birim sayısını uygula
@@ -174,11 +186,11 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
   String get _typeString {
     switch (_selectedType) {
       case PropertyFormType.apartment:
-        return 'apartment_complex';  // Backend: apartment_complex
+        return 'apartment_complex'; // Backend: apartment_complex
       case PropertyFormType.apartmentUnit:
-        return 'apartment_unit';     // Backend: apartment_unit (YENİ)
+        return 'apartment_unit'; // Backend: apartment_unit (YENİ)
       case PropertyFormType.villa:
-        return 'standalone_house';  // Backend: standalone_house
+        return 'standalone_house'; // Backend: standalone_house
       case PropertyFormType.land:
         return 'land';
       case PropertyFormType.commercial:
@@ -199,12 +211,27 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
     }
   }
 
+  String _getNameHint() {
+    switch (_selectedType) {
+      case PropertyFormType.apartment:
+        return "Örn: Atatürk Sitesi";
+      case PropertyFormType.apartmentUnit:
+        return "Örn: Atatürk Apartmanı";
+      case PropertyFormType.villa:
+        return "Örn: Atatürk Villa";
+      case PropertyFormType.land:
+        return "Örn: Atatürk Arsa";
+      case PropertyFormType.commercial:
+        return "Örn: Atatürk İş Merkezi";
+    }
+  }
+
   void _submit() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Lütfen mülk adını girin!")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Lütfen mülk adını girin!")));
       return;
     }
 
@@ -223,22 +250,30 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
       // floor_config hazırla
       List<Map<String, dynamic>>? floorConfigPayload;
       if (isApartment && _floorConfig.isNotEmpty) {
-        floorConfigPayload = _floorConfig.map((f) => {
-          'floor': f.floor,
-          'units': f.units,
-          'exclude': f.excluded,
-        }).toList();
+        floorConfigPayload = _floorConfig
+            .map(
+              (f) => {
+                'floor': f.floor,
+                'units': f.units,
+                'exclude': f.excluded,
+              },
+            )
+            .toList();
       }
 
-      final response = await ref.read(propertiesProvider.notifier).createProperty(
-        name: name,
-        type: _typeString,
-        address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
-        centralDues: int.tryParse(_duesController.text) ?? 0,
-        features: featuresMap.isNotEmpty ? featuresMap : null,
-        floorConfig: floorConfigPayload,
-        listingType: _getListingTypeString(),
-      );
+      final response = await ref
+          .read(propertiesProvider.notifier)
+          .createProperty(
+            name: name,
+            type: _typeString,
+            address: _addressController.text.trim().isEmpty
+                ? null
+                : _addressController.text.trim(),
+            centralDues: int.tryParse(_duesController.text) ?? 0,
+            features: featuresMap.isNotEmpty ? featuresMap : null,
+            floorConfig: floorConfigPayload,
+            listingType: _getListingTypeString(),
+          );
 
       if (mounted) {
         if (response != null) {
@@ -304,10 +339,7 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
               child: AnimatedBuilder(
                 animation: _fadeSlide,
                 builder: (context, child) {
-                  return Opacity(
-                    opacity: _fadeSlide.value,
-                    child: child,
-                  );
+                  return Opacity(opacity: _fadeSlide.value, child: child);
                 },
                 child: _wizardStep == 0
                     ? _buildWizardStep0()
@@ -328,117 +360,176 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 28),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Header
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.charcoal.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(14),
+          // Header — tamamen ortalanmış
+          Center(
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF7B5EA7).withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    Icons.add_location_alt,
+                    color: Color(0xFF9B7FD4),
+                    size: 28,
+                  ),
                 ),
-                child: const Icon(Icons.add_location_alt, color: AppColors.charcoal, size: 24),
-              ),
-              const SizedBox(width: 14),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Yeni Mülk Ekle",
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Text(
-                      "Mülk tipini ve işlem türünü seçin",
-                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                    ),
-                  ],
+                const SizedBox(height: 14),
+                const Text(
+                  "Yeni Mülk Ekle",
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    letterSpacing: 0.5,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 4),
+                const Text(
+                  "Mülk tipini ve işlem türünü seçin",
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 36),
 
-          // İŞLEM TİPİ SEÇİMİ
+          // İŞLEM TİPİ — ortalanmış
           const Text(
-            "İŞLEM TİPİ",
+            "MÜLK İŞLEM TİPİ",
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: FontWeight.w700,
               color: AppColors.textSecondary,
               letterSpacing: 1.5,
             ),
           ),
           const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
+          // Row'ı Center ile sar
+          Center(
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                _buildListingTypeChip("KİRALIK", Icons.home, ListingType.forRent),
-                const SizedBox(width: 8),
-                _buildListingTypeChip("SATILIK", Icons.sell, ListingType.forSale),
-                const SizedBox(width: 8),
-                _buildListingTypeChip("HER İKİSİ", Icons.swap_horiz, ListingType.both),
+                _buildListingTypeChip(
+                  "KİRALIK",
+                  Icons.home,
+                  ListingType.forRent,
+                ),
+                const SizedBox(width: 10),
+                _buildListingTypeChip(
+                  "SATILIK",
+                  Icons.sell,
+                  ListingType.forSale,
+                ),
+                const SizedBox(width: 10),
+                _buildListingTypeChip(
+                  "HER İKİSİ",
+                  Icons.swap_horiz,
+                  ListingType.both,
+                ),
               ],
             ),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 24),
+          // Çizgi ayırıcı
+          Container(
+            width: 180,
+            height: 1,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.transparent,
+                  const Color(0xFF9B7FD4).withValues(alpha: 0.5),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
 
-          // MÜLK TİPİ SEÇİMİ
+          // MÜLK TİPİ — ortalanmış
           const Text(
             "MÜLK TİPİ",
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: FontWeight.w700,
               color: AppColors.textSecondary,
               letterSpacing: 1.5,
             ),
           ),
-          const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
+          const SizedBox(height: 14),
+          // Kartlar ortalanmış grid
+          Center(
+            child: Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              alignment: WrapAlignment.center,
               children: [
-                _buildTypeChip("APARTMAN/SİTE", Icons.apartment, PropertyFormType.apartment),
-                const SizedBox(width: 8),
-                _buildTypeChip("APARTMAN DAİRESİ", Icons.meeting_room, PropertyFormType.apartmentUnit),
-                const SizedBox(width: 8),
-                _buildTypeChip("MÜSTAKİL EV", Icons.villa, PropertyFormType.villa),
-                const SizedBox(width: 8),
-                _buildTypeChip("ARSA/TARLA", Icons.landscape, PropertyFormType.land),
-                const SizedBox(width: 8),
-                _buildTypeChip("DÜKKAN", Icons.storefront, PropertyFormType.commercial),
+                _buildPropertyTypeCard(
+                  "APARTMAN/SİTE",
+                  Icons.apartment,
+                  PropertyFormType.apartment,
+                ),
+                _buildPropertyTypeCard(
+                  "APARTMAN DAİRESİ",
+                  Icons.meeting_room,
+                  PropertyFormType.apartmentUnit,
+                ),
+                _buildPropertyTypeCard(
+                  "MÜSTAKİL EV",
+                  Icons.villa,
+                  PropertyFormType.villa,
+                ),
+                _buildPropertyTypeCard(
+                  "ARSA/TARLA",
+                  Icons.landscape,
+                  PropertyFormType.land,
+                ),
+                _buildPropertyTypeCard(
+                  "DÜKKAN",
+                  Icons.storefront,
+                  PropertyFormType.commercial,
+                ),
               ],
             ),
           ),
-          const SizedBox(height: 40),
+          const SizedBox(height: 32),
 
-          // DEVAM BUTONU
+          // DEVAM BUTONU — ortalanmış ve geniş
           SizedBox(
-            width: double.infinity,
+            width: 220,
             child: ElevatedButton(
               onPressed: _canProceed() ? _proceedToForm : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: _canProceed() ? AppColors.charcoal : AppColors.charcoal.withValues(alpha: 0.5),
+                backgroundColor: _canProceed()
+                    ? const Color(0xFF7B5EA7)
+                    : const Color(0xFF7B5EA7).withValues(alpha: 0.4),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                 ),
+                elevation: _canProceed() ? 4 : 0,
+                shadowColor: const Color(0xFF7B5EA7).withValues(alpha: 0.4),
               ),
               child: const Text(
                 "DEVAM",
-                style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1),
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.5,
+                  fontSize: 13,
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
         ],
       ),
     );
@@ -455,13 +546,19 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
           color: isSelected ? AppColors.charcoal : AppColors.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? AppColors.charcoal : Colors.white.withValues(alpha: 0.08),
+            color: isSelected
+                ? AppColors.charcoal
+                : Colors.white.withValues(alpha: 0.08),
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 18, color: isSelected ? Colors.white : AppColors.textSecondary),
+            Icon(
+              icon,
+              size: 18,
+              color: isSelected ? Colors.white : AppColors.textSecondary,
+            ),
             const SizedBox(width: 8),
             Text(
               label,
@@ -477,7 +574,7 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
     );
   }
 
-  bool _canProceed() => _selectedListingType != null;
+  bool _canProceed() => _selectedListingType != null && _selectedType != null;
 
   void _proceedToForm() => setState(() => _wizardStep = 1);
 
@@ -502,7 +599,11 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.arrow_back, size: 16, color: AppColors.textPrimary),
+                  child: const Icon(
+                    Icons.arrow_back,
+                    size: 16,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -535,13 +636,29 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                _buildTypeChip("APARTMAN / SİTE", Icons.apartment, PropertyFormType.apartment),
+                _buildTypeChip(
+                  "APARTMAN / SİTE",
+                  Icons.apartment,
+                  PropertyFormType.apartment,
+                ),
                 const SizedBox(width: 8),
-                _buildTypeChip("MÜSTAKİL EV", Icons.villa, PropertyFormType.villa),
+                _buildTypeChip(
+                  "MÜSTAKİL EV",
+                  Icons.villa,
+                  PropertyFormType.villa,
+                ),
                 const SizedBox(width: 8),
-                _buildTypeChip("ARSA / TARLA", Icons.landscape, PropertyFormType.land),
+                _buildTypeChip(
+                  "ARSA / TARLA",
+                  Icons.landscape,
+                  PropertyFormType.land,
+                ),
                 const SizedBox(width: 8),
-                _buildTypeChip("DÜKKAN", Icons.storefront, PropertyFormType.commercial),
+                _buildTypeChip(
+                  "DÜKKAN",
+                  Icons.storefront,
+                  PropertyFormType.commercial,
+                ),
               ],
             ),
           ),
@@ -550,15 +667,17 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
           // ORTAK ALANLAR
           _buildTextField(
             controller: _nameController,
-            label: "Mülk Adı",
-            hint: "Örn: Boğaz Evleri Sitesi",
+            label: _selectedType == PropertyFormType.apartmentUnit
+                ? "Apartman Adı"
+                : "Mülk Adı",
+            hint: _getNameHint(),
             icon: Icons.badge_outlined,
           ),
           const SizedBox(height: 16),
           _buildTextField(
             controller: _addressController,
             label: "Adres (Opsiyonel)",
-            hint: "Örn: Atatürk Cad. No:42, Beşiktaş",
+            hint: "Örn: Atatürk Cad. No:42, Kadıköy",
             icon: Icons.location_on_outlined,
           ),
           const SizedBox(height: 16),
@@ -588,40 +707,52 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
                         SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         ),
                         SizedBox(width: 12),
                         Text(
                           "OTONOM ÜRETİM ÇALIŞTIRILIYOR...",
-                          style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1,
+                          ),
                         ),
                       ],
                     )
                   : _isCreated
-                      ? Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.check_circle, size: 20),
-                            const SizedBox(width: 8),
-                            Text(
-                              "✅ $_createdUnitsCount DAIRE OLUŞTURULDU!",
-                              style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1),
-                            ),
-                          ],
-                        )
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.rocket_launch, size: 20),
-                            const SizedBox(width: 8),
-                            Text(
-                              _selectedType == PropertyFormType.apartment
-                                  ? "OTONOM İNŞAATA BAŞLA"
-                                  : "MÜLK EKLE",
-                              style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1),
-                            ),
-                          ],
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.check_circle, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          "✅ $_createdUnitsCount DAIRE OLUŞTURULDU!",
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1,
+                          ),
                         ),
+                      ],
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.rocket_launch, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          _selectedType == PropertyFormType.apartment
+                              ? "OTONOM İNŞAATA BAŞLA"
+                              : "MÜLK EKLE",
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
+                    ),
             ),
           ),
           const SizedBox(height: 16),
@@ -654,7 +785,9 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
           color: isSelected ? AppColors.charcoal : AppColors.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? AppColors.charcoal : Colors.white.withValues(alpha: 0.08),
+            color: isSelected
+                ? AppColors.charcoal
+                : Colors.white.withValues(alpha: 0.08),
           ),
         ),
         child: Row(
@@ -681,12 +814,71 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
     );
   }
 
+  // Kart şeklinde mülk tipi seçimi (beyaz-mor tema)
+  Widget _buildPropertyTypeCard(
+    String label,
+    IconData icon,
+    PropertyFormType type,
+  ) {
+    final isSelected = _selectedType == type;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedType = type),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: (MediaQuery.of(context).size.width - 80) / 2, // 2 sütun
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xFF7B5EA7) // Seçili mor
+              : Colors.white.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF9B7FD4)
+                : Colors.white.withValues(alpha: 0.15),
+            width: isSelected ? 2 : 1,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF7B5EA7).withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 28,
+              color: isSelected ? Colors.white : AppColors.textSecondary,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: isSelected ? Colors.white : AppColors.textSecondary,
+                letterSpacing: 0.2,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildDynamicFields() {
     switch (_selectedType) {
       case PropertyFormType.apartment:
         return _buildApartmentFields();
       case PropertyFormType.apartmentUnit:
-        return _buildApartmentUnitFields();  // YENİ
+        return _buildApartmentUnitFields(); // YENİ
       case PropertyFormType.villa:
         return _buildVillaFields();
       case PropertyFormType.land:
@@ -730,7 +922,9 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
         // ── AIDAT VE ÖZELLİKLER ──────────────────────────────────
         Row(
           children: [
-            Expanded(child: _buildNumberField(_blocksController, "Blok Sayısı")),
+            Expanded(
+              child: _buildNumberField(_blocksController, "Blok Sayısı"),
+            ),
             const SizedBox(width: 12),
             Expanded(child: _buildNumberField(_duesController, "Aidat (₺)")),
           ],
@@ -749,14 +943,18 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
         final isCompleted = idx < _currentStep;
         return Expanded(
           child: GestureDetector(
-            onTap: idx < _currentStep ? () => setState(() => _currentStep = idx) : null,
+            onTap: idx < _currentStep
+                ? () => setState(() => _currentStep = idx)
+                : null,
             child: Row(
               children: [
                 Container(
                   width: 28,
                   height: 28,
                   decoration: BoxDecoration(
-                    color: isActive ? AppColors.charcoal : (isCompleted ? Colors.green : AppColors.surface),
+                    color: isActive
+                        ? AppColors.charcoal
+                        : (isCompleted ? Colors.green : AppColors.surface),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: isActive ? AppColors.charcoal : Colors.white12,
@@ -770,7 +968,9 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w800,
-                              color: isActive ? Colors.white : AppColors.textSecondary,
+                              color: isActive
+                                  ? Colors.white
+                                  : AppColors.textSecondary,
                             ),
                           ),
                   ),
@@ -813,7 +1013,11 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
               flex: 1,
               child: Text(
                 "Başlangıç Katı",
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
               ),
             ),
             Expanded(
@@ -829,7 +1033,10 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
                     value: _startFloor,
                     isExpanded: true,
                     dropdownColor: AppColors.surface,
-                    style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textPrimary,
+                    ),
                     items: List.generate(25, (i) {
                       final floor = i - 4; // -4'ten 20'ye
                       return DropdownMenuItem(
@@ -860,7 +1067,11 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
               flex: 1,
               child: Text(
                 "En Üst Kat",
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
               ),
             ),
             Expanded(
@@ -868,13 +1079,21 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
               child: TextField(
                 controller: _endFloorController,
                 keyboardType: TextInputType.number,
-                style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 14,
+                ),
                 decoration: InputDecoration(
                   hintText: "Örn: 12",
-                  hintStyle: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.4)),
+                  hintStyle: TextStyle(
+                    color: AppColors.textSecondary.withValues(alpha: 0.4),
+                  ),
                   filled: true,
                   fillColor: AppColors.surface,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
@@ -896,21 +1115,35 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
               flex: 1,
               child: Text(
                 "Her Katta Kaç Daire",
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
               ),
             ),
             Expanded(
               flex: 1,
               child: TextField(
-                controller: TextEditingController(text: _defaultUnitsPerFloor.toString()),
+                controller: TextEditingController(
+                  text: _defaultUnitsPerFloor.toString(),
+                ),
                 keyboardType: TextInputType.number,
-                style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 14,
+                ),
                 decoration: InputDecoration(
                   hintText: "Örn: 4",
-                  hintStyle: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.4)),
+                  hintStyle: TextStyle(
+                    color: AppColors.textSecondary.withValues(alpha: 0.4),
+                  ),
                   filled: true,
                   fillColor: AppColors.surface,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
@@ -946,7 +1179,9 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
               foregroundColor: AppColors.charcoal,
               side: const BorderSide(color: AppColors.border),
               padding: const EdgeInsets.symmetric(vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           ),
         ),
@@ -958,17 +1193,26 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
           decoration: BoxDecoration(
             color: AppColors.charcoal.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.charcoal.withValues(alpha: 0.2)),
+            border: Border.all(
+              color: AppColors.charcoal.withValues(alpha: 0.2),
+            ),
           ),
           child: Row(
             children: [
-              const Icon(Icons.info_outline, size: 18, color: AppColors.charcoal),
+              const Icon(
+                Icons.info_outline,
+                size: 18,
+                color: AppColors.charcoal,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   "Kat aralığı: ${_floorLabel(_startFloor)} → ${_floorLabel(int.tryParse(_endFloorController.text) ?? 8)}\n"
                   "Toplam kat: ${_floorRange.length} | Toplam daire: ~${_floorRange.length * _defaultUnitsPerFloor}",
-                  style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ),
             ],
@@ -990,7 +1234,9 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
               backgroundColor: AppColors.charcoal,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
         ),
@@ -1014,13 +1260,21 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.arrow_back, size: 16, color: AppColors.textPrimary),
+                child: const Icon(
+                  Icons.arrow_back,
+                  size: 16,
+                  color: AppColors.textPrimary,
+                ),
               ),
             ),
             const SizedBox(width: 12),
             const Text(
               "Her Katı Düzenle",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+              ),
             ),
             const Spacer(),
             Container(
@@ -1031,7 +1285,11 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
               ),
               child: Text(
                 "$_totalFloors kat × $_totalUnits daire",
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.charcoal),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.charcoal,
+                ),
               ),
             ),
           ],
@@ -1062,9 +1320,14 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
                   foregroundColor: AppColors.textSecondary,
                   side: const BorderSide(color: AppColors.border),
                   padding: const EdgeInsets.symmetric(vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
-                child: const Text("-1 Tüm Katlardan", style: TextStyle(fontSize: 11)),
+                child: const Text(
+                  "-1 Tüm Katlardan",
+                  style: TextStyle(fontSize: 11),
+                ),
               ),
             ),
             const SizedBox(width: 8),
@@ -1081,9 +1344,14 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
                   foregroundColor: AppColors.textSecondary,
                   side: const BorderSide(color: AppColors.border),
                   padding: const EdgeInsets.symmetric(vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
-                child: const Text("+1 Tüm Katlara", style: TextStyle(fontSize: 11)),
+                child: const Text(
+                  "+1 Tüm Katlara",
+                  style: TextStyle(fontSize: 11),
+                ),
               ),
             ),
           ],
@@ -1101,7 +1369,9 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
               backgroundColor: Colors.green.shade700,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
         ),
@@ -1115,7 +1385,9 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
     final grouped = <int, List<String>>{};
     for (var entry in _floorConfig) {
       if (!entry.excluded) {
-        final startDoor = grouped.isEmpty ? 1 : grouped.values.fold(0, (sum, list) => sum + list.length) + 1;
+        final startDoor = grouped.isEmpty
+            ? 1
+            : grouped.values.fold(0, (sum, list) => sum + list.length) + 1;
         final List<String> floorDoors = [];
         for (int i = 0; i < entry.units; i++) {
           floorDoors.add((startDoor + i).toString());
@@ -1138,13 +1410,21 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.arrow_back, size: 16, color: AppColors.textPrimary),
+                child: const Icon(
+                  Icons.arrow_back,
+                  size: 16,
+                  color: AppColors.textPrimary,
+                ),
               ),
             ),
             const SizedBox(width: 12),
             const Text(
               "Ön İzleme",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+              ),
             ),
           ],
         ),
@@ -1155,7 +1435,10 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [AppColors.charcoal, AppColors.charcoal.withValues(alpha: 0.7)],
+              colors: [
+                AppColors.charcoal,
+                AppColors.charcoal.withValues(alpha: 0.7),
+              ],
             ),
             borderRadius: BorderRadius.circular(14),
           ),
@@ -1165,7 +1448,10 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
               const SizedBox(width: 12),
               _buildSummaryBox("Toplam Daire", "$_totalUnits"),
               const SizedBox(width: 12),
-              _buildSummaryBox("Kapı Aralığı", doors.isNotEmpty ? "1 - ${doors.last}" : "—"),
+              _buildSummaryBox(
+                "Kapı Aralığı",
+                doors.isNotEmpty ? "1 - ${doors.last}" : "—",
+              ),
             ],
           ),
         ),
@@ -1184,7 +1470,9 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.06),
+                    ),
                   ),
                   child: Row(
                     children: [
@@ -1198,7 +1486,11 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
                         child: Center(
                           child: Text(
                             _floorLabel(entry.floor),
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.charcoal),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.charcoal,
+                            ),
                           ),
                         ),
                       ),
@@ -1209,14 +1501,23 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
                           runSpacing: 5,
                           children: floorDoors.map((door) {
                             return Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
-                                color: AppColors.charcoal.withValues(alpha: 0.15),
+                                color: AppColors.charcoal.withValues(
+                                  alpha: 0.15,
+                                ),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
                                 "Kapi $door",
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
+                                ),
                               ),
                             );
                           }).toList(),
@@ -1227,11 +1528,17 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
                           setState(() {
                             final idx = _floorConfig.indexOf(entry);
                             if (idx >= 0) {
-                              _floorConfig[idx] = entry.copyWith(excluded: true);
+                              _floorConfig[idx] = entry.copyWith(
+                                excluded: true,
+                              );
                             }
                           });
                         },
-                        icon: const Icon(Icons.remove_circle_outline, size: 20, color: Colors.red),
+                        icon: const Icon(
+                          Icons.remove_circle_outline,
+                          size: 20,
+                          color: Colors.red,
+                        ),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                       ),
@@ -1254,7 +1561,9 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
                   foregroundColor: Colors.white,
                   side: const BorderSide(color: AppColors.border),
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: const Text("← Geri Düzenle"),
               ),
@@ -1267,10 +1576,14 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
                 icon: const Icon(Icons.check, size: 18),
                 label: Text("$_totalUnits Daire Oluştur"),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _totalUnits > 0 ? Colors.green.shade700 : Colors.grey,
+                  backgroundColor: _totalUnits > 0
+                      ? Colors.green.shade700
+                      : Colors.grey,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ),
@@ -1286,11 +1599,18 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
         children: [
           Text(
             value,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.white),
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+            ),
           ),
           Text(
             label,
-            style: TextStyle(fontSize: 10, color: Colors.white.withValues(alpha: 0.7)),
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.white.withValues(alpha: 0.7),
+            ),
           ),
         ],
       ),
@@ -1302,10 +1622,14 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: entry.excluded ? AppColors.surface.withValues(alpha: 0.3) : AppColors.surface,
+        color: entry.excluded
+            ? AppColors.surface.withValues(alpha: 0.3)
+            : AppColors.surface,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: entry.excluded ? Colors.red.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.06),
+          color: entry.excluded
+              ? Colors.red.withValues(alpha: 0.3)
+              : Colors.white.withValues(alpha: 0.06),
         ),
       ),
       child: Row(
@@ -1315,7 +1639,9 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: entry.excluded ? Colors.red.withValues(alpha: 0.1) : AppColors.charcoal.withValues(alpha: 0.2),
+              color: entry.excluded
+                  ? Colors.red.withValues(alpha: 0.1)
+                  : AppColors.charcoal.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Center(
@@ -1340,7 +1666,9 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
                   onPressed: entry.units > 0
                       ? () {
                           setState(() {
-                            _floorConfig[idx] = entry.copyWith(units: entry.units - 1);
+                            _floorConfig[idx] = entry.copyWith(
+                              units: entry.units - 1,
+                            );
                           });
                         }
                       : null,
@@ -1358,7 +1686,9 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w900,
-                      color: entry.excluded ? AppColors.textSecondary : Colors.white,
+                      color: entry.excluded
+                          ? AppColors.textSecondary
+                          : Colors.white,
                     ),
                   ),
                 ),
@@ -1366,7 +1696,9 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
                 IconButton(
                   onPressed: () {
                     setState(() {
-                      _floorConfig[idx] = entry.copyWith(units: entry.units + 1);
+                      _floorConfig[idx] = entry.copyWith(
+                        units: entry.units + 1,
+                      );
                     });
                   },
                   icon: const Icon(Icons.add_circle, size: 22),
@@ -1388,7 +1720,9 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: entry.excluded ? Colors.red.withValues(alpha: 0.15) : Colors.green.withValues(alpha: 0.15),
+                color: entry.excluded
+                    ? Colors.red.withValues(alpha: 0.15)
+                    : Colors.green.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -1505,17 +1839,33 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: _buildTextField2(_parcelController, "Ada", "Örn: 1234")),
+            Expanded(
+              child: _buildTextField2(_parcelController, "Ada", "Örn: 1234"),
+            ),
             const SizedBox(width: 12),
-            Expanded(child: _buildTextField2(_parcelController, "Parsel", "Örn: 567")),
+            Expanded(
+              child: _buildTextField2(_parcelController, "Parsel", "Örn: 567"),
+            ),
           ],
         ),
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: _buildTextField2(_cadastreController, "İmar Durumu", "Örn: Konut")),
+            Expanded(
+              child: _buildTextField2(
+                _cadastreController,
+                "İmar Durumu",
+                "Örn: Konut",
+              ),
+            ),
             const SizedBox(width: 12),
-            Expanded(child: _buildTextField2(_areaController, "Alan (m²)", "Örn: 1200")),
+            Expanded(
+              child: _buildTextField2(
+                _areaController,
+                "Alan (m²)",
+                "Örn: 1200",
+              ),
+            ),
           ],
         ),
       ],
@@ -1538,7 +1888,9 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: _buildNumberField(_shopCountController, "İşyeri Sayısı")),
+            Expanded(
+              child: _buildNumberField(_shopCountController, "İşyeri Sayısı"),
+            ),
             const SizedBox(width: 12),
             Expanded(child: _buildNumberField(_rentController, "Kira (₺)")),
           ],
@@ -1648,7 +2000,9 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
         labelText: label,
         hintText: hint,
         labelStyle: const TextStyle(color: AppColors.textSecondary),
-        hintStyle: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.4)),
+        hintStyle: TextStyle(
+          color: AppColors.textSecondary.withValues(alpha: 0.4),
+        ),
         prefixIcon: Icon(icon, color: AppColors.charcoal, size: 20),
         filled: true,
         fillColor: AppColors.surface,
@@ -1664,7 +2018,11 @@ class _CreatePropertyBottomSheetState extends ConsumerState<CreatePropertyBottom
     );
   }
 
-  Widget _buildTextField2(TextEditingController controller, String label, String hint) {
+  Widget _buildTextField2(
+    TextEditingController controller,
+    String label,
+    String hint,
+  ) {
     return TextField(
       controller: controller,
       style: const TextStyle(color: AppColors.textPrimary),

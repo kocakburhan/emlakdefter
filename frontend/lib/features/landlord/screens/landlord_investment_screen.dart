@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/colors.dart';
 import '../providers/landlord_provider.dart';
@@ -457,7 +458,7 @@ class _LandlordInvestmentScreenState extends ConsumerState<LandlordInvestmentScr
   }
 
   void _sendInterestMessage(LandlordVacantUnit unit) async {
-    Navigator.pop(context);
+    context.pop();
     try {
       final resp = await ApiClient.dio.post('/landlord/conversations', data: {
         'property_id': unit.propertyId,

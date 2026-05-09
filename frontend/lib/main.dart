@@ -12,11 +12,30 @@ import 'core/offline/connectivity_service.dart';
 import 'core/offline/sync_service.dart';
 import 'core/notifications/fcm_service.dart';
 import 'core/network/api_client.dart';
+import 'core/utils/web_back_button_handler.dart';
+import 'features/auth/providers/auth_provider.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   debugPrint('📩 Arka plan mesajı alındı: ${message.messageId}');
+}
+
+/// Uygulama başlatılırken restore edilmiş token ile user profilini alır
+Future<UserProfile?> _restoreUserProfile() async {
+  // Token restore edilmiş mi kontrol et
+  final token = ApiClient.simpleAuthToken;
+  if (token == null) return null;
+
+  try {
+    final response = await ApiClient.dio.get('/auth/me');
+    if (response.statusCode == 200 && response.data != null) {
+      return UserProfile.fromJson(response.data);
+    }
+  } catch (e) {
+    debugPrint('⚠️ User profile restore edilemedi: $e');
+  }
+  return null;
 }
 
 void main() async {
@@ -52,6 +71,12 @@ void main() async {
     // ── Token Geri Yükleme ───────────────────────────────────────
     await ApiClient.restoreToken();
     debugPrint('[App] Auth token restored');
+
+    // Token restore edildikten sonra user profilini al (chat'te isMine için gerekli)
+    final user = await _restoreUserProfile();
+    if (user != null) {
+      debugPrint('[App] User profile restored: ${user.id}');
+    }
     // ─────────────────────────────────────────────────────────────
 
     // FCM Push Bildirimleri
@@ -74,6 +99,11 @@ void main() async {
 
   await SyncService().initialize();
   debugPrint('[App] SyncService initialized');
+  // ─────────────────────────────────────────────────────────────
+
+  // ── Web Browser Back Button Handler ──────────────────────────
+  WebBackButtonHandler.initialize();
+  debugPrint('[App] WebBackButtonHandler initialized');
   // ─────────────────────────────────────────────────────────────
 
   runApp(const ProviderScope(child: EmlakdefterApp()));

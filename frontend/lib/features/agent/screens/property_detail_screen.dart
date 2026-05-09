@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/network/api_client.dart';
 import 'unit_detail_screen.dart';
@@ -212,7 +213,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen>
                   ),
                   child: const Icon(Icons.arrow_back, size: 20),
                 ),
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => context.pop(),
               ),
               flexibleSpace: FlexibleSpaceBar(
                 titlePadding: const EdgeInsets.only(left: 16, bottom: 16),

@@ -13,6 +13,7 @@ import 'dart:io' show File;
 import '../../../core/theme/colors.dart';
 import '../../../core/network/api_client.dart';
 import '../providers/chat_provider.dart';
+import '../../auth/providers/auth_provider.dart';
 import 'package:record/record.dart';
 
 /// Sohbet Penceresi — WhatsApp tarzı mesaj balonları, düzenle, sil, 30 sn geri al
@@ -44,6 +45,13 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
       vsync: this,
       duration: const Duration(milliseconds: 250),
     );
+    // Set myUserId from auth state
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authState = ref.read(authProvider);
+      if (authState.user != null) {
+        ref.read(chatProvider.notifier).setMyUserId(authState.user!.id);
+      }
+    });
   }
 
   @override
@@ -440,38 +448,36 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
         opacity: value,
         child: Transform.translate(offset: Offset(0, 10 * (1 - value)), child: child),
       ),
-      child: Column(
-        crossAxisAlignment: isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-        children: [
-          if (isFirstInGroup)
-            Padding(
-              padding: const EdgeInsets.only(left: 12, right: 12, top: 12, bottom: 4),
-              child: Text(
-                msg.senderName ?? (isMine ? 'Siz' : 'Karşı taraf'),
-                style: TextStyle(
-                  color: AppColors.textSecondary.withValues(alpha: 0.5),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Column(
+          crossAxisAlignment: isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          children: [
+            if (isFirstInGroup)
+              Padding(
+                padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 2),
+                child: Text(
+                  msg.senderName ?? (isMine ? 'Siz' : 'Karşı taraf'),
+                  style: TextStyle(
+                    color: AppColors.textSecondary.withValues(alpha: 0.5),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-            ),
-          Row(
-            mainAxisAlignment: isMine ? MainAxisAlignment.end : MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              if (!isMine) const SizedBox(width: 36),
-              if (isMine) const Spacer(flex: 1),
-
-              // Bubble
-              Flexible(
-                flex: 5,
-                child: GestureDetector(
+            Row(
+              mainAxisAlignment: isMine ? MainAxisAlignment.end : MainAxisAlignment.start,
+              children: [
+                // Received: left side spacer for avatar
+                if (!isMine) const SizedBox(width: 36),
+                // Bubble
+                GestureDetector(
                   onLongPress: () => _showMessageActions(msg, canEdit, canDelete),
                   child: Container(
                     constraints: BoxConstraints(
                       maxWidth: MediaQuery.of(context).size.width * 0.72,
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
                       color: isMine
                           ? const Color(0xFF2D5A3D)
@@ -484,7 +490,7 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: (isMine ? Colors.black : Colors.black).withValues(alpha: 0.06),
+                          color: Colors.black.withValues(alpha: 0.06),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -493,27 +499,6 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (_replyTo != null && _editingMessage?.id == msg.id) ...[
-                          Container(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            margin: const EdgeInsets.only(bottom: 8),
-                            decoration: BoxDecoration(
-                              border: Border(
-                                left: BorderSide(color: AppColors.charcoal, width: 3),
-                              ),
-                            ),
-                            child: Text(
-                              _replyTo!.message ?? '',
-                              style: TextStyle(
-                                color: AppColors.textSecondary.withValues(alpha: 0.5),
-                                fontSize: 11,
-                                fontStyle: FontStyle.italic,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
                         Text(
                           msg.message ?? '',
                           style: TextStyle(
@@ -537,28 +522,16 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                             if (isMine) ...[
                               const SizedBox(width: 4),
                               if (msg.isPending)
-                                const Icon(
-                                  Icons.access_time,          // §5.2 — Bekliyor saati
-                                  size: 14,
-                                  color: Color(0xFFD4A574),
-                                )
-                              else if (msg.isRead)
                                 Icon(
-                                  Icons.done_all,
+                                  Icons.access_time,
                                   size: 14,
-                                  color: AppColors.success,  // okundu — yeşil
-                                )
-                              else
-                                Icon(
-                                  Icons.done,
-                                  size: 14,
-                                  color: AppColors.textSecondary.withValues(alpha: 0.4),  // gönderildi ama okunmadı
+                                  color: const Color(0xFFD4A574),
                                 ),
                             ],
                             if (msg.isEdited) ...[
                               const SizedBox(width: 4),
                               Text(
-                                '(düzenlendi)',
+                                'düzenlendi',
                                 style: TextStyle(
                                   color: (isMine ? Colors.white : AppColors.textSecondary).withValues(alpha: 0.4),
                                   fontSize: 10,
@@ -572,13 +545,12 @@ class _ChatWindowScreenState extends ConsumerState<ChatWindowScreen>
                     ),
                   ),
                 ),
-              ),
-
-              if (isMine) const Spacer(flex: 1),
-              if (isMine) const SizedBox(width: 36),
-            ],
-          ),
-        ],
+                // Sent: right side spacer
+                if (isMine) const SizedBox(width: 36),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

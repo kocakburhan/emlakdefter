@@ -308,6 +308,208 @@ Mali Rapor ekranındaki (4.1.6) günlük verilerin yıllık stratejik özeti:
 **🔒 Erişim Kısıtlaması**
 Bu ekrana yalnızca **Kurucu Emlakçı (Admin)** rolü erişebilir. Danışman/Çalışan rolündeki kullanıcılar bu ekranı görmez. Bu tasarım, ofisin stratejik finansal verilerinin yetkisiz kişilerce görüntülenmesini engeller.
 
+#### 4.1.11. Otomatik Belge Oluşturma (Detaylı Mimari)
+Bu ekran, emlak ofisinin hukuki süreçlerini otonom hale getiren, zamandan tasarruf sağlayan ve hata oranını minimize eden akıllı belge üretim merkezidir. Emlakçı, manuel olarak uğraşmak yerine sisteme tanımlı şablonlardan otomatik olarak profesyonel belgeler oluşturabilir. Ekran; **Şablon Merkezi**, **Otomatik Doldurma Motoru** ve **Üretilen Belge Arşivinden** oluşur.
+
+---
+
+**A. Şablon Merkezi (Template Library)**
+Sistemin hazır belge şablonları ve emlakçının oluşturduğu özel şablonlar:
+
+*   **Hazır Sistem Şablonları:**
+    *   **Kira Sözleşmesi:** Türkiye yasal mevzuatına uygun, standart kira sözleşmesi şablonu. Kiracı bilgileri, daire bilgileri, kira bedeli, depozito, başlangıç/bitiş tarihleri otomatik doldurulur.
+    *   **Tahliye Taahhütnamesi:** Kiracının evi boşaltacağını taahhüt ettiği resmi belge. Tarih ve imza alanları otomatik oluşturulur.
+    *   **Demirbaş Teslim Tutanağı:** Dairedeki eşyaların ve durumunun teslimat sırasında fotoğraf+text olarak kaydedildiği belge.
+    *   **Ödeme Planı:** Kiracının aylık ödeme takvimi ve miktarlarını gösteren tablo.
+    *   **Aidat Tahsilat Tutanağı:** Aidat ödemelerinin resmi makbuzu.
+    *   **İş Takip Formu:** Bina operasyonları için kullanılan iş emri/bakım formu.
+
+*   **Özel Şablon Oluşturma (Custom Templates):**
+    *   Emlakçı, Word benzeri bir metin editörü ile kendi şablonlarını oluşturabilir.
+    *   **Dinamik Alanlar (Placeholders):** Şablon içinde `{{kiraci_adi}}`, `{{daire_no}}`, `{{kira_bedeli}}`, `{{tarih}}` gibi dinamik alanlar tanımlanır.
+    *   Şablon her kullanıldığında bu alanlar veritabanındaki gerçek verilerle otomatik doldurulur.
+
+*   **Şablon Kategorileri:**
+    *   Kira Sözleşmeleri
+    *   Tahliye Belgeleri
+    *   Teslim Tutanakları
+    *   Finansal Makbuzlar
+    *   İş Emri ve Bakım Formları
+    *   Özel (Kullanıcı Tanımlı)
+
+---
+
+**B. Otomatik Doldurma ve Üretim Motoru (Auto-Fill Engine)**
+Şablon seçildikten sonra çalışan akıllı doldurma motoru:
+
+*   **Bağlantı (Binding) Seçimi:** Emlakçı, belgeyi hangi kiracı/ev sahibi ve daire için oluşturacağını seçer (Dropdown).
+*   **Akıllı Veri Çekme:** Sistem, seçilen kiracının ve dairenin veritabanındaki tüm bilgilerini (ad, TC, telefon, adres, kira bedeli, sözleşme tarihi vb.) otomatik çeker.
+*   **Önizleme (Preview):** Üretilmeden önce belge içeriği tamamen önizlenebilir. Emlakçı gerekirse manuel düzenleme yapabilir.
+*   **Otomatik Tarih Etiketi:** Belge üzerinde üretim tarihi ve belge numarası otomatik basılır.
+*   **İmza Alanı:** Islak imza veya dijital imza (Future) için alan bırakılır.
+*   **Logo ve Marka Entegrasyonu:** Emlak ofisinin logosu ve renkleri belgeye otomatik yansır.
+
+---
+
+**C. Üretilen Belge Arşivi (Document Vault)**
+Oluşturulan tüm belgelerin kronolojik deposu:
+
+*   **Filtreleme:** Kiracı adı, daire, belge tipi veya tarih aralığına göre filtreleme.
+*   **Durum Takibi:** "Bekliyor", "İmzalandı", "Arşivlendi" gibi statüler.
+*   **İndirme ve Paylaşım:** PDF olarak indirme veya kiracıya/ev sahibine doğrudan chat üzerinden gönderme.
+*   **Bağlılık:** Her belge, ilgili kiracı ve daire profiliyle otomatik ilişkilendirilir (Database FK).
+*   **Versiyonlama:** Aynı belge türü için birden fazla versiyon saklanabilir (Güncellenmiş sözleşme vb.).
+
+---
+
+**D. Gelecek Planlaması (Future Roadmap)**
+*   **E-İmza Entegrasyonu:** Kullanıcıların belgeleri dijital olarak imzalayabilmesi (Yasal geçerlilik).
+*   **Şablon AI Asistanı:** "Bana bir kiralama sözleşmesi oluştur" gibi doğal dil komutlarıyla şablon üretimi.
+*   **Otomatik KVKK Uyumlu Gizleme:** Hassas kişisel verilerin belgelerde otomatik maskelenmesi.
+
+#### 4.1.12. Usta Yönetimi ve Operasyon Merkezi (Detaylı Mimari)
+Bu ekran, emlak ofisinin hizmet ağındaki ustalarla ( tesisatçı, elektrikçi, boyacı vb. ) koordinasyonu tek bir merkezden yönettiği, kiracıdan gelen ticket'ların usta havuzuna aktarıldığı ve tüm süreçlerin şeffafça takip edildiği operasyonel kontrol panelidir. Sistem; **Usta Havuzu**, **Operasyon Merkezi** ve **Eşleştirme Motorundan** oluşur.
+
+---
+
+**A. Usta Havuzu (Craftsman Pool)**
+Emlak ofisinin güvenilir ustalarının kayıtlı olduğu referans defteri:
+
+*   **Usta Profilleri:**
+    *   **Kişisel Bilgiler:** Ad, Soyad, Telefon, Uzmanlık Alanları (Çoklu seçim: Tesisat, Elektrik, Boya, Mobilya, Cam, Klima vb.)
+    *   **Çalışma Bölgesi:** Hangi mahalle/semtte çalıştığı (Coğrafi kısıt)
+    *   **Deneyim ve Referanslar:** Çalışma yılı, önceki işlerden fotoğraf/kanıt
+    *   **Puanlama (Rating):** 5 üzerinden puan sistemi (Emlakçı ve kiracı tarafından verilen)
+    *   **Durum:** "Uygun", "Meşgul", "Pasif" durumları
+
+*   **Usta Ekleme:**
+    *   Emlakçı, yeni bir usta eklemek istediğinde form açar.
+    *   Usta daha önce sisteme davet edilmişse (telefon numarası kayıtlıysa) otomatik tanımlanır.
+    *   Yeni usta için telefon numarası girilir → SMS davet gönderilir → Usta kendi profilini tamamlar.
+
+*   **Uzmanlık Kategorileri (Predefined):**
+    *   Tesisat (Su, Kalorifer, Doğalgaz)
+    *   Elektrik
+    *   Boya / Dekorasyon
+    *   Mobilya / Ahşap
+    *   Cam / Pencere
+    *   Klima / Havalandırma
+    *   Asansör Bakım
+    *   Temizlik
+    *   Peyzaj / Bahçe
+    *   Diğer (Özel)
+
+---
+
+**B. Ticket'dan Usta'ya Yönlendirme Akışı (Workflow)**
+
+```
+Kiracı Arıza Bildirimi (Ticket Açılır)
+        ↓
+Emlakçı Destek Ekranına Düşer
+        ↓
+Emlakçı 3 Seçenekten Biri Yapar:
+  1. Ticket'ı Düzenler / Not Ekler / Kendi Çözer
+  2. Usta Havuzuna Gönderir (Genel Yayın)
+  3. Spesifik Bir Usta ile Eşleştirir
+        ↓
+[Seçenek 2 veya 3] → Usta Bildirim Alır
+        ↓
+Usta Ticket'ı Kabul Eder veya Reddeder
+        ↓
+Kabul Ederse → Eşleşme Tamamlanır
+        ↓
+Operasyon Merkezi'nden Süreç Yönetilir
+```
+
+*   **Seçenek 1 - Emlakçı Kendi Çözer:**
+    *   Ticket üzerinde not bırakılır, çözüm açıklaması yazılır.
+    *   "Giderildi" olarak işaretlenir, kiracıya bildirim gider.
+
+*   **Seçenek 2 - Usta Havuzuna Gönder (Broadcast):**
+    *   Ticket, ilgili uzmanlık kategorisindeki tüm ustalara yayınlanır.
+    *   İlk kabul eden usta ile eşleşme yapılır.
+    *   Diğer ustaların bildirimi iptal edilir.
+
+*   **Seçenek 3 - Spesifik Usta Seçimi:**
+    *   Emlakçı, belirli bir ustayı doğrudan seçer.
+    *   Sadece o usta bildirim alır.
+    *   Usta kabul ederse eşleşme tamamlanır; reddederse emlakçıya bildirim gider.
+
+---
+
+**C. Operasyon Merkezi (Operation Hub)**
+Eşleşen ticket'ların ve usta süreçlerinin yönetildiği merkez:
+
+*   **Aktif Operasyonlar Listesi:**
+    *   Devam eden tüm ticket-usta eşleşmeleri listelenir.
+    *   Her satırda: Kiracı, Daire, Arıza Türü, Atanan Usta, Tahmini Süre, Durum bilgisi.
+
+*   **Durum Güncelleme (Usta Tarafından):**
+    *   Usta, kendi profilinden "İşinde" / "Tamamladı" / "Malzeme Bekliyor" gibi durum günceller.
+    *   Her güncelleme, emlakçı ve kiracıya anlık bildirim olarak düşer.
+
+*   **Zamanlama ve Takvim:**
+    *   Usta, randevu tarihi ve saatini sisteme girer.
+    *   Kiracı ve emlakçı bu bilgiyi görür ve takvimlerine ekleyebilir.
+
+*   **Maliyet Takibi:**
+    *   Usta, iş完成后 (completing the work) teklif veya fatura girebilir.
+    *   Bu tutar, emlakçı onayına sunulur.
+    *   Onay sonrası otomatik olarak **Mali Rapor** (4.1.6) ve **Bina Operasyonları** (4.1.9) ekranlarına gider olarak yansır.
+
+*   **Değerlendirme (Rating & Review):**
+    *   İş tamamlandığında hem kiracı hem emlakçı ustaya 1-5 yıldız puan verir.
+    *   Yorum bırakılabilir ( opsiyonel ).
+    *   Puan, ustanın profil sayfasında görünür.
+
+---
+
+**D. Usta Arayüzü (Mobil Uygulama)**
+Ustaların kendilerine özel, sade ve işlevsel bir mobil arayüze sahip olacaktır:
+
+*   **Dashboard:**
+    *   Atanan aktif işler
+    *   Bekleyen teklifler
+    *   Günlük/gelecek haftalık takvim
+
+*   **İş Detayı:**
+    *   Arızanın detaylı açıklaması
+    *   Kiracı iletişim bilgileri
+    *   Daire/adres bilgisi (Harita entegrasyonu)
+    *   Önceki fotoğraflar / Kanıtlar
+
+*   **Durum Güncelleme:**
+    *   "Yolda", "İşteyim", "Tamamlandı", "Malzeme Gerekli" butonları
+    *   Anlık mesajlaşma (Chat) ile emlakçı ve kiracı ile iletişim
+
+*   **Teklif/Fatura Girişi:**
+    *   İş tamamlandığında tutar girişi
+    *   Fatura fotoğrafı yükleme
+
+*   **Randevu Takvimi:**
+    *   Takvim görünümü
+    *   Müsaitlik durumu güncelleme
+
+---
+
+**E. Bildirim Sistemi (Notification Flow)**
+
+*   **Kiracı → Emlakçı:** Yeni ticket açıldığında
+*   **Emlakçı → Usta:** Ticket usta havuzuna gönderildiğinde veya spesifik usta seçildiğinde
+*   **Usta → Emlakçı:** İş kabul edildiğinde, reddedildiğinde, durum güncellendiğinde
+*   **Usta → Kiracı:** Randevu onaylandığında, iş başladığında, tamamlandığında
+*   **Sistem → Emlakçı:** Usta teklifi onay beklediğinde, ödeme gerekli olduğunda
+
+---
+
+**F. Şeffaflık ve Çapraz Rol Görünürlüğü**
+*   **Kiracı:** Kendi açtığı ticket'ın usta atama sürecini ve işin durumunu anlık takip edebilir.
+*   **Ev Sahibi:** 4.3.3 Destek Takibi ekranında, atanan ustanın bilgilerini ve işin durumunu salt okunur olarak görür.
+*   **Emlakçı:** Tüm süreçlerin kontrol merkezinde olduğu için tam görünürlüğe sahiptir.
+
+---
+
 ### 4.2. Kiracı Ekranları (Detaylı Mimari)
 Kiracı arayüzü, kullanıcının sisteme (Web veya Mobil üzerinden) kendi belirlediği şifreyle giriş yaptığı andan itibaren onu karşılayan, salt okunur (read-only) veri panoları ile interaktif iletişim araçlarının harmanlandığı bir müşteri portalıdır.
 
@@ -467,3 +669,19 @@ Sistem, veri izolasyonunu sağlamak için **Row Level Security (RLS)** kullanan,
   - Alanlar: `id`, `agency_id` (FK), `client_user_id` (FK - İletişim kuran kiracı veya ev sahibi), `last_message_at`
 - **`chat_messages` (Sohbet Geçmişi):** WhatsApp benzeri chat arayüzündeki tekil iletiler ve medya.
   - Alanlar: `id`, `conversation_id` (FK), `sender_user_id` (FK), `content` (Text), `attachment_url` (Belge/Foto linki), `is_read` (Boolean), `created_at`
+
+#### G. Otomatik Belge Oluşturma
+- **`document_templates` (Belge Şablonları):** Kira sözleşmesi, tahliye taahhütnamesi gibi önceden tanımlanmış veya özel oluşturulan belge şablonları.
+  - Alanlar: `id`, `agency_id` (FK), `name`, `type` (Enum: 'rental_contract', 'eviction_note', 'inventory_form', 'payment_plan', 'receipt', 'work_order', 'custom'), `content` (JSONB - Şablon içeriği ve dinamik alanlar), `is_system` (Boolean - Sistem şablonu mu?), `created_at`
+- **`generated_documents` (Üretilen Belgeler):** Otomatik oluşturulan belgelerin arşivi.
+  - Alanlar: `id`, `agency_id` (FK), `template_id` (FK), `tenant_id` (Nullable - İlişkili kiracı), `unit_id` (Nullable - İlişkili daire), `document_number` (String - Benzersiz belge numarası), `content` (JSONB - Üretilen içerik), `pdf_url` (String - Üretilen PDF'in saklandığı yer), `status` (Enum: 'draft', 'pending_signature', 'signed', 'archived'), `created_at`, `signed_at`
+
+#### H. Usta Yönetimi ve Operasyon
+- **`craftsmen` (Ustalar):** Emlak ofisinin hizmet aldığı ustaların (tesisatçı, elektrikçi vb.) profilleri.
+  - Alanlar: `id`, `agency_id` (FK), `user_id` (FK - Firebase UID ile bağlı), `full_name`, `phone_number`, `specialties` (JSONB Array - ["plumbing", "electrical", "painting"]), `working_area` (String - Çalışma bölgesi/mahalle), `experience_years` (Integer), `rating` (Decimal - 5 üzerinden ortalama puan), `status` (Enum: 'available', 'busy', 'inactive'), `created_at`
+- **`craftsman_tickets` (Usta Ticket'ları):** Kiracı ticket'larının usta yönlendirme ile eşleşmiş halleri.
+  - Alanlar: `id`, `agency_id` (FK), `original_ticket_id` (FK - support_tickets referansı), `craftsman_id` (FK - craftsman referansı), `assigned_at` (DateTime - Atanma zamanı), `scheduled_at` (DateTime - Planlanan randevu), `completed_at` (DateTime - Tamamlanma zamanı), `status` (Enum: 'assigned', 'in_progress', 'completed', 'cancelled'), `cost` (Decimal - İş maliyeti), `notes` (Text - Usta notları)
+- **`craftsman_ratings` (Usta Değerlendirmeleri):** Ustalara verilen puan ve yorumlar.
+  - Alanlar: `id`, `agency_id` (FK), `craftsman_id` (FK), `ticket_id` (FK), `rater_user_id` (FK - Değerlendirme yapan kullanıcı), `rating` (Integer - 1-5 arası puan), `comment` (Text - Yorum), `created_at`
+- **`craftsman_service_categories` (Usta Hizmet Kategorileri):** Sistemin ön tanımlı hizmet kategorileri.
+  - Alanlar: `id`, `name` (String - "Tesisat", "Elektrik" vb.), `icon` (String - Emoji veya ikon kodu), `is_active` (Boolean)

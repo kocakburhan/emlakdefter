@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/colors.dart';
+import '../../../features/auth/providers/auth_provider.dart';
 import '../providers/admin_provider.dart';
 
 /// Admin Dashboard - Ana admin paneli
@@ -34,11 +35,17 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         backgroundColor: AppColors.charcoal,
         foregroundColor: Colors.white,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: () {
-              // TODO: Logout
-              context.go('/');
+          TextButton.icon(
+            icon: const Icon(Icons.logout, color: Colors.white70, size: 18),
+            label: const Text(
+              'Çıkış yap',
+              style: TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+            onPressed: () async {
+              await ref.read(authProvider.notifier).logOut();
+              if (context.mounted) {
+                context.go('/');
+              }
             },
           ),
         ],

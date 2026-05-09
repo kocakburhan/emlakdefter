@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/network/api_client.dart';
 import '../providers/chat_provider.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../screens/chat_window_screen.dart';
 
 /// Sohbetler Listesi — WhatsApp tarzı, swipe-to-archive, 5 sn undo
@@ -33,8 +34,26 @@ class _ChatTabState extends ConsumerState<ChatTab> with SingleTickerProviderStat
     );
 
     // Fetch conversations on load
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       ref.read(chatProvider.notifier).fetchConversations();
+      // Set myUserId from auth state or /auth/me endpoint
+      final authState = ref.read(authProvider);
+      if (authState.user != null) {
+        ref.read(chatProvider.notifier).setMyUserId(authState.user!.id);
+      } else {
+        // Token var ama auth state'de user yok → /auth/me ile çek
+        try {
+          final response = await ApiClient.dio.get('/auth/me');
+          if (response.statusCode == 200 && response.data != null) {
+            final userId = response.data['id']?.toString();
+            if (userId != null) {
+              ref.read(chatProvider.notifier).setMyUserId(userId);
+            }
+          }
+        } catch (e) {
+          debugPrint('⚠️ User ID alınamadı: $e');
+        }
+      }
       _listAnimController.forward();
     });
   }

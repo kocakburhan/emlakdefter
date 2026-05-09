@@ -60,6 +60,8 @@ dependencies:
   youtube_player_flutter: ^9.1.1          # ✅ EKLENDI — §4.1.3 YouTube video embed
   record: ^6.2.0                         # ✅ EKLENDI — §4.1.8 Sesli mesaj
   firebase_app_check: ^0.4.3
+  url_strategy: ^0.3.0
+  web: ^1.1.1
 
 dev_dependencies:
   flutter_test:

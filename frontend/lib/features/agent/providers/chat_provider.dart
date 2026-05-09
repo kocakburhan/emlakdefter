@@ -242,12 +242,19 @@ class ChatNotifier extends StateNotifier<ChatState> {
     if (convId != state.activeConversation!.id) return;
 
     final msg = ChatMessage.fromJson(data, _myUserId ?? '');
+
+    // Duplicate koruması — aynı mesaj iki kere eklenmesin
+    final exists = state.messages.any((m) => m.id == msg.id);
+    if (exists) return;
+
     if (msg.senderUserId != _myUserId) {
       // Gelen mesaj: listeye ekle ve okundu bildir
       state = state.copyWith(messages: [...state.messages, msg]);
       _ws.markConversationRead(convId);
-      // Ayrıca bu mesajı okundu olarak işaretle (§4.1.8-B)
       markMessageRead(msg.id);
+    } else {
+      // Kendi mesajımız: sadece listeye ekle
+      state = state.copyWith(messages: [...state.messages, msg]);
     }
   }
 
@@ -377,7 +384,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
         final data = {
           'type': 'message',
           'conversation_id': conv.id,
-          'message': hasAttachment ? null : text.trim(),
+          'content': hasAttachment ? null : text.trim(),
           if (hasAttachment) 'attachment_url': attachmentUrl,
         };
         final response = await ApiClient.dio.post('/chat/messages', data: data);

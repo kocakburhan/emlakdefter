@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/colors.dart';
+import '../../../features/auth/providers/auth_provider.dart';
 import '../tabs/tenant_home_tab.dart';
 import '../tabs/tenant_finance_tab.dart';
 import '../tabs/tenant_support_tab.dart';
@@ -8,14 +11,14 @@ import '../tabs/tenant_building_ops_tab.dart';
 import '../tabs/tenant_chat_tab.dart';
 import '../tabs/tenant_explore_tab.dart';
 
-class TenantDashboardScreen extends StatefulWidget {
+class TenantDashboardScreen extends ConsumerStatefulWidget {
   const TenantDashboardScreen({Key? key}) : super(key: key);
 
   @override
-  State<TenantDashboardScreen> createState() => _TenantDashboardScreenState();
+  ConsumerState<TenantDashboardScreen> createState() => _TenantDashboardScreenState();
 }
 
-class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
+class _TenantDashboardScreenState extends ConsumerState<TenantDashboardScreen> {
   int _currentIndex = 0;
 
   void navigateToTab(int index) {
@@ -35,6 +38,27 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.charcoal,
+        foregroundColor: Colors.white,
+        automaticallyImplyLeading: false,
+        actions: [
+          TextButton.icon(
+            icon: const Icon(Icons.logout, color: Colors.white70, size: 18),
+            label: const Text(
+              'Çıkış yap',
+              style: TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+            onPressed: () async {
+              await ref.read(authProvider.notifier).logOut();
+              if (context.mounted) {
+                context.go('/');
+              }
+            },
+          ),
+        ],
+      ),
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
         child: _pages[_currentIndex],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/colors.dart';
 import '../providers/landlord_provider.dart';
@@ -76,7 +77,7 @@ class _LandlordPropertiesScreenState extends ConsumerState<LandlordPropertiesScr
                     ),
                     IconButton(
                       icon: const Icon(Icons.close, color: AppColors.textSecondary),
-                      onPressed: () => Navigator.pop(ctx),
+                      onPressed: () => ctx.pop(),
                     ),
                   ],
                 ),

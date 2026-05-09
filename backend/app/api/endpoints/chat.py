@@ -165,7 +165,14 @@ async def create_conversation(
     )
     db.add(conv)
     await db.commit()
-    await db.refresh(conv)
+
+    # Refresh yerine fresh SELECT yap
+    stmt = select(ChatConversation).where(ChatConversation.id == conv.id)
+    result = await db.execute(stmt)
+    conv = result.scalar_one_or_none()
+    if conv is None:
+        raise HTTPException(status_code=500, detail="Konuşma oluşturulamadı")
+
     return ChatConversationResponse(
         id=conv.id, agency_id=conv.agency_id,
         agent_user_id=conv.agent_user_id, client_user_id=conv.client_user_id,
@@ -188,7 +195,14 @@ async def archive_conversation(
     conv.is_archived = not conv.is_archived
     conv.archived_at = datetime.utcnow().isoformat() if conv.is_archived else None
     await db.commit()
-    await db.refresh(conv)
+
+    # Refresh yerine fresh SELECT yap
+    stmt = select(ChatConversation).where(ChatConversation.id == conv.id)
+    result = await db.execute(stmt)
+    conv = result.scalar_one_or_none()
+    if conv is None:
+        raise HTTPException(status_code=500, detail="Konuşma güncellenemedi")
+
     return ChatConversationResponse.model_validate(conv)
 
 
@@ -261,18 +275,20 @@ async def send_message(
     # Konuşma updated_at güncelle
     conv.updated_at = datetime.utcnow()
     await db.commit()
-    await db.refresh(db_msg)
 
-    # WebSocket ile broadcast
-    await ws_manager.broadcast_to_room({
-        "type": "message",
-        "id": str(db_msg.id),
-        "conversation_id": str(db_msg.conversation_id),
-        "sender_user_id": str(db_msg.sender_user_id),
-        "content": db_msg.content,
-        "attachment_url": db_msg.attachment_url,
-        "created_at": db_msg.created_at.isoformat(),
-    }, str(conv.id))
+    # WebSocket ile broadcast (arkaplan)
+    try:
+        await ws_manager.broadcast_to_room({
+            "type": "message",
+            "id": str(db_msg.id),
+            "conversation_id": str(db_msg.conversation_id),
+            "sender_user_id": str(db_msg.sender_user_id),
+            "content": db_msg.content,
+            "attachment_url": db_msg.attachment_url,
+            "created_at": db_msg.created_at.isoformat(),
+        }, str(conv.id))
+    except Exception:
+        pass  # WebSocket hatası mesaj göndermeyi engellemez
 
     return ChatMessageResponse.model_validate(db_msg)
 
@@ -300,7 +316,13 @@ async def edit_message(
     msg.is_edited = True
     msg.edited_at = datetime.utcnow().isoformat()
     await db.commit()
-    await db.refresh(msg)
+
+    # Refresh yerine fresh SELECT yap
+    stmt = select(ChatMessage).where(ChatMessage.id == msg.id)
+    result = await db.execute(stmt)
+    msg = result.scalar_one_or_none()
+    if msg is None:
+        raise HTTPException(status_code=500, detail="Mesaj güncellenemedi")
 
     await ws_manager.broadcast_to_room({
         "type": "message_edited",
